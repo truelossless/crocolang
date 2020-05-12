@@ -1,0 +1,8 @@
+fn fancy_disp(n num) {
+
+    let fancy = "Your variable equals " + n
+    println(fancy + ". that's nice uh ?")
+}
+
+let bruh = (54^2 + 7) / (12.3+24*7) *0.6
+fancy_disp(bruh)
