@@ -18,6 +18,21 @@ impl TypedArg {
     }
 }
 
+struct ParsedIdentifier {
+    content: AstNode,
+    is_fn_call: bool
+}
+
+impl ParsedIdentifier {
+
+    fn new(content: AstNode, is_fn_call: bool) -> Self {
+        ParsedIdentifier {
+            content,
+            is_fn_call
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Parser {}
 
@@ -63,6 +78,48 @@ impl Parser {
 
         output.push(AstNode::BinaryNode(binary_root_node));
         Ok(())
+    }
+
+    /// Parses an identifier into either a FunctionCallNode or a VariableNode
+    fn parse_identifier(iter: &mut std::iter::Peekable<std::vec::IntoIter<Token>>, identifier_name: &str) -> Result<ParsedIdentifier, String> {
+        
+        let next_token = iter.peek();
+
+        match next_token {
+            Some(Separator(LeftParenthesis)) => (),
+            _ => return Ok(ParsedIdentifier::new(
+                AstNode::LeafNode(Box::new(VarNode::new(identifier_name.to_owned()))),
+                false
+            ))
+        }
+        
+        iter.next();
+        let mut fn_args: Vec<AstNode> = Vec::new();
+
+        loop {   
+            
+            // TODO: avoid hello()) function calls
+            if let Some(Separator(RightParenthesis)) = iter.peek() {
+                iter.next();
+                break;
+            }
+
+            fn_args.push(Parser::parse_expr(iter)?);
+            Parser::discard_newlines(iter);
+
+            match iter.next() {
+                Some(Separator(Comma)) => (),
+                Some(Separator(RightParenthesis)) => break,
+                _ => return Err(format!("unexpected token in {} function call", identifier_name))
+            }
+        }
+
+        println!("{:?}", fn_args);
+
+        Ok(ParsedIdentifier::new(
+            AstNode::NaryNode(Box::new(FunctionCallNode::new(identifier_name.to_owned(), fn_args))),
+            true
+        ))
     }
 
     /// Parses an expression using the shunting-yard algorithm.
@@ -121,7 +178,8 @@ impl Parser {
             let token_expr = iter.next().unwrap(); // we can safely unwrap as we already have peeked
 
             match token_expr {
-                Identifier(_) | Literal(_) => output.push(Parser::get_node(token_expr)?),
+                Identifier(identifier) => output.push(Parser::parse_identifier(iter, &identifier)?.content),
+                Literal(_) => output.push(Parser::get_node(token_expr)?),
                 Operator(_) => {
                     while let Some(top) = stack.last() {
                         match top {
@@ -199,7 +257,7 @@ impl Parser {
         }
 
         if output.is_empty() {
-            return Err("expected an expression after the equals sign".to_string());
+            return Ok(AstNode::LeafNode(Box::new(LiteralNode::new(LiteralEnum::Void))));
         }
 
         Ok(output.pop().unwrap())
@@ -235,7 +293,7 @@ impl Parser {
                         }
                     }
 
-                    let mut assign_type: Option<LiteralEnum> = None;
+                    let mut assign_type: LiteralEnum = LiteralEnum::Void;
 
                     match iter.next().as_ref() {
 
@@ -245,9 +303,9 @@ impl Parser {
                         }
 
                         // we're giving a type annotation
-                        Some(Keyword(Num)) => assign_type = Some(LiteralEnum::Number(None)),
-                        Some(Keyword(Str)) => assign_type = Some(LiteralEnum::Text(None)),
-                        Some(Keyword(Bool)) => assign_type = Some(LiteralEnum::Boolean(None)),
+                        Some(Keyword(Num)) => assign_type = LiteralEnum::Number(None),
+                        Some(Keyword(Str)) => assign_type = LiteralEnum::Text(None),
+                        Some(Keyword(Bool)) => assign_type = LiteralEnum::Boolean(None),
 
                         // newline: we're declaring a variable without value or type
                         // for now we're not able to infer the variable type.
@@ -260,7 +318,7 @@ impl Parser {
                     }
 
                     // if we had a type annotation we need to check again for the variable value
-                    if assign_type.is_some() {
+                    if !assign_type.is_void() {
                         match iter.next() {
                             Some(Operator(Assign)) => {
                                 out_node = Some(Parser::parse_expr(iter)?);
@@ -270,9 +328,9 @@ impl Parser {
                             Some(Separator(NewLine)) => {
                                 
                                 out_node = match assign_type {
-                                    Some(LiteralEnum::Boolean(_)) => Some(Parser::get_node(Literal(LiteralEnum::Boolean(Some(false))))?),
-                                    Some(LiteralEnum::Number(_)) => Some(Parser::get_node(Literal(LiteralEnum::Number(Some(0.))))?),
-                                    Some(LiteralEnum::Text(_)) => Some(Parser::get_node(Literal(LiteralEnum::Text(Some("".to_owned()))))?),
+                                    LiteralEnum::Boolean(_) => Some(Parser::get_node(Literal(LiteralEnum::Boolean(Some(false))))?),
+                                    LiteralEnum::Number(_) => Some(Parser::get_node(Literal(LiteralEnum::Number(Some(0.))))?),
+                                    LiteralEnum::Text(_) => Some(Parser::get_node(Literal(LiteralEnum::Text(Some("".to_owned()))))?),
                                     _ => return Err(format!("cannot infer default value for {}", var_name))
                                 }
                             },
@@ -290,6 +348,15 @@ impl Parser {
 
                 // assigning a new value to a variable, or calling a function
                 Identifier(identifier) => {
+
+                    let parsed_identifier = Parser::parse_identifier(iter, &identifier)?;
+
+                    // we're calling a function
+                    if parsed_identifier.is_fn_call {
+                        block.add_child(parsed_identifier.content);
+                        continue;
+                    }
+
                     let next_token = iter.next();
 
                     match next_token {
@@ -324,28 +391,6 @@ impl Parser {
                                 let op_node = AstNode::BinaryNode(dyn_op_node);
                                 block.add_child(AstNode::BinaryNode(Box::new(AssignmentNode::new(identifier, op_node))));
                             }
-                        }
-
-                        // calling a function
-                        Some(Separator(LeftParenthesis)) => {
-
-                            let mut fn_args: Vec<AstNode> = Vec::new();
-
-                            loop {
-                                
-                                fn_args.push(Parser::parse_expr(iter)?);
-                                Parser::discard_newlines(iter);
-
-                                match iter.next() {
-                                    Some(Separator(Comma)) => (),
-                                    Some(Separator(RightParenthesis)) => break,
-                                    _ => return Err(format!("unexpected token in {} function call", identifier))
-                                }
-
-                            }
-
-                            let func_call = FunctionCallNode::new(identifier, fn_args);
-                            block.add_child(AstNode::NaryNode(Box::new(func_call)));
                         }
                         _ => {
                             return Err(format!(
@@ -441,9 +486,15 @@ impl Parser {
                     block.add_child(AstNode::UnaryNode(Box::new(func_decl)));
                 }
 
+                // returning a value
+                Keyword(Return) => {
+                    let return_node = Parser::parse_expr(iter)?;
+                    block.add_child(AstNode::UnaryNode(Box::new(ReturnNode::new(return_node))));
+                }
+
                 Separator(NewLine) => continue,
                 // TODO: impl line numbers / rows
-                _ => return Err("unexpected token".to_owned()),
+                el => return Err(format!("unexpected token: {:?}", el)),
             }
         }
 

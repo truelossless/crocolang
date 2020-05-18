@@ -1,8 +1,13 @@
-fn fancy_disp(n num) {
+fn i_return_val() num {
 
-    let fancy = "Your variable equals " + n
-    println(fancy + ". that's nice uh ?")
+    return 12
 }
 
-let bruh = (54^2 + 7) / (12.3+24*7) *0.6
-fancy_disp(bruh)
+fn divide_by_6(n num) num {
+    return n/6
+}
+
+let complicado = (i_return_val() + 42)^i_return_val()
+
+println("" + complicado)
+println("" + divide_by_6(24))

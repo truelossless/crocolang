@@ -201,19 +201,20 @@ impl Lexer {
                 }
 
                 // keywords
-                "for" => Keyword(For),
-                "while" => Keyword(While),
-                "fn" => Keyword(Function),
-                "match" => Keyword(Match),
-                "if" => Keyword(If),
+                "bool" => Keyword(Bool),
                 "elif" => Keyword(Elif),
                 "else" => Keyword(Else),
-                "num" => Keyword(Num),
-                "str" => Keyword(Str),
-                "bool" => Keyword(Bool),
+                "fn" => Keyword(Function),
+                "for" => Keyword(For),
+                "if" => Keyword(If),
                 "let" => Keyword(Let),
+                "match" => Keyword(Match),
+                "num" => Keyword(Num),
+                "while" => Keyword(While),
+                "str" => Keyword(Str),
                 "struct" => Keyword(Struct),
                 "test" => Keyword(Test),
+                "return" => Keyword(Return),
 
                 // variables
                 _ if starts_ascii(el) => Identifier(el.to_string()),

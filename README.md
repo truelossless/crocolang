@@ -47,6 +47,11 @@ let bruh = (54^2 + 7) / (12.3+24*7) *0.6
 fancy_disp(bruh)
 ```
 
+#### Output
+```
+Your variable equals 1.0129104. that's nice uh ?
+```
+
 ### Variable assignment
 
 ```croco

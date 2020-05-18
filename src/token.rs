@@ -3,7 +3,20 @@ pub enum LiteralEnum {
     Boolean(Option<bool>),
     Number(Option<f32>),
     Text(Option<String>),
-    Void
+    Void,
+}
+
+pub fn literal_eq(a: &LiteralEnum, b: &LiteralEnum) -> bool {
+    std::mem::discriminant(a) == std::mem::discriminant(b)
+}
+
+impl LiteralEnum {
+    pub fn is_void(&self) -> bool {
+        match &self {
+            LiteralEnum::Void => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
