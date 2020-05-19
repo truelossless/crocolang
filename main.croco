@@ -1,4 +1,6 @@
-// TODO: fix stack overflow >:(
+// TODO: fix stack overflow >:( (900 recursive calls in release, 100 in debug)
+// tail recursion optimization ? would probably need an IR.
+
 fn rec(n num) {
     println("heheehehe " + n)
     rec(n + 1)

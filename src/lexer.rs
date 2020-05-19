@@ -161,7 +161,7 @@ impl Lexer {
                                     break;
                                 }
                             }
-                            continue;
+                            Discard
                         }
                         _ => {
                             Operator(Divide)
@@ -230,6 +230,7 @@ impl Lexer {
 
                 // ignore whitespaces
                 " " => Discard,
+                "\t" => Discard,
                 // _ => Discard
                 _ => return Err(format!("unrecognized symbol: \"{}\"", el)),
             };
