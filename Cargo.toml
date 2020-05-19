@@ -15,5 +15,10 @@ name = "crocolib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "test"
-path = "src/test.rs"
+name = "croco"
+path = "src/croco.rs"
+
+[profile.release]
+panic = "abort"
+lto = true
+debug = 0

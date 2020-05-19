@@ -36,6 +36,23 @@ I'll add a CLI to specify the file path one day.
 
 ## Examples
 
+Fibonacci (quite slow but it works !!!)
+```croco
+fn fib(n num) num {
+
+    if n <= 1 {
+        return n
+    }
+
+    return fib(n - 1) + fib(n - 2)
+}
+
+println("" + fib(20))
+```
+```
+6765
+```
+
 String interpolation and functions
 ```croco
 fn fancy_disp(n num) {

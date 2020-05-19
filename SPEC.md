@@ -43,7 +43,7 @@ foo = 0101011010
 // ERROR !
 ```
 
-## Functions [40%]
+## Functions [60%]
 
 Functions are declared with the `fn` keyword. When they return a value the type should be annotated. A value is returned with the `return` keyword. You can exit early a function without any return value with the `return` keyword as well.
 
@@ -65,6 +65,21 @@ greet()
 let books_sold_today = books_sold()
 ```
 
+## Control flow [20%]
+
+`if`, `elif` and `else` can be used for conditionnal matching.
+
+```croco
+let croco_state = "good"
+
+if croco_state == "bad" {
+    println("croco is trash on wheels")
+} elif croco_state == "good" {
+    println("croco rocks")
+} else {
+    println("croco is neither good or bad")
+}
+```
 
 ## Built-in test framework [0%]
 

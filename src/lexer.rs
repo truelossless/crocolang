@@ -208,6 +208,32 @@ impl Lexer {
                     ret
                 }
 
+                "&" => {
+                    let mut ret = Operator(BitwiseAnd);
+
+                    if let Some(x) = iter.peek() {
+                        if x == &"&" {
+                            iter.next();
+                            ret = Operator(And);
+                        }
+                    }
+
+                    ret
+                }
+
+                "|" => {
+                    let mut ret = Operator(BitwiseOr);
+
+                    if let Some(x) = iter.peek() {
+                        if x == &"|" {
+                            iter.next();
+                            ret = Operator(Or);
+                        }
+                    }
+
+                    ret
+                }
+
                 // keywords
                 "bool" => Keyword(Bool),
                 "elif" => Keyword(Elif),

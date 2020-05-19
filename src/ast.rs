@@ -3,7 +3,7 @@ use dyn_clone::DynClone;
 use std::fmt;
 
 use crate::symbol::{FunctionCall, FunctionKind, SymTable, Symbol};
-use crate::token::{literal_eq, LiteralEnum};
+use crate::token::{literal_eq, LiteralEnum, OperatorEnum};
 
 #[derive(Clone)]
 pub enum AstNode {
@@ -64,6 +64,13 @@ impl NodeResult {
         match self {
             NodeResult::Literal(l) => Ok(l),
             _ => Err("Expected a value but got an early-return keyword".to_owned()),
+        }
+    }
+
+    pub fn into_return(self) -> Result<LiteralEnum, String> {
+        match self {
+            NodeResult::Return(l) => Ok(l),
+            _ => panic!("Expected a return value but got an early-return keyword !!"),
         }
     }
 }
@@ -132,15 +139,21 @@ impl FunctionCallNode {
 // TODO: return fn value
 impl NaryNodeTrait for FunctionCallNode {
     fn visit(&self, symtable: SymTable) -> Result<NodeResult, String> {
-        
         // ensure that we're calling a function
         let fn_decl = match symtable.get_symbol(&self.fn_name) {
             Ok(Symbol::Function(fn_decl)) => fn_decl,
-            Ok(Symbol::Literal(_)) => return Err(format!(
-                "can't call {} as it's a variable and not a function",
-                self.fn_name
-            )),
-            Err(_) => return Err(format!("can't call {} as it hasn't been declared before", self.fn_name))
+            Ok(Symbol::Literal(_)) => {
+                return Err(format!(
+                    "can't call {} as it's a variable and not a function",
+                    self.fn_name
+                ))
+            }
+            Err(_) => {
+                return Err(format!(
+                    "can't call {} as it hasn't been declared before",
+                    self.fn_name
+                ))
+            }
         };
 
         // resolve the function arguments
@@ -198,7 +211,7 @@ impl NaryNodeTrait for FunctionCallNode {
                     ))))
                 }
 
-                return_value = block_node.visit(symtable)?.into_literal()?;
+                return_value = block_node.visit(symtable)?.into_return()?;
             }
 
             FunctionKind::Builtin(builtin_call) => {
@@ -207,10 +220,7 @@ impl NaryNodeTrait for FunctionCallNode {
         }
 
         if !literal_eq(&fn_decl.return_type, &return_value) {
-            return Err(format!(
-                "function {} returned a wrong type",
-                self.fn_name
-            ));
+            return Err(format!("function {} returned a wrong type", self.fn_name));
         }
 
         Ok(NodeResult::Literal(return_value))
@@ -299,17 +309,27 @@ impl NaryNodeTrait for BlockNode {
         // push a new scope
         symtable.add_scope()?;
 
+        // early return from the block
+        let mut value = NodeResult::Literal(LiteralEnum::Void);
+
         for node in &self.body {
-            // early return from the block
-            if let NodeResult::Return(l) = node.visit(symtable.clone())? {
-                symtable.drop_scope()?;
-                return Ok(NodeResult::Literal(l));
+            value = node.visit(symtable.clone())?;
+
+            match value {
+                // propagate the early-returns until something catches it
+                NodeResult::Return(_) | NodeResult::Break | NodeResult::Continue => break,
+                _ => (),
             }
+        }
+
+        // return void if the return value of the block is a literal
+        if let NodeResult::Literal(_) = value {
+            value = NodeResult::Literal(LiteralEnum::Void)
         }
 
         // we're done with this scope, drop it
         symtable.drop_scope()?;
-        Ok(NodeResult::Literal(LiteralEnum::Void))
+        Ok(value)
     }
 }
 
@@ -326,9 +346,10 @@ impl ReturnNode {
 }
 
 impl UnaryNodeTrait for ReturnNode {
-    
     fn visit(&self, symtable: SymTable) -> Result<NodeResult, String> {
-        Ok(NodeResult::Return(self.bottom.visit(symtable)?.into_literal()?))
+        Ok(NodeResult::Return(
+            self.bottom.visit(symtable)?.into_literal()?,
+        ))
     }
 }
 
@@ -355,7 +376,6 @@ impl DeclNode {
 
 impl BinaryNodeTrait for DeclNode {
     fn visit(&self, mut symtable: SymTable) -> Result<NodeResult, String> {
-        
         if symtable.same_scope_symbol(&self.left)? {
             return Err(format!(
                 "The variable {} has already been declared",
@@ -440,23 +460,6 @@ impl LeafNodeTrait for VarNode {
         Ok(NodeResult::Literal(value))
     }
 }
-
-// a node ... doing nothing. THE VOID.
-// It's separated from a literal node to avoid the billion dollar mistake.
-// #[derive(Clone)]
-// pub struct VoidNode {}
-
-// impl VoidNode {
-//     pub fn new() -> Self {
-//         VoidNode {}
-//     }
-// }
-
-// impl LeafNodeTrait for VoidNode {
-//     fn visit(&self, _symtable: SymTable) -> Result<LiteralEnum>, String> {
-//         Ok(None)
-//     }
-// }
 
 // a node holding a literal
 #[derive(Clone)]
@@ -701,5 +704,111 @@ impl BinaryNodeTrait for PowerNode {
                 .powf(get_number_value(&self.right, symtable)?),
         ));
         Ok(NodeResult::Literal(value))
+    }
+}
+
+#[derive(Clone)]
+/// A node used to compare two values, returns a boolean
+pub struct CompareNode {
+    left: Option<AstNode>,
+    right: Option<AstNode>,
+    compare_kind: OperatorEnum,
+}
+
+impl CompareNode {
+    pub fn new(compare_kind: OperatorEnum) -> Self {
+        CompareNode {
+            left: None,
+            right: None,
+            compare_kind,
+        }
+    }
+}
+
+impl BinaryNodeTrait for CompareNode {
+    fn set_left(&mut self, node: AstNode) {
+        self.left = Some(node);
+    }
+
+    fn set_right(&mut self, node: AstNode) {
+        self.right = Some(node);
+    }
+
+    fn visit(&self, symtable: SymTable) -> Result<NodeResult, String> {
+        let left_val = get_value(&self.left, symtable.clone())?;
+        let right_val = get_value(&self.right, symtable)?;
+
+        if !literal_eq(&left_val, &right_val) {
+            return Err("cannot compare different types".to_owned());
+        }
+
+        if (self.compare_kind != OperatorEnum::Equals
+            || self.compare_kind == OperatorEnum::NotEquals)
+            && !left_val.is_num()
+        {
+            return Err("can compare only numbers".to_owned());
+        }
+
+        let value = match self.compare_kind {
+            OperatorEnum::Equals => left_val == right_val,
+            OperatorEnum::NotEquals => left_val != right_val,
+            OperatorEnum::GreaterOrEqual => left_val >= right_val,
+            OperatorEnum::GreaterThan => left_val > right_val,
+            OperatorEnum::LowerOrEqual => left_val <= right_val,
+            OperatorEnum::LowerThan => left_val < right_val,
+            _ => unreachable!(),
+        };
+
+        Ok(NodeResult::Literal(LiteralEnum::Boolean(Some(value))))
+    }
+}
+
+/// a node representing an if statement
+#[derive(Clone)]
+pub struct IfNode {
+    // comparison value (a CompareNode)
+    left: AstNode,
+    // if body (a BlockNode)
+    right: AstNode,
+}
+
+impl IfNode {
+    pub fn new(left: AstNode, right: AstNode) -> Self {
+        IfNode {
+            left,
+            right
+        }
+    }
+}
+
+impl BinaryNodeTrait for IfNode {
+    fn set_left(&mut self, node: AstNode) {
+        self.left = node;
+    }
+
+    fn set_right(&mut self, node: AstNode) {
+        self.right = node;
+    }
+
+    fn visit(&self, symtable: SymTable) -> Result<NodeResult, String> {
+        // there should always be a boolean condition, check if it's fullfilled
+        let cond_ok = self
+            .left
+            .visit(symtable.clone())?
+            .into_literal()?
+            .into_bool();
+
+        if cond_ok {
+            let value = self.right.visit(symtable)?;
+            match value {
+                // propagate the early-return
+                NodeResult::Return(_) | NodeResult::Break | NodeResult::Continue => {
+                    return Ok(value)
+                }
+                _ => (),
+            }
+        }
+
+        Ok(NodeResult::Literal(LiteralEnum::Void))
     }
 }

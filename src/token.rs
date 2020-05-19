@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralEnum {
     Boolean(Option<bool>),
@@ -12,12 +14,46 @@ pub fn literal_eq(a: &LiteralEnum, b: &LiteralEnum) -> bool {
 
 impl LiteralEnum {
     pub fn is_void(&self) -> bool {
-        match &self {
+        match self {
             LiteralEnum::Void => true,
             _ => false
         }
     }
+
+    pub fn is_num(&self) -> bool {
+        match self {
+            LiteralEnum::Number(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn into_bool(self) -> bool {
+        match self {
+            LiteralEnum::Boolean(Some(b)) => b,
+            _ => panic!("LiteralEnum is not a boolean !")
+        }
+    }
 }
+
+impl PartialOrd for LiteralEnum {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+
+        match self {
+            
+            LiteralEnum::Number(n1) => {
+
+                if let LiteralEnum::Number(n2) = other {
+                    n1.partial_cmp(n2)
+                } else {
+                    unreachable!()
+                }
+            }
+
+            _ => unreachable!()
+        }
+    }
+}
+
 
 #[derive(Debug, PartialEq)]
 pub enum SeparatorEnum {
@@ -30,7 +66,7 @@ pub enum SeparatorEnum {
     Comma
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OperatorEnum {
     Assign,
     PlusEquals,
@@ -39,6 +75,10 @@ pub enum OperatorEnum {
     DivideEquals,
     PowerEquals,
 
+    Or,
+    And,
+    BitwiseOr,
+    BitwiseAnd,
     Equals,
     NotEquals,
     GreaterThan,

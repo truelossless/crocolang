@@ -1,9 +1,10 @@
-// TODO: fix stack overflow >:( (900 recursive calls in release, 100 in debug)
-// tail recursion optimization ? would probably need an IR.
+fn fib(n num) num {
 
-fn rec(n num) {
-    println("heheehehe " + n)
-    rec(n + 1)
+    if n <= 1 {
+        return n
+    }
+
+    return fib(n - 1) + fib(n - 2)
 }
-let c = "aa"
-rec(0)
+
+println("" + fib(20))
