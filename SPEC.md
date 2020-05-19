@@ -25,7 +25,8 @@ If the variable is assigned immediatly, you don't need to annotate its type.
 ```croco
 let text = "hello world"
 
-let text2: str // or let text2 = ""
+let text2 str 
+// or let text2 = ""
 ```
 
 ```croco
@@ -60,7 +61,8 @@ fn books_sold() num {
     return 42
 }
 
-num books_sold_today = books_sold()
+greet()
+let books_sold_today = books_sold()
 ```
 
 

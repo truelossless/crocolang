@@ -302,6 +302,7 @@ impl NaryNodeTrait for BlockNode {
         for node in &self.body {
             // early return from the block
             if let NodeResult::Return(l) = node.visit(symtable.clone())? {
+                symtable.drop_scope()?;
                 return Ok(NodeResult::Literal(l));
             }
         }
@@ -354,7 +355,8 @@ impl DeclNode {
 
 impl BinaryNodeTrait for DeclNode {
     fn visit(&self, mut symtable: SymTable) -> Result<NodeResult, String> {
-        if symtable.get_symbol(&self.left).is_ok() {
+        
+        if symtable.same_scope_symbol(&self.left)? {
             return Err(format!(
                 "The variable {} has already been declared",
                 self.left
@@ -370,11 +372,9 @@ impl BinaryNodeTrait for DeclNode {
             ));
         }
 
-        // // this should not happen as it's already checked by the parser.
-        // // TODO: check edge cases and eventually remove.
-        // if var_value.is_none() && self.var_type.is_none() {
-        //     return Err(format!("Unable to infer the type of {}", self.left));
-        // }
+        if var_value.is_void() && self.var_type.is_void() {
+            return Err(format!("Unable to infer the type of {}", self.left));
+        }
 
         symtable.insert_symbol(&self.left, var_value)?;
         Ok(NodeResult::Literal(LiteralEnum::Void))

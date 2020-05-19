@@ -36,6 +36,7 @@ I'll add a CLI to specify the file path one day.
 
 ## Examples
 
+String interpolation and functions
 ```croco
 fn fancy_disp(n num) {
 
@@ -47,9 +48,20 @@ let bruh = (54^2 + 7) / (12.3+24*7) *0.6
 fancy_disp(bruh)
 ```
 
-#### Output
 ```
 Your variable equals 1.0129104. that's nice uh ?
+```
+
+Function return
+```croco
+fn divide_by_6(n num) num {
+    return n/6
+}
+
+println("" + divide_by_6(24))
+```
+```
+4
 ```
 
 ### Variable assignment

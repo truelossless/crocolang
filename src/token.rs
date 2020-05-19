@@ -40,11 +40,11 @@ pub enum OperatorEnum {
     PowerEquals,
 
     Equals,
-    NotEqualsTo,
+    NotEquals,
     GreaterThan,
-    GreaterOrEqualTo,
+    GreaterOrEqual,
     LowerThan,
-    LowerOrEqualTo,
+    LowerOrEqual,
 
     Plus,
     Minus,
@@ -55,20 +55,21 @@ pub enum OperatorEnum {
 
 #[derive(Debug, PartialEq)]
 pub enum KeywordEnum {
-    If,
+    Bool,
     Elif,
     Else,
-    Return,
-    While,
     For,
+    Function,
+    If,
+    Import,
+    Let,
     Match,
     Num,
+    Return,
     Str,
-    Bool,
-    Let,
+    While,
     Struct,
     Test,
-    Function,
 }
 
 #[derive(Debug, PartialEq)]
@@ -78,6 +79,5 @@ pub enum Token {
     Operator(OperatorEnum),
     Identifier(String),
     Keyword(KeywordEnum),
-    Comment(String),
     Discard,
 }

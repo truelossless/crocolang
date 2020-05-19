@@ -10,8 +10,6 @@ use crate::ast::NodeResult;
 
 use crate::symbol::{BuiltinCallback, FunctionCall, FunctionKind, SymTable, Symbol};
 
-// TODO newtype pattern
-
 fn println(vars: Vec<LiteralEnum>) -> Result<LiteralEnum, String> {
     let arg = match &vars[0] {
         LiteralEnum::Text(Some(t)) => t,
@@ -58,7 +56,8 @@ impl<'a> Interpreter {
             fn_return_type,
             FunctionKind::Builtin(fn_pointer),
         );
-        self.symtable.register_fn(fn_name, Symbol::Function(builtin))?;
+        self.symtable
+            .register_fn(fn_name, Symbol::Function(builtin))?;
         Ok(())
     }
 
@@ -95,7 +94,9 @@ impl<'a> Interpreter {
         self.symtable.add_scope()?;
 
         match tree.visit(self.symtable.clone()) {
-            Ok(NodeResult::Literal(LiteralEnum::Void)) => println!("Main function exited with no return value."),
+            Ok(NodeResult::Literal(LiteralEnum::Void)) => {
+                println!("Main function exited with no return value.")
+            }
             Ok(x) => println!("Main function exited with {:?}", x),
             Err(e) => return Err(format!("Runtime error: {}", e)),
         }

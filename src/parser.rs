@@ -114,8 +114,6 @@ impl Parser {
             }
         }
 
-        println!("{:?}", fn_args);
-
         Ok(ParsedIdentifier::new(
             AstNode::NaryNode(Box::new(FunctionCallNode::new(identifier_name.to_owned(), fn_args))),
             true

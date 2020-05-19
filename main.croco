@@ -1,13 +1,7 @@
-fn i_return_val() num {
-
-    return 12
+// TODO: fix stack overflow >:(
+fn rec(n num) {
+    println("heheehehe " + n)
+    rec(n + 1)
 }
-
-fn divide_by_6(n num) num {
-    return n/6
-}
-
-let complicado = (i_return_val() + 42)^i_return_val()
-
-println("" + complicado)
-println("" + divide_by_6(24))
+let c = "aa"
+rec(0)

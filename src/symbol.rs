@@ -43,7 +43,7 @@ pub enum Symbol {
 /// It's protected by an Arc<RwLock>> for more flexible borrowing.
 /// The Vec represents the different scopes of variables, introduced by BlockNodes
 /// The Hashmap stores variables by name, and bind them to a value.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct SymTable(Arc<RwLock<Vec<HashMap<String, Symbol>>>>);
 
 impl SymTable {
@@ -63,6 +63,11 @@ impl SymTable {
             Ok(vec) => Ok(vec),
             Err(_) => Err("Write lock already in use !".to_owned()),
         }
+    }
+
+    /// returns wether or not a variable with the same name exists on this scope
+    pub fn same_scope_symbol(&self, var_name: &str) -> Result<bool, String> {
+        Ok(self.read()?.last().unwrap().get(var_name).is_some())
     }
 
     // return the variable / function value, starting from the inner scope
@@ -120,12 +125,10 @@ impl SymTable {
     }
 
     pub fn register_fn(&mut self, fn_name: &str, fn_symbol: Symbol) -> Result<(), String> {
-        
         let fn_pointer = match fn_symbol {
             Symbol::Function(fn_pointer) => fn_pointer,
-            _ => return Err("expected function but got a variable".to_owned()) 
+            _ => return Err("expected function but got a variable".to_owned()),
         };
-        
         self.write()?
             .first_mut()
             .unwrap()

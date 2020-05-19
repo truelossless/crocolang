@@ -10,6 +10,10 @@ fn starts_ascii(el: &str) -> bool {
     ('a'..'z').contains(&el.chars().next().unwrap_or('0'))
 }
 
+fn is_number(el: &str) -> Option<f32> {
+    el.parse().ok()
+}
+
 #[derive(Default)]
 pub struct Lexer {}
 
@@ -18,19 +22,14 @@ impl Lexer {
         Lexer {}
     }
 
+    // TODO: loop through a get_token() to remove complexity and indentation
     /// returns an array of tokens
     pub fn process(&self, code: &str) -> Result<Vec<Token>, String> {
         // let words: Vec<&str> = code.split_word_bounds().collect();
         let mut tokens: Vec<Token> = Vec::new();
         let mut iter = code.split_word_bounds().peekable();
 
-        let is_number = |el: &str| -> Option<f32> {
-            match el.parse::<f32>() {
-                Ok(n) => Some(n),
-                Err(_) => None,
-            }
-        };
-
+        // iterate trough all the words
         while let Some(el) = iter.next() {
             let token: Token;
 
@@ -119,7 +118,6 @@ impl Lexer {
                     let next = iter.peek();
 
                     if let Some(x) = next {
-                        
                         if x == &"=" {
                             iter.next();
                             ret = Operator(MinusEquals);
@@ -149,16 +147,26 @@ impl Lexer {
                 }
 
                 "/" => {
-                    let mut ret = Operator(Divide);
-
-                    if let Some(x) = iter.peek() {
-                        if x == &"=" {
+                    match iter.peek() {
+                        Some(&"=") => {
                             iter.next();
-                            ret = Operator(DivideEquals);
+                            Operator(DivideEquals)
+                        }
+                        // this is a comment, discard until next line
+                        Some(&"/") => {
+                            iter.next();
+                            loop {
+                                let next = iter.next();
+                                if next.is_none() || next == Some("\n") || next == Some("\r\n") {
+                                    break;
+                                }
+                            }
+                            continue;
+                        }
+                        _ => {
+                            Operator(Divide)
                         }
                     }
-
-                    ret
                 }
 
                 "^" => {
@@ -180,7 +188,7 @@ impl Lexer {
                     if let Some(x) = iter.peek() {
                         if x == &"=" {
                             iter.next();
-                            ret = Operator(GreaterOrEqualTo);
+                            ret = Operator(GreaterOrEqual);
                         }
                     }
 
@@ -193,7 +201,7 @@ impl Lexer {
                     if let Some(x) = iter.peek() {
                         if x == &"=" {
                             iter.next();
-                            ret = Operator(LowerOrEqualTo);
+                            ret = Operator(LowerOrEqual);
                         }
                     }
 
@@ -207,6 +215,7 @@ impl Lexer {
                 "fn" => Keyword(Function),
                 "for" => Keyword(For),
                 "if" => Keyword(If),
+                "import" => Keyword(Import),
                 "let" => Keyword(Let),
                 "match" => Keyword(Match),
                 "num" => Keyword(Num),
