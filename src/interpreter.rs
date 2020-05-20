@@ -93,7 +93,7 @@ impl<'a> Interpreter {
         // add the global scope
         self.symtable.add_scope()?;
 
-        match tree.visit(self.symtable.clone()) {
+        match tree.visit(&mut self.symtable) {
             Ok(NodeResult::Literal(LiteralEnum::Void)) => {
                 println!("Main function exited with no return value.")
             }

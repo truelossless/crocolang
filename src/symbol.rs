@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::ast::AstNode;
 use crate::parser::TypedArg;
@@ -40,41 +39,24 @@ pub enum Symbol {
 }
 
 /// SymTable represents symbol tables where all the variables are stored.
-/// It's protected by an Arc<RwLock>> for more flexible borrowing.
 /// The Vec represents the different scopes of variables, introduced by BlockNodes
 /// The Hashmap stores variables by name, and bind them to a value.
 #[derive(Clone, Default, Debug)]
-pub struct SymTable(Arc<RwLock<Vec<HashMap<String, Symbol>>>>);
+pub struct SymTable(Vec<HashMap<String, Symbol>>);
 
 impl SymTable {
     pub fn new() -> Self {
-        SymTable(Arc::new(RwLock::new(vec![HashMap::new()])))
-    }
-
-    fn read(&self) -> Result<RwLockReadGuard<Vec<HashMap<String, Symbol>>>, String> {
-        match self.0.read() {
-            Ok(vec) => Ok(vec),
-            Err(_) => Err("Write lock already in use !".to_owned()),
-        }
-    }
-
-    fn write(&mut self) -> Result<RwLockWriteGuard<Vec<HashMap<String, Symbol>>>, String> {
-        match self.0.write() {
-            Ok(vec) => Ok(vec),
-            Err(_) => Err("Write lock already in use !".to_owned()),
-        }
+        SymTable(vec![HashMap::new()])
     }
 
     /// returns wether or not a variable with the same name exists on this scope
     pub fn same_scope_symbol(&self, var_name: &str) -> Result<bool, String> {
-        Ok(self.read()?.last().unwrap().get(var_name).is_some())
+        Ok(self.0.last().unwrap().get(var_name).is_some())
     }
 
     // return the variable / function value, starting from the inner scope
     pub fn get_symbol(&self, var_name: &str) -> Result<Symbol, String> {
-        let symtables_unlocked = self.read()?;
-
-        for table in symtables_unlocked.iter().rev() {
+        for table in self.0.iter().rev() {
             if let Some(symbol_ref) = table.get(var_name) {
                 return Ok(symbol_ref.clone());
             }
@@ -86,8 +68,7 @@ impl SymTable {
 
     /// modify a variable already present in the symbol table
     pub fn modify_symbol(&mut self, var_name: &str, var_value: LiteralEnum) -> Result<(), String> {
-        let mut symtables_unlocked = self.write()?;
-        for table in symtables_unlocked.iter_mut().rev() {
+        for table in self.0.iter_mut().rev() {
             if let Some(old_symbol) = table.get_mut(var_name) {
                 match old_symbol {
                     Symbol::Function(_) => {
@@ -116,7 +97,7 @@ impl SymTable {
 
     /// insert to the closest scope
     pub fn insert_symbol(&mut self, var_name: &str, var_value: LiteralEnum) -> Result<(), String> {
-        self.write()?
+        self.0
             .last_mut()
             .unwrap()
             .insert(var_name.to_owned(), Symbol::Literal(var_value));
@@ -129,7 +110,7 @@ impl SymTable {
             Symbol::Function(fn_pointer) => fn_pointer,
             _ => return Err("expected function but got a variable".to_owned()),
         };
-        self.write()?
+        self.0
             .first_mut()
             .unwrap()
             .insert(fn_name.to_owned(), Symbol::Function(fn_pointer));
@@ -137,12 +118,12 @@ impl SymTable {
     }
 
     pub fn add_scope(&mut self) -> Result<(), String> {
-        self.write()?.push(HashMap::new());
+        self.0.push(HashMap::new());
         Ok(())
     }
 
     pub fn drop_scope(&mut self) -> Result<(), String> {
-        self.write()?.pop();
+        self.0.pop();
         Ok(())
     }
 }
