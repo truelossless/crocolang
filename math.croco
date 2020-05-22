@@ -1,4 +1,1 @@
-import fs
-
 let pi = 3.14159
-let test22 = fs.test22() * 2 

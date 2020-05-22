@@ -62,7 +62,8 @@ impl<'a> Interpreter {
     }
 
     pub fn exec_file(&mut self, file_path: &str) -> Result<(), String> {
-        let contents = fs::read_to_string(file_path).expect("Can't open file !");
+        let contents =
+            fs::read_to_string(file_path).map_err(|_| format!("File not found: {}", file_path))?;
 
         self.exec(&contents)
     }
@@ -76,7 +77,7 @@ impl<'a> Interpreter {
             Err(e) => return Err(format!("Syntax error: {}", e)),
         }
 
-        println!("tokens: {:?}", &tokens);
+        // println!("tokens: {:?}", &tokens);
 
         match self.parser.process(tokens) {
             Ok(root_node) => tree = root_node,
@@ -93,12 +94,8 @@ impl<'a> Interpreter {
         // add the global scope
         self.symtable.add_scope();
 
-        match tree.visit(&mut self.symtable) {
-            Ok(NodeResult::Literal(LiteralEnum::Void)) => {
-                println!("Main function exited with no return value.")
-            }
-            Ok(x) => println!("Main function exited with {:?}", x),
-            Err(e) => return Err(format!("Runtime error: {}", e)),
+        if let Err(e) = tree.visit(&mut self.symtable) {
+            return Err(format!("Runtime error: {}", e));
         }
 
         // println!("symbol tables: {:?}", self.symtable);

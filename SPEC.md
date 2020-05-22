@@ -134,6 +134,25 @@ if croco_state == "bad" {
 }
 ```
 
+## Imports [40%]
+
+You can import other files by specifying their name with the `import` keyword.  
+You have to specify the name of the file before using the functions / variables declared there.
+
+math.croco
+```croco
+let pi = 3.14159
+```
+
+main.croco
+```croco
+import math
+println(math.pi)
+``` 
+
+### Known isssue
+Importing one file will import all files imported by this file.
+
 ## Built-in test framework [0%]
 
 ### Writing a test
