@@ -157,10 +157,7 @@ impl NaryNodeTrait for FunctionCallNode {
             }
             visited_args.push(value);
         }
-        // after benchmarking, this clone call seems to take between 2 and 20 microseconds
-        // so it's probably not the culprit of our recursive calls.
-        // on 10+ seconds of fibonacci, 0.12s have been spent cloning so it's ok.
-        // Something else is taking too much time >:(
+        // this clone call is taking 30-50% of the execution time in fib.croco >:(
         let fn_decl = symtable.get_function(&self.fn_name)?.clone();
         // ensure that the arguments provided and the arguments in the function call match
         if visited_args.len() != fn_decl.args.len() {
