@@ -7,7 +7,7 @@ use crate::token::{literal_eq, LiteralEnum};
 /// A callback to a built-in function
 pub type BuiltinCallback = fn(Vec<LiteralEnum>) -> Result<LiteralEnum, String>;
 
-/// Either if the function is a classic function or a built-in function
+/// Either the function is a classic function or a built-in function
 #[derive(Debug, Clone)]
 pub enum FunctionKind {
     Regular(AstNode),
@@ -50,20 +50,37 @@ impl SymTable {
     }
 
     /// returns wether or not a variable with the same name exists on this scope
-    pub fn same_scope_symbol(&self, var_name: &str) -> Result<bool, String> {
-        Ok(self.0.last().unwrap().get(var_name).is_some())
+    pub fn same_scope_symbol(&self, var_name: &str) -> bool {
+        self.0.last().unwrap().get(var_name).is_some()
     }
 
-    // return the variable / function value, starting from the inner scope
-    pub fn get_symbol(&self, var_name: &str) -> Result<Symbol, String> {
-        for table in self.0.iter().rev() {
-            if let Some(symbol_ref) = table.get(var_name) {
-                return Ok(symbol_ref.clone());
+    /// return the desired variable starting from the inner scope
+    pub fn get_literal(&mut self, var_name: &str) -> Result<&mut LiteralEnum, String> {
+
+        for table in self.0.iter_mut().rev() {
+            match table.get_mut(var_name) {
+                Some(Symbol::Function(_)) => return Err(format!("trying to get {} as a variable but it's a function", var_name)),
+                Some(Symbol::Literal(ref mut literal)) => return Ok(literal),
+                None => ()
             }
         }
 
         // the variable doesn't exist
         Err(format!("variable {} has not been declared", var_name))
+    }
+
+    /// return the desired function starting from the inner scope
+    pub fn get_function(&mut self, fn_name: &str) -> Result<&mut FunctionCall, String> {
+        for table in self.0.iter_mut().rev() {
+            match table.get_mut(fn_name) {
+                Some(Symbol::Literal(_)) => return Err(format!("trying to get {} as a function but it's a variable", fn_name)),
+                Some(Symbol::Function(ref mut function)) => return Ok(function),
+                None => ()
+            }
+        }
+
+        // the function doesn't exist
+        Err(format!("function {} has not been declared", fn_name))
     }
 
     /// modify a variable already present in the symbol table
@@ -96,13 +113,11 @@ impl SymTable {
     }
 
     /// insert to the closest scope
-    pub fn insert_symbol(&mut self, var_name: &str, var_value: LiteralEnum) -> Result<(), String> {
+    pub fn insert_symbol(&mut self, var_name: &str, var_value: LiteralEnum) {
         self.0
             .last_mut()
             .unwrap()
             .insert(var_name.to_owned(), Symbol::Literal(var_value));
-
-        Ok(())
     }
 
     pub fn register_fn(&mut self, fn_name: &str, fn_symbol: Symbol) -> Result<(), String> {
@@ -117,13 +132,11 @@ impl SymTable {
         Ok(())
     }
 
-    pub fn add_scope(&mut self) -> Result<(), String> {
+    pub fn add_scope(&mut self) {
         self.0.push(HashMap::new());
-        Ok(())
     }
 
-    pub fn drop_scope(&mut self) -> Result<(), String> {
+    pub fn drop_scope(&mut self) {
         self.0.pop();
-        Ok(())
     }
 }

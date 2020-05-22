@@ -543,23 +543,49 @@ impl Parser {
                     block.add_child(AstNode::UnaryNode(Box::new(func_decl)));
                 }
 
+                // returning a value
+                Keyword(Return) => {
+                    let return_node = Parser::parse_expr(iter)?;
+                    block.add_child(AstNode::UnaryNode(Box::new(ReturnNode::new(return_node))));
+                }
+
                 // if block
                 Keyword(If) => {
                     let cond = Parser::parse_expr(iter)?;
 
-                    match iter.next() {
-                        Some(Separator(LeftBracket)) => (),
-                        _ => return Err("expected left bracket after if expression".to_owned()),
-                    }
+                    Parser::expect(
+                        iter,
+                        Separator(LeftBracket),
+                        "expected left bracket after if expression",
+                    )?;
 
                     let body = Parser::parse_block(iter)?;
                     block.add_child(AstNode::BinaryNode(Box::new(IfNode::new(cond, body))))
                 }
 
-                // returning a value
-                Keyword(Return) => {
-                    let return_node = Parser::parse_expr(iter)?;
-                    block.add_child(AstNode::UnaryNode(Box::new(ReturnNode::new(return_node))));
+                // while loop
+                Keyword(While) => {
+
+                    let cond = Parser::parse_expr(iter)?;
+
+                    Parser::expect(
+                        iter,
+                        Separator(LeftBracket),
+                        "expected a left bracket after while expression",
+                    )?;
+
+                    let body = Parser::parse_block(iter)?;
+                    block.add_child(AstNode::BinaryNode(Box::new(WhileNode::new(cond, body))))
+                }
+
+                // break from a loop
+                Keyword(Break) => {
+                    block.add_child(AstNode::LeafNode(Box::new(BreakNode::new())))
+                }
+
+                // continue from a loop
+                Keyword(Continue) => {
+                    block.add_child(AstNode::LeafNode(Box::new(ContinueNode::new())))
                 }
 
                 Separator(NewLine) => continue,
@@ -569,6 +595,19 @@ impl Parser {
         }
 
         Ok(AstNode::NaryNode(Box::new(block)))
+    }
+
+    /// Expects a token
+    fn expect(
+        iter: &mut std::iter::Peekable<std::vec::IntoIter<Token>>,
+        token: Token,
+        error_msg: &str,
+    ) -> Result<(), String> {
+        if iter.next() == Some(token) {
+            Ok(())
+        } else {
+            Err(error_msg.to_owned())
+        }
     }
 
     /// Discards all next tokens that are newlines

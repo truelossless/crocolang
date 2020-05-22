@@ -43,17 +43,70 @@ foo = 0101011010
 // ERROR !
 ```
 
+## Lööps [20%]
+
+Loops are very similar to what other languages offers.  
+Currently only `while` is implemented.
+
+### While loops [100%]
+
+```croco
+let a = 0
+while a < 5 {
+    println("a is indeed" + a)
+}
+```
+
+### For loops [0%]
+
+You should use ranges when iterating with for loops
+```croco
+for let i in 0..5 {
+   println("a is indeed" + a)
+}
+```
+
+### Early returns from loops [100%]
+
+```croco
+let a = 0
+while true {
+
+    if a == 1 {
+        println("skipping 1")
+        continue
+    }
+
+    println("" + a)
+
+    if a == 2 {
+        break
+    }
+
+    a += 1
+}
+```
+```
+1
+2
+3
+4
+skipping 5
+6
+7
+```
+
 ## Functions [60%]
 
 Functions are declared with the `fn` keyword. When they return a value the type should be annotated. A value is returned with the `return` keyword. You can exit early a function without any return value with the `return` keyword as well.
 
 ```croco
 fn greet() {
-    print("Hello, neighbourhood !")
+    println("Hello, neighbourhood !")
     return
 
     // this will never be executed
-    print("I hate this place but nobody is going to see this !")
+    println("I hate this place but nobody is going to see this !")
 }
 
 
@@ -77,7 +130,7 @@ if croco_state == "bad" {
 } elif croco_state == "good" {
     println("croco rocks")
 } else {
-    println("croco is neither good or bad")
+    println("croco is neither good nor bad")
 }
 ```
 

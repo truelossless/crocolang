@@ -14,7 +14,7 @@ pub enum AstNode {
 }
 
 impl AstNode {
-    pub fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    pub fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         // yeah, it's big brain time !
         match self {
             AstNode::LeafNode(node) => node.visit(symtable),
@@ -76,32 +76,35 @@ impl NodeResult {
 }
 
 pub trait LeafNodeTrait: DynClone {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String>;
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String>;
 }
 dyn_clone::clone_trait_object!(LeafNodeTrait);
 
 pub trait UnaryNodeTrait: DynClone {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String>;
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String>;
     fn set_bottom(&mut self, _node: AstNode) {}
 }
 dyn_clone::clone_trait_object!(UnaryNodeTrait);
 
 pub trait BinaryNodeTrait: DynClone {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String>;
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String>;
     fn set_left(&mut self, _node: AstNode) {}
     fn set_right(&mut self, _node: AstNode) {}
 }
 dyn_clone::clone_trait_object!(BinaryNodeTrait);
 
 pub trait NaryNodeTrait: DynClone {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String>;
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String>;
     fn prepend_child(&mut self, node: AstNode);
     fn add_child(&mut self, node: AstNode);
 }
 dyn_clone::clone_trait_object!(NaryNodeTrait);
 
 /// returns the LiteralEnum associated to a node
-fn get_value(opt_node: &Option<AstNode>, symtable: &mut SymTable) -> Result<LiteralEnum, String> {
+fn get_value(
+    opt_node: &mut Option<AstNode>,
+    symtable: &mut SymTable,
+) -> Result<LiteralEnum, String> {
     match opt_node {
         Some(node) => {
             let visited = node.visit(symtable)?.into_literal()?;
@@ -116,7 +119,10 @@ fn get_value(opt_node: &Option<AstNode>, symtable: &mut SymTable) -> Result<Lite
 }
 
 /// returns the number value of a node
-fn get_number_value(opt_node: &Option<AstNode>, symtable: &mut SymTable) -> Result<f32, String> {
+fn get_number_value(
+    opt_node: &mut Option<AstNode>,
+    symtable: &mut SymTable,
+) -> Result<f32, String> {
     let node = get_value(opt_node, symtable)?;
     match node {
         LiteralEnum::Number(x) => Ok(x.unwrap()),
@@ -136,29 +142,12 @@ impl FunctionCallNode {
     }
 }
 
-// TODO: return fn value
 impl NaryNodeTrait for FunctionCallNode {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        // ensure that we're calling a function
-        let fn_decl = match symtable.get_symbol(&self.fn_name) {
-            Ok(Symbol::Function(fn_decl)) => fn_decl,
-            Ok(Symbol::Literal(_)) => {
-                return Err(format!(
-                    "can't call {} as it's a variable and not a function",
-                    self.fn_name
-                ))
-            }
-            Err(_) => {
-                return Err(format!(
-                    "can't call {} as it hasn't been declared before",
-                    self.fn_name
-                ))
-            }
-        };
-
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         // resolve the function arguments
+
         let mut visited_args = Vec::new();
-        for arg in self.fn_args.iter() {
+        for arg in self.fn_args.iter_mut() {
             let value = arg.visit(symtable)?.into_literal()?;
             if value.is_void() {
                 return Err(format!(
@@ -166,10 +155,13 @@ impl NaryNodeTrait for FunctionCallNode {
                     self.fn_name
                 ));
             }
-
             visited_args.push(value);
         }
-
+        // after benchmarking, this clone call seems to take between 2 and 20 microseconds
+        // so it's probably not the culprit of our recursive calls.
+        // on 10+ seconds of fibonacci, 0.12s have been spent cloning so it's ok.
+        // Something else is taking too much time >:(
+        let fn_decl = symtable.get_function(&self.fn_name)?.clone();
         // ensure that the arguments provided and the arguments in the function call match
         if visited_args.len() != fn_decl.args.len() {
             return Err(format!(
@@ -179,7 +171,6 @@ impl NaryNodeTrait for FunctionCallNode {
                 visited_args.len()
             ));
         }
-
         for (i, arg) in visited_args.iter().enumerate() {
             if !literal_eq(arg, &fn_decl.args[i].arg_type) {
                 return Err(format!(
@@ -195,6 +186,7 @@ impl NaryNodeTrait for FunctionCallNode {
         match fn_decl.body {
             FunctionKind::Regular(func_call) => {
                 // get the block node of the function
+
                 let mut block_node = match func_call {
                     AstNode::NaryNode(node) => node,
                     _ => unreachable!(),
@@ -211,7 +203,17 @@ impl NaryNodeTrait for FunctionCallNode {
                     ))))
                 }
 
-                return_value = block_node.visit(symtable)?.into_return()?;
+                return_value = match block_node.visit(symtable)? {
+                    NodeResult::Return(ret) => ret,
+                    NodeResult::Break => {
+                        return Err("cannot exit a function with a break".to_owned())
+                    }
+                    NodeResult::Continue => {
+                        return Err("cannot use continue in a function".to_owned())
+                    }
+                    // this must be void if it's returned by a block node
+                    NodeResult::Literal(l) => l,
+                }
             }
 
             FunctionKind::Builtin(builtin_call) => {
@@ -239,46 +241,42 @@ impl NaryNodeTrait for FunctionCallNode {
 #[derive(Clone)]
 pub struct FunctionDeclNode {
     name: String,
-    return_type: LiteralEnum,
-    args: Vec<TypedArg>,
-    body: AstNode,
+    return_type: Option<LiteralEnum>,
+    args: Option<Vec<TypedArg>>,
+    body: Option<AstNode>,
 }
 
 impl FunctionDeclNode {
     pub fn new(name: String, return_type: LiteralEnum, args: Vec<TypedArg>) -> Self {
         FunctionDeclNode {
             name,
-            return_type,
-            args,
-            body: AstNode::NaryNode(Box::new(BlockNode::new())),
+            return_type: Some(return_type),
+            args: Some(args),
+            body: Some(AstNode::NaryNode(Box::new(BlockNode::new()))),
         }
     }
 }
 
 impl UnaryNodeTrait for FunctionDeclNode {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         // check if the function has aready been defined
-        if symtable.get_symbol(&self.name).is_ok() {
+        if symtable.get_function(&self.name).is_ok() {
             return Err(format!("{} function name already used", self.name));
         }
 
-        // TODO: move out (&mut visit ?)
-        // move out the body node
-        // let body = std::mem::replace(&self.body, AstNode::LeafNode(Box::new(VoidNode::new())));
+        // once the function is declared we can move out its content since this node is not going to be used again
+        let body = std::mem::replace(&mut self.body, None).unwrap();
+        let args = std::mem::replace(&mut self.args, None).unwrap();
+        let return_type = std::mem::replace(&mut self.return_type, None).unwrap();
 
-        let fn_call = FunctionCall::new(
-            self.args.clone(),
-            self.return_type.clone(),
-            // TODO: figure out how to limit the clone() calls for each function call
-            FunctionKind::Regular(self.body.clone()),
-        );
+        let fn_call = FunctionCall::new(args, return_type, FunctionKind::Regular(body));
 
         symtable.register_fn(&self.name, Symbol::Function(fn_call))?;
         Ok(NodeResult::Literal(LiteralEnum::Void))
     }
 
     fn set_bottom(&mut self, node: AstNode) {
-        self.body = node;
+        self.body = Some(node);
     }
 }
 
@@ -287,12 +285,23 @@ impl UnaryNodeTrait for FunctionDeclNode {
 /// e.g: if body, function body, etc.
 #[derive(Clone)]
 pub struct BlockNode {
+    // all instructions of the block node
     body: Vec<AstNode>,
+    // instructions that get prepended, e.g variables in fn calls
+    // this is useful to store them separately so we can clear them for another fn call
+    // prepended: Vec<AstNode>,
+
+    // same as previous, useful for future defer calls
+    // appended: Vec<AstNode>,
 }
 
 impl BlockNode {
     pub fn new() -> Self {
-        BlockNode { body: Vec::new() }
+        BlockNode {
+            body: Vec::new(),
+            // prepended: Vec::new(),
+            // appended: Vec::new(),
+        }
     }
 }
 
@@ -305,14 +314,17 @@ impl NaryNodeTrait for BlockNode {
         self.body.push(node);
     }
 
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         // push a new scope
-        symtable.add_scope()?;
+        symtable.add_scope();
 
         // early return from the block
         let mut value = NodeResult::Literal(LiteralEnum::Void);
-
-        for node in &self.body {
+        // iterate over all nodes in the body
+        for node in self.body.iter_mut()
+        // .chain(self.prepended.iter_mut())
+        // .chain(self.appended.iter_mut())
+        {
             value = node.visit(symtable)?;
 
             match value {
@@ -322,13 +334,17 @@ impl NaryNodeTrait for BlockNode {
             }
         }
 
-        // return void if the return value of the block is a literal
+        // clean up the injected statements
+        // self.prepended.clear();
+        // self.appended.clear();
+
+        // return void if there is no return value
         if let NodeResult::Literal(_) = value {
             value = NodeResult::Literal(LiteralEnum::Void)
         }
 
         // we're done with this scope, drop it
-        symtable.drop_scope()?;
+        symtable.drop_scope();
         Ok(value)
     }
 }
@@ -346,7 +362,7 @@ impl ReturnNode {
 }
 
 impl UnaryNodeTrait for ReturnNode {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         Ok(NodeResult::Return(
             self.bottom.visit(symtable)?.into_literal()?,
         ))
@@ -375,8 +391,8 @@ impl DeclNode {
 }
 
 impl BinaryNodeTrait for DeclNode {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        if symtable.same_scope_symbol(&self.left)? {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+        if symtable.same_scope_symbol(&self.left) {
             return Err(format!(
                 "The variable {} has already been declared",
                 self.left
@@ -396,7 +412,7 @@ impl BinaryNodeTrait for DeclNode {
             return Err(format!("Unable to infer the type of {}", self.left));
         }
 
-        symtable.insert_symbol(&self.left, var_value)?;
+        symtable.insert_symbol(&self.left, var_value);
         Ok(NodeResult::Literal(LiteralEnum::Void))
     }
 }
@@ -422,7 +438,7 @@ impl AssignmentNode {
 }
 
 impl BinaryNodeTrait for AssignmentNode {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         let right_val = self.right.visit(symtable)?.into_literal()?;
 
         if right_val.is_void() {
@@ -446,18 +462,9 @@ impl VarNode {
 }
 
 impl LeafNodeTrait for VarNode {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let var = symtable.get_symbol(&self.name)?;
-        let value = match var {
-            Symbol::Function(_) => {
-                return Err(format!(
-                    "Trying to use {} as a variable but it's a function",
-                    self.name
-                ))
-            }
-            Symbol::Literal(lit) => lit,
-        };
-        Ok(NodeResult::Literal(value))
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+        let value = symtable.get_literal(&self.name)?;
+        Ok(NodeResult::Literal(value.clone()))
     }
 }
 
@@ -473,9 +480,9 @@ impl LiteralNode {
     }
 }
 
+// actually we can't move out as a node can be visited multiple times in a loop
 impl LeafNodeTrait for LiteralNode {
-    fn visit(&self, _symtable: &mut SymTable) -> Result<NodeResult, String> {
-        // TODO: mut visit() so we can std::swap ?
+    fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, String> {
         Ok(NodeResult::Literal(self.value.clone()))
     }
 }
@@ -496,11 +503,12 @@ impl PlusNode {
 }
 
 // TODO: remove implicit cast and introduce as keyword
+// TODO: put all math nodes together ?
 /// node handling additions and concatenations
 impl BinaryNodeTrait for PlusNode {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let left_val = get_value(&self.left, symtable)?;
-        let right_val = get_value(&self.right, symtable)?;
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+        let left_val = get_value(&mut self.left, symtable)?;
+        let right_val = get_value(&mut self.right, symtable)?;
 
         // different kinds of additions can happen
         // the PlusNode also works for concatenation.
@@ -535,25 +543,16 @@ impl BinaryNodeTrait for PlusNode {
 
         match left_val {
             LiteralEnum::Text(txt1) => match right_val {
-                LiteralEnum::Text(txt2) => {
-                    // self.value = txt_and_txt(txt1.clone(), txt2.clone());
-                    Ok(NodeResult::Literal(txt_and_txt(txt1, txt2)))
-                }
+                LiteralEnum::Text(txt2) => Ok(NodeResult::Literal(txt_and_txt(txt1, txt2))),
 
-                LiteralEnum::Number(num) => {
-                    // self.value = txt_and_num(txt1.clone(), num, false);
-                    Ok(NodeResult::Literal(txt_and_num(txt1, num, false)))
-                }
+                LiteralEnum::Number(num) => Ok(NodeResult::Literal(txt_and_num(txt1, num, false))),
 
                 LiteralEnum::Boolean(_) => Err("cannot add booleans".to_string()),
                 LiteralEnum::Void => unreachable!(),
             },
 
             LiteralEnum::Number(num1) => match right_val {
-                LiteralEnum::Text(txt) => {
-                    // self.value = txt_and_num(txt.clone(), num1, true);
-                    Ok(NodeResult::Literal(txt_and_num(txt, num1, true)))
-                }
+                LiteralEnum::Text(txt) => Ok(NodeResult::Literal(txt_and_num(txt, num1, true))),
 
                 LiteralEnum::Number(num2) => {
                     // self.value = num_and_num(num1, num2);
@@ -592,10 +591,10 @@ impl MinusNode {
 }
 
 impl BinaryNodeTrait for MinusNode {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         let value = LiteralEnum::Number(Some(
-            get_number_value(&self.left, symtable)?
-                - get_number_value(&self.right, symtable)?,
+            get_number_value(&mut self.left, symtable)?
+                - get_number_value(&mut self.right, symtable)?,
         ));
         Ok(NodeResult::Literal(value))
     }
@@ -624,10 +623,10 @@ impl MultiplicateNode {
 }
 
 impl BinaryNodeTrait for MultiplicateNode {
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         let value = LiteralEnum::Number(Some(
-            get_number_value(&self.left, symtable)?
-                * get_number_value(&self.right, symtable)?,
+            get_number_value(&mut self.left, symtable)?
+                * get_number_value(&mut self.right, symtable)?,
         ));
         Ok(NodeResult::Literal(value))
     }
@@ -665,10 +664,10 @@ impl BinaryNodeTrait for DivideNode {
         self.right = Some(node);
     }
 
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         let value = LiteralEnum::Number(Some(
-            get_number_value(&self.left, symtable)?
-                / get_number_value(&self.right, symtable)?,
+            get_number_value(&mut self.left, symtable)?
+                / get_number_value(&mut self.right, symtable)?,
         ));
         Ok(NodeResult::Literal(value))
     }
@@ -698,10 +697,10 @@ impl BinaryNodeTrait for PowerNode {
         self.right = Some(node);
     }
 
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         let value = LiteralEnum::Number(Some(
-            get_number_value(&self.left, symtable)?
-                .powf(get_number_value(&self.right, symtable)?),
+            get_number_value(&mut self.left, symtable)?
+                .powf(get_number_value(&mut self.right, symtable)?),
         ));
         Ok(NodeResult::Literal(value))
     }
@@ -734,9 +733,9 @@ impl BinaryNodeTrait for CompareNode {
         self.right = Some(node);
     }
 
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let left_val = get_value(&self.left, symtable)?;
-        let right_val = get_value(&self.right, symtable)?;
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+        let left_val = get_value(&mut self.left, symtable)?;
+        let right_val = get_value(&mut self.right, symtable)?;
 
         if !literal_eq(&left_val, &right_val) {
             return Err("cannot compare different types".to_owned());
@@ -774,10 +773,7 @@ pub struct IfNode {
 
 impl IfNode {
     pub fn new(left: AstNode, right: AstNode) -> Self {
-        IfNode {
-            left,
-            right
-        }
+        IfNode { left, right }
     }
 }
 
@@ -790,13 +786,9 @@ impl BinaryNodeTrait for IfNode {
         self.right = node;
     }
 
-    fn visit(&self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         // there should always be a boolean condition, check if it's fullfilled
-        let cond_ok = self
-            .left
-            .visit(symtable)?
-            .into_literal()?
-            .into_bool();
+        let cond_ok = self.left.visit(symtable)?.into_literal()?.into_bool();
 
         if cond_ok {
             let value = self.right.visit(symtable)?;
@@ -810,5 +802,77 @@ impl BinaryNodeTrait for IfNode {
         }
 
         Ok(NodeResult::Literal(LiteralEnum::Void))
+    }
+}
+
+/// a node representing a while statement
+#[derive(Clone)]
+pub struct WhileNode {
+    // comparison value (a CompareNode)
+    left: AstNode,
+    // while body (a BlockNode)
+    right: AstNode,
+}
+
+impl WhileNode {
+    pub fn new(left: AstNode, right: AstNode) -> Self {
+        WhileNode { left, right }
+    }
+}
+
+impl BinaryNodeTrait for WhileNode {
+    fn set_left(&mut self, node: AstNode) {
+        self.left = node;
+    }
+
+    fn set_right(&mut self, node: AstNode) {
+        self.right = node;
+    }
+
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+        // loop while the condition is ok
+        while self.left.visit(symtable)?.into_literal()?.into_bool() {
+            let value = self.right.visit(symtable)?;
+            match value {
+                // propagate the early-return
+                NodeResult::Return(_) => return Ok(value),
+                NodeResult::Break => return Ok(NodeResult::Literal(LiteralEnum::Void)),
+                NodeResult::Literal(_) | NodeResult::Continue => (),
+            }
+        }
+
+        Ok(NodeResult::Literal(LiteralEnum::Void))
+    }
+}
+
+/// a node representing a break statement
+#[derive(Clone)]
+pub struct BreakNode {}
+
+impl BreakNode {
+    pub fn new() -> Self {
+        BreakNode {}
+    }
+}
+
+impl LeafNodeTrait for BreakNode {
+    fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, String> {
+        Ok(NodeResult::Break)
+    }
+}
+
+/// a node representing a continue statement
+#[derive(Clone)]
+pub struct ContinueNode {}
+
+impl ContinueNode {
+    pub fn new() -> Self {
+        ContinueNode {}
+    }
+}
+
+impl LeafNodeTrait for ContinueNode {
+    fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, String> {
+        Ok(NodeResult::Continue)
     }
 }

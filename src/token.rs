@@ -96,6 +96,8 @@ pub enum OperatorEnum {
 #[derive(Debug, PartialEq)]
 pub enum KeywordEnum {
     Bool,
+    Break,
+    Continue,
     Elif,
     Else,
     For,

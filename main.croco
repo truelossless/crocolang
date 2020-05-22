@@ -1,10 +1,16 @@
-fn fib(n num) num {
+fn greet() {
+    println("Hello, neighbourhood !")
+    return
 
-    if n <= 1 {
-        return n
-    }
-
-    return fib(n - 1) + fib(n - 2)
+    // this will never be executed
+    println("I hate this place but nobody is going to see this !")
 }
 
-println("" + fib(20))
+
+fn books_sold() num {
+    return 42
+}
+
+greet()
+let books_sold_today = books_sold()
+println("" + books_sold_today + 100)

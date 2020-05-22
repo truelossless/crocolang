@@ -236,6 +236,8 @@ impl Lexer {
 
                 // keywords
                 "bool" => Keyword(Bool),
+                "break" => Keyword(Break),
+                "continue" => Keyword(Continue),
                 "elif" => Keyword(Elif),
                 "else" => Keyword(Else),
                 "fn" => Keyword(Function),

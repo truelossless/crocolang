@@ -69,7 +69,7 @@ impl<'a> Interpreter {
 
     pub fn exec(&mut self, code: &str) -> Result<(), String> {
         let tokens;
-        let tree;
+        let mut tree;
 
         match self.lexer.process(code) {
             Ok(t) => tokens = t,
@@ -91,7 +91,7 @@ impl<'a> Interpreter {
         )?;
 
         // add the global scope
-        self.symtable.add_scope()?;
+        self.symtable.add_scope();
 
         match tree.visit(&mut self.symtable) {
             Ok(NodeResult::Literal(LiteralEnum::Void)) => {
@@ -101,7 +101,7 @@ impl<'a> Interpreter {
             Err(e) => return Err(format!("Runtime error: {}", e)),
         }
 
-        // println!("symbol tables: {:?}", self.symbol_tables);
+        // println!("symbol tables: {:?}", self.symtable);
         Ok(())
     }
 }
