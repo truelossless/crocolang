@@ -1,16 +1,3 @@
-fn greet() {
-    println("Hello, neighbourhood !")
-    return
+import math
 
-    // this will never be executed
-    println("I hate this place but nobody is going to see this !")
-}
-
-
-fn books_sold() num {
-    return 42
-}
-
-greet()
-let books_sold_today = books_sold()
-println("" + books_sold_today + 100)
+println("" + math.pi)

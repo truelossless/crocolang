@@ -103,7 +103,6 @@ pub enum KeywordEnum {
     For,
     Function,
     If,
-    Import,
     Let,
     Match,
     Num,
@@ -114,12 +113,33 @@ pub enum KeywordEnum {
     Test,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Identifier {
+    
+    // the name of the identifier, e.g foo
+    pub name: String,
+
+    // where the identifier came, e.g fs
+    // this is used in the parser for functions imported from other packages:
+    // you call them with fs.foo()
+    pub namespace: String
+}
+
+impl Identifier {
+    pub fn new(name: String, namespace: String) -> Self {
+        Identifier {
+            name,
+            namespace
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Literal(LiteralEnum),
     Separator(SeparatorEnum),
     Operator(OperatorEnum),
-    Identifier(String),
+    Identifier(Identifier),
     Keyword(KeywordEnum),
     Discard,
 }

@@ -76,7 +76,7 @@ impl<'a> Interpreter {
             Err(e) => return Err(format!("Syntax error: {}", e)),
         }
 
-        // println!("tokens: {:?}", &tokens);
+        println!("tokens: {:?}", &tokens);
 
         match self.parser.process(tokens) {
             Ok(root_node) => tree = root_node,

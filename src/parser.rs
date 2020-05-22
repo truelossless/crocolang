@@ -1,4 +1,5 @@
 use crate::ast::*;
+use crate::token;
 use crate::token::{
     KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
 };
@@ -37,12 +38,24 @@ impl Parser {
         Parser {}
     }
 
+    /// util to get the namespaced name of an identifier
+    fn get_namespaced_name(identifier: &token::Identifier) -> String {
+
+        if identifier.namespace.is_empty() {
+            identifier.name.clone()
+        } else {
+            format!("{}.{}", identifier.namespace, identifier.name)
+        }
+    }
+
     /// util to build a node from a token
     fn get_node(token: Token) -> Result<AstNode, String> {
         // println!("got token {:?}", token);
 
         match token {
-            Identifier(identifier) => Ok(AstNode::LeafNode(Box::new(VarNode::new(identifier)))),
+            Identifier(identifier) => {
+                Ok(AstNode::LeafNode(Box::new(VarNode::new(identifier.name))))
+            }
             Literal(literal) => Ok(AstNode::LeafNode(Box::new(LiteralNode::new(literal)))),
             Operator(Plus) => Ok(AstNode::BinaryNode(Box::new(PlusNode::new()))),
             Operator(Minus) => Ok(AstNode::BinaryNode(Box::new(MinusNode::new()))),
@@ -91,7 +104,7 @@ impl Parser {
     /// Parses an identifier into either a FunctionCallNode or a VariableNode
     fn parse_identifier(
         iter: &mut std::iter::Peekable<std::vec::IntoIter<Token>>,
-        identifier_name: &str,
+        identifier: token::Identifier,
     ) -> Result<ParsedIdentifier, String> {
         let next_token = iter.peek();
 
@@ -99,7 +112,7 @@ impl Parser {
             Some(Separator(LeftParenthesis)) => (),
             _ => {
                 return Ok(ParsedIdentifier::new(
-                    AstNode::LeafNode(Box::new(VarNode::new(identifier_name.to_owned()))),
+                    AstNode::LeafNode(Box::new(VarNode::new(identifier.name))),
                     false,
                 ))
             }
@@ -123,17 +136,14 @@ impl Parser {
                 _ => {
                     return Err(format!(
                         "unexpected token in {} function call",
-                        identifier_name
+                        identifier.name
                     ))
                 }
             }
         }
 
         Ok(ParsedIdentifier::new(
-            AstNode::NaryNode(Box::new(FunctionCallNode::new(
-                identifier_name.to_owned(),
-                fn_args,
-            ))),
+            AstNode::NaryNode(Box::new(FunctionCallNode::new(identifier.name, fn_args))),
             true,
         ))
     }
@@ -207,7 +217,7 @@ impl Parser {
 
             match token_expr {
                 Identifier(identifier) => {
-                    output.push(Parser::parse_identifier(iter, &identifier)?.content)
+                    output.push(Parser::parse_identifier(iter, identifier)?.content)
                 }
                 Literal(_) => output.push(Parser::get_node(token_expr)?),
                 Operator(_) => {
@@ -307,14 +317,14 @@ impl Parser {
 
                 // declaring a new number variable
                 Keyword(Let) => {
-                    let var_name;
+                    let identifier;
                     // rust is too dumb to figure out that out_node is always initalized so we
                     // have to wrap out_node in an Option
                     let mut out_node: Option<AstNode> = None;
 
                     // we're expecting a variable name
                     match iter.next() {
-                        Some(Identifier(x)) => var_name = x,
+                        Some(Identifier(x)) => identifier = x,
                         _ => {
                             return Err("expected a variable name after the let keyword".to_owned())
                         }
@@ -336,9 +346,9 @@ impl Parser {
                         // newline: we're declaring a variable without value or type
                         // for now we're not able to infer the variable type.
                         Some(Separator(NewLine)) => {
-                            return Err(format!("cannot infer the variable type of {}", var_name))
+                            return Err(format!("cannot infer the variable type of {}", identifier.name))
                         }
-                        _ => return Err(format!("expected an equals sign after {}", var_name)),
+                        _ => return Err(format!("expected an equals sign after {}", identifier.name)),
                     }
 
                     // if we had a type annotation we need to check again for the variable value
@@ -362,18 +372,18 @@ impl Parser {
                                     _ => {
                                         return Err(format!(
                                             "cannot infer default value for {}",
-                                            var_name
+                                            identifier.name
                                         ))
                                     }
                                 }
                             }
-                            _ => return Err(format!("expected an equals sign after {}", var_name)),
+                            _ => return Err(format!("expected an equals sign after {}", identifier.name)),
                         }
                     }
 
                     // add this statement to the block
                     block.add_child(AstNode::BinaryNode(Box::new(DeclNode::new(
-                        var_name,
+                        Parser::get_namespaced_name(&identifier),
                         out_node.unwrap(),
                         assign_type,
                     ))));
@@ -381,7 +391,7 @@ impl Parser {
 
                 // assigning a new value to a variable, or calling a function
                 Identifier(identifier) => {
-                    let parsed_identifier = Parser::parse_identifier(iter, &identifier)?;
+                    let parsed_identifier = Parser::parse_identifier(iter, identifier.clone())?;
 
                     // we're calling a function
                     if parsed_identifier.is_fn_call {
@@ -405,7 +415,7 @@ impl Parser {
 
                             // add to the root function this statement
                             if next_token == Some(Operator(Assign)) {
-                                block.add_child(AstNode::BinaryNode(Box::new(AssignmentNode::new(identifier, out_node))));
+                                block.add_child(AstNode::BinaryNode(Box::new(AssignmentNode::new(identifier.name, out_node))));
                             } else {
                                 let mut dyn_op_node: Box<dyn BinaryNodeTrait> = match next_token {
                                     Some(Operator(PlusEquals)) => Box::new(PlusNode::new()),
@@ -417,17 +427,17 @@ impl Parser {
                                     Some(Operator(PowerEquals)) => Box::new(PowerNode::new()),
                                     _ => unreachable!(),
                                 };
-                                let var_node = AstNode::LeafNode(Box::new(VarNode::new(identifier.clone())));
+                                let var_node = AstNode::LeafNode(Box::new(VarNode::new(identifier.name.clone())));
                                 dyn_op_node.set_left(var_node);
                                 dyn_op_node.set_right(out_node);
                                 let op_node = AstNode::BinaryNode(dyn_op_node);
-                                block.add_child(AstNode::BinaryNode(Box::new(AssignmentNode::new(identifier, op_node))));
+                                block.add_child(AstNode::BinaryNode(Box::new(AssignmentNode::new(identifier.name, op_node))));
                             }
                         }
                         _ => {
                             return Err(format!(
                                 "expected an assignation sign or a function call after the identifier {}",
-                                &identifier
+                                identifier.name
                             ))
                         }
                     }
@@ -465,7 +475,7 @@ impl Parser {
                             _ => {
                                 return Err(format!(
                                     "expected an argument name in {} function declaration",
-                                    identifier
+                                    identifier.name
                                 ))
                             }
                         };
@@ -475,9 +485,14 @@ impl Parser {
                             Some(Keyword(Num)) => LiteralEnum::Number(None),
                             Some(Keyword(Str)) => LiteralEnum::Text(None),
                             Some(Keyword(Bool)) => LiteralEnum::Boolean(None),
-                            _ => return Err(format!("expected an argument type for {}", arg_name)),
+                            _ => {
+                                return Err(format!(
+                                    "expected an argument type for {}",
+                                    arg_name.name
+                                ))
+                            }
                         };
-                        typed_args.push(TypedArg::new(arg_name, arg_type));
+                        typed_args.push(TypedArg::new(arg_name.name, arg_type));
 
                         Parser::discard_newlines(iter);
 
@@ -490,7 +505,7 @@ impl Parser {
                             _ => {
                                 return Err(format!(
                                     "expected a comma or a right parenthesis in {} function call",
-                                    identifier
+                                    identifier.name
                                 ))
                             }
                         }
@@ -518,7 +533,7 @@ impl Parser {
                         _ => {
                             return Err(format!(
                                 "expected left bracket after {} function declaration",
-                                identifier
+                                identifier.name
                             ))
                         }
                     }
@@ -531,13 +546,22 @@ impl Parser {
                             _ => {
                                 return Err(format!(
                                     "expected left bracket after {} function declaration",
-                                    identifier
+                                    identifier.name
                                 ))
                             }
                         }
                     }
 
-                    let mut func_decl = FunctionDeclNode::new(identifier, return_type, typed_args);
+                    // we can't declare a function with a dot in its name
+                    if identifier.name.contains('.') {
+                        return Err("a function cannot have a dot in its name".to_owned());
+                    }
+
+                    // get the namespaced name of the function
+                    let fn_name = Parser::get_namespaced_name(&identifier);
+                    
+                    let mut func_decl =
+                        FunctionDeclNode::new(fn_name, return_type, typed_args);
                     func_decl.set_bottom(Parser::parse_block(iter)?);
 
                     block.add_child(AstNode::UnaryNode(Box::new(func_decl)));
@@ -565,7 +589,6 @@ impl Parser {
 
                 // while loop
                 Keyword(While) => {
-
                     let cond = Parser::parse_expr(iter)?;
 
                     Parser::expect(
@@ -579,9 +602,7 @@ impl Parser {
                 }
 
                 // break from a loop
-                Keyword(Break) => {
-                    block.add_child(AstNode::LeafNode(Box::new(BreakNode::new())))
-                }
+                Keyword(Break) => block.add_child(AstNode::LeafNode(Box::new(BreakNode::new()))),
 
                 // continue from a loop
                 Keyword(Continue) => {

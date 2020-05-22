@@ -111,7 +111,7 @@ nice
 The code for the benchmarks can be found under `benchmarks/`
 
 The interesting bits is the relative performance to other languages.  
-*Processor: i7 6700HQ (released in September 2015)*
+*Processor: i7 6700HQ, released in September 2015*
 
 ```
 $ time node bench_name.js

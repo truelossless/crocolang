@@ -1,9 +1,11 @@
 extern crate unicode_segmentation;
 
+use crate::token::Identifier;
 use crate::token::{
     KeywordEnum::*, LiteralEnum::*, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
 };
 
+use std::fs;
 use unicode_segmentation::UnicodeSegmentation;
 
 fn starts_ascii(el: &str) -> bool {
@@ -15,18 +17,19 @@ fn is_number(el: &str) -> Option<f32> {
 }
 
 #[derive(Default)]
-pub struct Lexer {}
+pub struct Lexer {
+    tokens: Vec<Token>,
+}
 
 impl Lexer {
     pub fn new() -> Self {
-        Lexer {}
+        Lexer { tokens: Vec::new() }
     }
 
     // TODO: loop through a get_token() to remove complexity and indentation
     /// returns an array of tokens
-    pub fn process(&self, code: &str) -> Result<Vec<Token>, String> {
-        // let words: Vec<&str> = code.split_word_bounds().collect();
-        let mut tokens: Vec<Token> = Vec::new();
+    fn process_code(&mut self, code: &str, prefix: &str) -> Result<(), String> {
+        let mut new_tokens: Vec<Token> = Vec::new();
         let mut iter = code.split_word_bounds().peekable();
 
         // iterate trough all the words
@@ -163,9 +166,7 @@ impl Lexer {
                             }
                             Discard
                         }
-                        _ => {
-                            Operator(Divide)
-                        }
+                        _ => Operator(Divide),
                     }
                 }
 
@@ -243,7 +244,6 @@ impl Lexer {
                 "fn" => Keyword(Function),
                 "for" => Keyword(For),
                 "if" => Keyword(If),
-                "import" => Keyword(Import),
                 "let" => Keyword(Let),
                 "match" => Keyword(Match),
                 "num" => Keyword(Num),
@@ -253,8 +253,17 @@ impl Lexer {
                 "test" => Keyword(Test),
                 "return" => Keyword(Return),
 
+                // imports are resolved directly by the lexer.
+                // the imported file is then also processed by the lexer
+                // and the tokens are prepended to the one contained in
+                // the main file.
+                "import" => {
+                    self.resolve_import(&mut iter)?;
+                    Discard
+                }
+
                 // variables
-                _ if starts_ascii(el) => Identifier(el.to_string()),
+                _ if starts_ascii(el) => Identifier(Identifier::new(el.to_owned(), prefix.to_owned())),
 
                 // ignore whitespaces
                 " " => Discard,
@@ -264,10 +273,43 @@ impl Lexer {
             };
 
             if token != Discard {
-                tokens.push(token);
+                new_tokens.push(token);
             }
         }
 
-        Ok(tokens)
+        // push the new tokens in front of those already existing
+        // that way, imports are going to be at the top of all the tokens
+        self.tokens.append(&mut new_tokens);
+
+        Ok(())
+    }
+
+    pub fn process(&mut self, code: &str) -> Result<Vec<Token>, String> {
+        self.process_code(code, "")?;
+        Ok(std::mem::replace(&mut self.tokens, Vec::new()))
+    }
+
+    // TODO: disallow multiple imports
+    fn resolve_import(
+        &mut self,
+        iter: &mut std::iter::Peekable<unicode_segmentation::UWordBounds>,
+    ) -> Result<(), String> {
+        let import_name;
+        loop {
+            match iter.next() {
+                Some(name) if starts_ascii(name) => {
+                    import_name = name;
+                    break;
+                }
+                Some(" ") => continue,
+                _ => return Err("bad import".to_owned()),
+            };
+        }
+
+        let contents = fs::read_to_string(format!("{}.croco", import_name))
+            .map_err(|_| format!("cannot resolve {} import", import_name))?;
+
+        self.process_code(&contents, import_name)?;
+        Ok(())
     }
 }
