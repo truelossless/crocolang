@@ -33,7 +33,19 @@ cargo build --release
 croco.exe
 ```
 
-I'll add a CLI to specify the file path one day.
+### CLI
+
+```bash
+$ croco --help
+Usage: croco [OPTIONS]
+
+Positional arguments:
+  input          the .croco file to execute
+
+Optional arguments:
+  -h, --help     show help message
+  -v, --version  show croco version
+```
 
 ## Examples
 
