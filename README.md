@@ -35,7 +35,7 @@ croco.exe
 
 ### CLI
 
-```bash
+```
 $ croco --help
 Usage: croco [OPTIONS]
 

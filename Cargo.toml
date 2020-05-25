@@ -10,9 +10,10 @@ edition = "2018"
 unicode-segmentation = "1.3.0"
 dyn-clone = "1.0.1"
 gumdrop = "0.8.0" # lighter alternative to clap
+reqwest = { version = "0.10.4", features = ["blocking"] }
 
 [lib]
-name = "crocolib"
+name = "croco"
 path = "src/lib.rs"
 
 [[bin]]

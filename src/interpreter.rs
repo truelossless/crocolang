@@ -1,24 +1,7 @@
-use std::fs;
-
 use crate::lexer::Lexer;
-use crate::token::LiteralEnum;
-
 use crate::parser::Parser;
-use crate::parser::TypedArg;
-
-use crate::ast::NodeResult;
-
-use crate::symbol::{BuiltinCallback, FunctionCall, FunctionKind, SymTable, Symbol};
-
-fn println(vars: Vec<LiteralEnum>) -> Result<LiteralEnum, String> {
-    let arg = match &vars[0] {
-        LiteralEnum::Text(Some(t)) => t,
-        _ => unreachable!(),
-    };
-
-    println!("{}", arg);
-    Ok(LiteralEnum::Void)
-}
+use crate::symbol::SymTable;
+use std::fs;
 
 #[derive(Default)]
 pub struct Interpreter {
@@ -27,7 +10,7 @@ pub struct Interpreter {
     symtable: SymTable,
 }
 
-impl<'a> Interpreter {
+impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
             parser: Parser::new(),
@@ -35,30 +18,6 @@ impl<'a> Interpreter {
             // create the symbol tables and add the global scope
             symtable: SymTable::new(),
         }
-    }
-
-    pub fn register_builtin(
-        &mut self,
-        fn_name: &str,
-        fn_args: Vec<LiteralEnum>,
-        fn_return_type: LiteralEnum,
-        fn_pointer: BuiltinCallback,
-    ) -> Result<(), String> {
-        // for the builtin functions we don't care of the variable name
-        let mut typed_args = Vec::new();
-
-        for el in fn_args.into_iter() {
-            typed_args.push(TypedArg::new("".to_owned(), el));
-        }
-
-        let builtin = FunctionCall::new(
-            typed_args,
-            fn_return_type,
-            FunctionKind::Builtin(fn_pointer),
-        );
-        self.symtable
-            .register_fn(fn_name, Symbol::Function(builtin))?;
-        Ok(())
     }
 
     pub fn exec_file(&mut self, file_path: &str) -> Result<(), String> {
@@ -84,21 +43,16 @@ impl<'a> Interpreter {
             Err(e) => return Err(format!("Parse error: {}", e)),
         }
 
-        self.register_builtin(
-            "println",
-            vec![LiteralEnum::Text(None)],
-            LiteralEnum::Void,
-            println,
-        )?;
-
-        // add the global scope
-        self.symtable.add_scope();
+        // println!("symbol tables: {:?}", self.symtable);
+        // import the builtin library
+        self.symtable.import_builtin_module("global");
 
         if let Err(e) = tree.visit(&mut self.symtable) {
             return Err(format!("Runtime error: {}", e));
         }
 
         // println!("symbol tables: {:?}", self.symtable);
+
         Ok(())
     }
 }

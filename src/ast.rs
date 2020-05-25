@@ -1,6 +1,9 @@
-use crate::parser::TypedArg;
 use dyn_clone::DynClone;
-use std::fmt;
+use std::{fmt, fs};
+use unicode_segmentation::UnicodeSegmentation;
+
+use crate::lexer::Lexer;
+use crate::parser::{Parser, TypedArg};
 
 use crate::symbol::{FunctionCall, FunctionKind, SymTable, Symbol};
 use crate::token::{literal_eq, LiteralEnum, OperatorEnum};
@@ -114,7 +117,7 @@ fn get_value(
             }
             Ok(visited)
         }
-        None => Err("One variable hasn't been initialized !".to_string()),
+        None => Err("One variable hasn't been initialized !".to_owned()),
     }
 }
 
@@ -125,8 +128,8 @@ fn get_number_value(
 ) -> Result<f32, String> {
     let node = get_value(opt_node, symtable)?;
     match node {
-        LiteralEnum::Number(x) => Ok(x.unwrap()),
-        _ => Err("Performing a math operation on a wrong variable type !".to_string()),
+        LiteralEnum::Num(x) => Ok(x.unwrap()),
+        _ => Err("Performing a math operation on a wrong variable type !".to_owned()),
     }
 }
 
@@ -145,7 +148,6 @@ impl FunctionCallNode {
 impl NaryNodeTrait for FunctionCallNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
         // resolve the function arguments
-
         let mut visited_args = Vec::new();
         for arg in self.fn_args.iter_mut() {
             let value = arg.visit(symtable)?.into_literal()?;
@@ -197,7 +199,7 @@ impl NaryNodeTrait for FunctionCallNode {
                         fn_decl.args[i].arg_name.clone(),
                         resolved_literal,
                         fn_decl.args[i].arg_type.clone(),
-                    ))))
+                    ))));
                 }
 
                 return_value = match block_node.visit(symtable)? {
@@ -214,7 +216,7 @@ impl NaryNodeTrait for FunctionCallNode {
             }
 
             FunctionKind::Builtin(builtin_call) => {
-                return_value = builtin_call(visited_args)?;
+                return_value = builtin_call(visited_args);
             }
         }
 
@@ -249,7 +251,7 @@ impl FunctionDeclNode {
             name,
             return_type: Some(return_type),
             args: Some(args),
-            body: Some(AstNode::NaryNode(Box::new(BlockNode::new()))),
+            body: Some(AstNode::NaryNode(Box::new(BlockNode::new(BlockScope::New)))),
         }
     }
 }
@@ -264,11 +266,12 @@ impl UnaryNodeTrait for FunctionDeclNode {
         // once the function is declared we can move out its content since this node is not going to be used again
         let body = std::mem::replace(&mut self.body, None).unwrap();
         let args = std::mem::replace(&mut self.args, None).unwrap();
+        let name = std::mem::replace(&mut self.name, String::new());
         let return_type = std::mem::replace(&mut self.return_type, None).unwrap();
 
         let fn_call = FunctionCall::new(args, return_type, FunctionKind::Regular(body));
 
-        symtable.register_fn(&self.name, Symbol::Function(fn_call))?;
+        symtable.register_fn(name, Symbol::Function(fn_call));
         Ok(NodeResult::Literal(LiteralEnum::Void))
     }
 
@@ -277,25 +280,37 @@ impl UnaryNodeTrait for FunctionDeclNode {
     }
 }
 
+#[derive(Clone)]
+pub enum BlockScope {
+    New,
+    Keep,
+}
+
+impl Default for BlockScope {
+    fn default() -> Self {
+        BlockScope::New
+    }
+}
+
 /// node containing multiple instructions
-/// creates a new scope
+/// creates a new scope, or not
 /// e.g: if body, function body, etc.
 #[derive(Clone)]
 pub struct BlockNode {
     // all instructions of the block node
     body: Vec<AstNode>,
+    scope: BlockScope,
     // instructions that get prepended, e.g variables in fn calls
-    // this is useful to store them separately so we can clear them for another fn call
     // prepended: Vec<AstNode>,
-
     // same as previous, useful for future defer calls
-    // appended: Vec<AstNode>,
+    // appended: Vec<AstNode>
 }
 
 impl BlockNode {
-    pub fn new() -> Self {
+    pub fn new(scope: BlockScope) -> Self {
         BlockNode {
             body: Vec::new(),
+            scope
             // prepended: Vec::new(),
             // appended: Vec::new(),
         }
@@ -312,8 +327,12 @@ impl NaryNodeTrait for BlockNode {
     }
 
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        // push a new scope
-        symtable.add_scope();
+        
+        // push a new scope if needed
+        match self.scope {
+            BlockScope::New => symtable.add_scope(),
+            BlockScope::Keep => ()
+        }
 
         // early return from the block
         let mut value = NodeResult::Literal(LiteralEnum::Void);
@@ -341,7 +360,11 @@ impl NaryNodeTrait for BlockNode {
         }
 
         // we're done with this scope, drop it
-        symtable.drop_scope();
+        match self.scope {
+            BlockScope::New => symtable.drop_scope(),
+            BlockScope::Keep => ()
+        }
+
         Ok(value)
     }
 }
@@ -408,7 +431,6 @@ impl BinaryNodeTrait for DeclNode {
         if var_value.is_void() && self.var_type.is_void() {
             return Err(format!("Unable to infer the type of {}", self.left));
         }
-
         symtable.insert_symbol(&self.left, var_value);
         Ok(NodeResult::Literal(LiteralEnum::Void))
     }
@@ -423,8 +445,6 @@ pub struct AssignmentNode {
     right: AstNode,
 }
 
-// TODO: check if variable isn't assigned multiple times
-// check if variable is of the good type
 impl AssignmentNode {
     pub fn new(var_name: String, expr: AstNode) -> Self {
         AssignmentNode {
@@ -514,7 +534,7 @@ impl BinaryNodeTrait for PlusNode {
             let mut left_str = txt1.unwrap();
             let right_str = txt2.unwrap();
             left_str.push_str(&right_str);
-            LiteralEnum::Text(Some(left_str))
+            LiteralEnum::Str(Some(left_str))
         };
 
         let txt_and_num =
@@ -528,38 +548,38 @@ impl BinaryNodeTrait for PlusNode {
                     txt_str.push_str(&num_str);
                 }
 
-                LiteralEnum::Text(Some(txt_str))
+                LiteralEnum::Str(Some(txt_str))
             };
 
         let num_and_num = |num1: Option<f32>, num2: Option<f32>| -> LiteralEnum {
             let num1_val = num1.unwrap();
             let num2_val = num2.unwrap();
 
-            LiteralEnum::Number(Some(num1_val + num2_val))
+            LiteralEnum::Num(Some(num1_val + num2_val))
         };
 
         match left_val {
-            LiteralEnum::Text(txt1) => match right_val {
-                LiteralEnum::Text(txt2) => Ok(NodeResult::Literal(txt_and_txt(txt1, txt2))),
+            LiteralEnum::Str(txt1) => match right_val {
+                LiteralEnum::Str(txt2) => Ok(NodeResult::Literal(txt_and_txt(txt1, txt2))),
 
-                LiteralEnum::Number(num) => Ok(NodeResult::Literal(txt_and_num(txt1, num, false))),
+                LiteralEnum::Num(num) => Ok(NodeResult::Literal(txt_and_num(txt1, num, false))),
 
-                LiteralEnum::Boolean(_) => Err("cannot add booleans".to_string()),
+                LiteralEnum::Bool(_) => Err("cannot add booleans".to_string()),
                 LiteralEnum::Void => unreachable!(),
             },
 
-            LiteralEnum::Number(num1) => match right_val {
-                LiteralEnum::Text(txt) => Ok(NodeResult::Literal(txt_and_num(txt, num1, true))),
+            LiteralEnum::Num(num1) => match right_val {
+                LiteralEnum::Str(txt) => Ok(NodeResult::Literal(txt_and_num(txt, num1, true))),
 
-                LiteralEnum::Number(num2) => {
+                LiteralEnum::Num(num2) => {
                     // self.value = num_and_num(num1, num2);
                     Ok(NodeResult::Literal(num_and_num(num1, num2)))
                 }
-                LiteralEnum::Boolean(_) => Err("cannot add booleans".to_string()),
+                LiteralEnum::Bool(_) => Err("cannot add booleans".to_string()),
                 LiteralEnum::Void => unreachable!(),
             },
 
-            LiteralEnum::Boolean(_) => Err("cannot add booleans".to_string()),
+            LiteralEnum::Bool(_) => Err("cannot add booleans".to_string()),
             LiteralEnum::Void => unreachable!(),
         }
     }
@@ -589,7 +609,7 @@ impl MinusNode {
 
 impl BinaryNodeTrait for MinusNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let value = LiteralEnum::Number(Some(
+        let value = LiteralEnum::Num(Some(
             get_number_value(&mut self.left, symtable)?
                 - get_number_value(&mut self.right, symtable)?,
         ));
@@ -621,7 +641,7 @@ impl MultiplicateNode {
 
 impl BinaryNodeTrait for MultiplicateNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let value = LiteralEnum::Number(Some(
+        let value = LiteralEnum::Num(Some(
             get_number_value(&mut self.left, symtable)?
                 * get_number_value(&mut self.right, symtable)?,
         ));
@@ -662,7 +682,7 @@ impl BinaryNodeTrait for DivideNode {
     }
 
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let value = LiteralEnum::Number(Some(
+        let value = LiteralEnum::Num(Some(
             get_number_value(&mut self.left, symtable)?
                 / get_number_value(&mut self.right, symtable)?,
         ));
@@ -695,7 +715,7 @@ impl BinaryNodeTrait for PowerNode {
     }
 
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let value = LiteralEnum::Number(Some(
+        let value = LiteralEnum::Num(Some(
             get_number_value(&mut self.left, symtable)?
                 .powf(get_number_value(&mut self.right, symtable)?),
         ));
@@ -755,7 +775,7 @@ impl BinaryNodeTrait for CompareNode {
             _ => unreachable!(),
         };
 
-        Ok(NodeResult::Literal(LiteralEnum::Boolean(Some(value))))
+        Ok(NodeResult::Literal(LiteralEnum::Bool(Some(value))))
     }
 }
 
@@ -871,5 +891,76 @@ impl ContinueNode {
 impl LeafNodeTrait for ContinueNode {
     fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, String> {
         Ok(NodeResult::Continue)
+    }
+}
+
+#[derive(Clone)]
+pub struct ImportNode {
+    name: String,
+    bottom: Option<AstNode>,
+}
+
+// imports code from another module, at runtime.
+impl ImportNode {
+    pub fn new(name: String) -> Self {
+        ImportNode { name, bottom: None }
+    }
+}
+
+impl UnaryNodeTrait for ImportNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+        // we have a relative path e.g import "./my_module"
+        // look for a file with this name
+        if self.name.contains('.') {
+            let file_contents = fs::read_to_string(format!("{}.croco", self.name))
+                .map_err(|_| format!("cannot find the file {}.croco", self.name))?;
+
+            // lex the new import
+            // namespace everything created there with the import name
+            let mut lexer = Lexer::new();
+
+            // find the real import name
+            // e.g "./module/me/love" => "love"
+            let iter = self.name.split_word_bounds().rev();
+            let mut import_name = "";
+            for word in iter {
+                if word == "/" {
+                    break;
+                }
+
+                import_name = word;
+            }
+
+            // import name should be the real import name now.
+            println!("{}", import_name);
+            lexer.set_namespace(import_name.to_owned());
+            let tokens = lexer.process(&file_contents)?;
+
+            // .. and resolve to an AST the import
+            // TODO: export only when pub is used
+            let mut parser = Parser::new();
+
+            // we can now add the import as a closure:
+            // a block node which doesn't introduce a new scope
+            parser.set_scope(BlockScope::Keep);
+            let mut bottom = parser.process(tokens)?;
+            bottom.visit(symtable)?;
+            self.bottom = Some(bottom);
+
+            Ok(NodeResult::Literal(LiteralEnum::Void))
+
+        // we have an absolute path e.g import "math"
+        // we are looking for a builtin module with this name
+        } else {
+            // check if the module part of the std library
+            if symtable.import_builtin_module(&self.name) {
+                Ok(NodeResult::Literal(LiteralEnum::Void))
+            } else {
+                Err(format!(
+                    "{} module not found in the builtin library",
+                    self.name
+                ))
+            }
+        }
     }
 }

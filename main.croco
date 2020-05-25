@@ -1,2 +1,11 @@
-import math
-println("" + math.pi)
+fn arg() num {
+    
+    fn sneak(d num) num {
+        return d*2
+    }
+    
+    let b = 4*sneak(1)
+    return b
+}
+
+println("" + arg())

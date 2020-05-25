@@ -2,10 +2,9 @@ extern crate unicode_segmentation;
 
 use crate::token::Identifier;
 use crate::token::{
-    KeywordEnum::*, LiteralEnum::*, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
+    KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
 };
 
-use std::fs;
 use unicode_segmentation::UnicodeSegmentation;
 
 fn starts_ascii(el: &str) -> bool {
@@ -18,18 +17,24 @@ fn is_number(el: &str) -> Option<f32> {
 
 #[derive(Default)]
 pub struct Lexer {
-    tokens: Vec<Token>,
+    namespace: String
 }
 
 impl Lexer {
     pub fn new() -> Self {
-        Lexer { tokens: Vec::new() }
+        Lexer {
+            namespace: String::new()
+        }
+    }
+
+    pub fn set_namespace(&mut self, namespace: String) {
+        self.namespace = namespace;
     }
 
     // TODO: loop through a get_token() to remove complexity and indentation
     /// returns an array of tokens
-    fn process_code(&mut self, code: &str, prefix: &str) -> Result<(), String> {
-        let mut new_tokens: Vec<Token> = Vec::new();
+    pub fn process(&mut self, code: &str) -> Result<Vec<Token>, String> {
+        let mut tokens: Vec<Token> = Vec::new();
         let mut iter = code.split_word_bounds().peekable();
 
         // iterate trough all the words
@@ -42,7 +47,7 @@ impl Lexer {
             // tokenize
             token = match el {
                 // number literal
-                _ if num != None => Literal(Number(num)),
+                _ if num != None => Literal(LiteralEnum::Num(num)),
 
                 // string literal
                 "\"" => {
@@ -54,8 +59,8 @@ impl Lexer {
                             match el {
                                 "\\" => {
                                     if iter.peek() == Some(&"\"") {
-                                        iter.next();
                                         words_in_quotes.push("\"");
+                                        iter.next();
                                     }
                                 }
 
@@ -68,16 +73,15 @@ impl Lexer {
                                 }
                             }
                         } else {
-                            return Err("unclosed quotes".to_string());
+                            return Err("unclosed quotes".to_owned());
                         }
                     }
-
-                    Literal(Text(Some(words_in_quotes.join(""))))
+                    Literal(LiteralEnum::Str(Some(words_in_quotes.join(""))))
                 }
 
                 // boolean literal
-                "true" => Literal(Boolean(Some(true))),
-                "false" => Literal(Boolean(Some(false))),
+                "true" => Literal(LiteralEnum::Bool(Some(true))),
+                "false" => Literal(LiteralEnum::Bool(Some(false))),
 
                 // separators
                 "(" => Separator(LeftParenthesis),
@@ -128,7 +132,7 @@ impl Lexer {
                             let num = is_number(&x);
                             if let Some(y) = num {
                                 iter.next();
-                                ret = Literal(Number(Some(-y)));
+                                ret = Literal(LiteralEnum::Num(Some(-y)));
                             }
                         }
                     }
@@ -258,12 +262,11 @@ impl Lexer {
                 // and the tokens are prepended to the one contained in
                 // the main file.
                 "import" => {
-                    self.resolve_import(&mut iter)?;
-                    Discard
+                    Keyword(Import)
                 }
 
                 // variables
-                _ if starts_ascii(el) => Identifier(Identifier::new(el.to_owned(), prefix.to_owned())),
+                _ if starts_ascii(el) => Identifier(Identifier::new(el.to_owned(), self.namespace.clone())),
 
                 // ignore whitespaces
                 " " => Discard,
@@ -273,43 +276,10 @@ impl Lexer {
             };
 
             if token != Discard {
-                new_tokens.push(token);
+                tokens.push(token);
             }
         }
 
-        // push the new tokens in front of those already existing
-        // that way, imports are going to be at the top of all the tokens
-        self.tokens.append(&mut new_tokens);
-
-        Ok(())
-    }
-
-    pub fn process(&mut self, code: &str) -> Result<Vec<Token>, String> {
-        self.process_code(code, "")?;
-        Ok(std::mem::replace(&mut self.tokens, Vec::new()))
-    }
-
-    // TODO: disallow multiple imports
-    fn resolve_import(
-        &mut self,
-        iter: &mut std::iter::Peekable<unicode_segmentation::UWordBounds>,
-    ) -> Result<(), String> {
-        let import_name;
-        loop {
-            match iter.next() {
-                Some(name) if starts_ascii(name) => {
-                    import_name = name;
-                    break;
-                }
-                Some(" ") => continue,
-                _ => return Err("bad import".to_owned()),
-            };
-        }
-
-        let contents = fs::read_to_string(format!("{}.croco", import_name))
-            .map_err(|_| format!("cannot resolve {} import", import_name))?;
-
-        self.process_code(&contents, import_name)?;
-        Ok(())
+        Ok(tokens)
     }
 }

@@ -1,4 +1,4 @@
-use crocolib::interpreter::Interpreter;
+use croco::interpreter::Interpreter;
 use gumdrop::Options;
 
 #[derive(Options)]
@@ -29,7 +29,7 @@ pub fn main() {
     }
 
     let file_path = if opts.input.is_empty() {
-        "croco.main"
+        "main.croco"
     } else {
         &opts.input[0]
     };
