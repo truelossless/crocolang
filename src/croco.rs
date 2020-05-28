@@ -36,7 +36,7 @@ pub fn main() {
 
     let mut croco = Interpreter::new();
 
-    if let Err(e) = croco.exec_file(&file_path) {
+    if let Err(e) = croco.exec_file(file_path) {
         println!("{}", e);
     }
 }

@@ -17,23 +17,8 @@ cargo build --release
 
 ## Using croco
 
-### Unix
-- Copy target/release/croco to your favourite directory
-- Put a "main.croco" file with your croco code next to the croco executable
-- Open a terminal and run
-```bash
-./croco
-```
-
-### Windows
-- Copy target/release/croco.exe to your favourite directory
-- Put a "main.croco" file with your croco code next to the croco executable
-- Open cmd.exe and run
-```bash
-croco.exe
-```
-
-### CLI
+You probably want to put the croco executable in your path.  
+Once it's done, you can use do `croco myfile.croco` in your favorite shell !
 
 ```
 $ croco --help
@@ -109,13 +94,40 @@ println(operator_precedence)
 
 ### Builtin functions
 
-The only built-in function is println right now.
-
 ```croco
+
+// imports required modules
+import "os"
+import "math"
+import "fs"
+import "http"
+
+// println and some other functions are imported by default
 println("nice")
+println(os.exec("git --version"))
+
+if math.pi > 3 {
+  println("pi is a big number")
+}
+
+if fs.exists("UNICORN.exe") {
+  println("I don't believe it")
+}
+
+println(http.get("https://www.twitter.com/robots.txt"))
+
+assert(true == false)
 ```
 ```
 nice
+git version 2.25.0.windows.1
+
+pi is a big number
+User-agent: *
+Disallow: /
+
+Assertion failed !
+
 ```
 
 ## Benchmarks
@@ -133,7 +145,7 @@ $ time ./croco.exe
 
 |benchmark name     |  node    |python|croco|
 |-------------------|----------|------|-----|
-|rec fibonacci, n=30|     200ms| 400ms|  12s|
+|rec fibonacci, n=30|     200ms| 400ms|13.5s|
 |loop, n=1000000    |     230ms| 236ms|376ms|
 
 We're getting there :D  
@@ -143,6 +155,10 @@ Apparently python doesn't do any tail call optimization for recursive functions,
 
 ### Where are the performance culprits ?
 
-Everytime a function is called, the corresponding AST is also cloned, which is very expensive (30-50% of the time is spent cloning). This is why recursive functions are so slow. I've not found a workaround.  
+- Everytime a function is called, the corresponding AST is also cloned, which is very expensive (30-50% of the time is spent cloning). This is why recursive functions are so slow. I've not found a workaround. If you can, prefer using regular loops that doesn't involve that much cloning.  
 
-If you can, prefer using regular loops that doesn't involve that much cloning.
+- Now that croco as pretty error messages, it has to keep track of a few more informations (the file name and line number mapped to each, instruction) and in the fibonacci test we lost 1.5s. I'll try to find a way to avoid some clone() calls on the file name strings.
+
+## IDE support
+
+I made a Visual Studio code extension that adds basic syntax highlighting. It is available under the `croco-0.1.0.vsix` file. Follow [these instructions for the installation](https://marketplace.visualstudio.com/items?itemName=fabiospampinato.vscode-install-vsix).

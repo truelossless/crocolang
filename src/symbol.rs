@@ -6,13 +6,13 @@ use crate::parser::TypedArg;
 use crate::token::{literal_eq, Identifier, LiteralEnum};
 
 /// Either the function is a classic function or a built-in function
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum FunctionKind {
-    Regular(AstNode),
+    Regular(Box<dyn AstNode>),
     Builtin(BuiltinCallback),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FunctionCall {
     pub args: Vec<TypedArg>,
     pub body: FunctionKind,
@@ -30,7 +30,7 @@ impl<'a> FunctionCall {
 }
 
 /// a Symbol in the symbol table. Could be either a Literal or a function call
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Symbol {
     Literal(LiteralEnum),
     Function(FunctionCall),
@@ -39,7 +39,7 @@ pub enum Symbol {
 /// SymTable represents symbol tables where all the variables are stored.
 /// The Vec represents the different scopes of variables, introduced by BlockNodes
 /// The Hashmap stores variables by name, and bind them to a value.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default)]
 pub struct SymTable(Vec<HashMap<String, Symbol>>);
 
 impl SymTable {

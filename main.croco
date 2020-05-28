@@ -1,11 +1,20 @@
-fn arg() num {
-    
-    fn sneak(d num) num {
-        return d*2
-    }
-    
-    let b = 4*sneak(1)
-    return b
+import "os"
+import "math"
+import "fs"
+import "http"
+
+println("nice")
+println(os.exec("git --version"))
+
+if math.pi > 3 {
+  println("pi is a big number")
 }
 
-println("" + arg())
+if fs.exists("UNICORN.exe") {
+  println("I don't believe it")
+}
+
+println(http.get("https://www.twitter.com/robots.txt"))
+
+assert(true == false)
+

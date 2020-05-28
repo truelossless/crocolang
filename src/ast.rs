@@ -1,51 +1,27 @@
+use core::fmt::Debug;
 use dyn_clone::DynClone;
-use std::{fmt, fs};
+use std::fs;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::lexer::Lexer;
 use crate::parser::{Parser, TypedArg};
 
 use crate::symbol::{FunctionCall, FunctionKind, SymTable, Symbol};
-use crate::token::{literal_eq, LiteralEnum, OperatorEnum};
+use crate::token::{literal_eq, CodePos, LiteralEnum, OperatorEnum};
 
-#[derive(Clone)]
-pub enum AstNode {
-    LeafNode(Box<dyn LeafNodeTrait>),
-    UnaryNode(Box<dyn UnaryNodeTrait>),
-    BinaryNode(Box<dyn BinaryNodeTrait>),
-    NaryNode(Box<dyn NaryNodeTrait>),
-}
+use crate::error::CrocoError;
 
-impl AstNode {
-    pub fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        // yeah, it's big brain time !
-        match self {
-            AstNode::LeafNode(node) => node.visit(symtable),
-            AstNode::UnaryNode(node) => node.visit(symtable),
-            AstNode::BinaryNode(node) => node.visit(symtable),
-            AstNode::NaryNode(node) => node.visit(symtable),
-        }
+// TODO: remove distinctions between left and right and store all node children in a Vec
+pub trait AstNode: DynClone {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError>;
+    fn prepend_child(&mut self, _node: Box<dyn AstNode>) {
+        unimplemented!();
+    }
+    fn add_child(&mut self, _node: Box<dyn AstNode>) {
+        unimplemented!();
     }
 }
-
-impl fmt::Debug for AstNode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ret = match &self {
-            AstNode::LeafNode(_) => "LeafNode",
-            AstNode::UnaryNode(_) => "UnaryNode",
-            AstNode::BinaryNode(_) => "BinaryNode",
-            AstNode::NaryNode(_) => "NaryNode",
-        };
-
-        write!(f, "AstNode {{ type: {} }}", ret)
-    }
-}
-
-/*
-    I'm not sure of the right design here:
-    It's either a NodeResult enum, or a string stating  the type
-    of the node to add AstNode.
-*/
+dyn_clone::clone_trait_object!(AstNode);
 
 /// The type of value returned by a node
 #[derive(Clone, Debug)]
@@ -63,14 +39,17 @@ pub enum NodeResult {
 }
 
 impl NodeResult {
-    pub fn into_literal(self) -> Result<LiteralEnum, String> {
+    pub fn into_literal(self, pos: &CodePos) -> Result<LiteralEnum, CrocoError> {
         match self {
             NodeResult::Literal(l) => Ok(l),
-            _ => Err("Expected a value but got an early-return keyword".to_owned()),
+            _ => Err(CrocoError::new(
+                pos,
+                "Expected a value but got an early-return keyword".to_owned(),
+            )),
         }
     }
 
-    pub fn into_return(self) -> Result<LiteralEnum, String> {
+    pub fn into_return(self) -> Result<LiteralEnum, CrocoError> {
         match self {
             NodeResult::Return(l) => Ok(l),
             _ => panic!("Expected a return value but got an early-return keyword !!"),
@@ -78,104 +57,114 @@ impl NodeResult {
     }
 }
 
-pub trait LeafNodeTrait: DynClone {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String>;
+/// wether a block node should create a nex scope or keep the old one
+#[derive(Clone)]
+pub enum BlockScope {
+    New,
+    Keep,
 }
-dyn_clone::clone_trait_object!(LeafNodeTrait);
 
-pub trait UnaryNodeTrait: DynClone {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String>;
-    fn set_bottom(&mut self, _node: AstNode) {}
+impl Default for BlockScope {
+    fn default() -> Self {
+        BlockScope::New
+    }
 }
-dyn_clone::clone_trait_object!(UnaryNodeTrait);
-
-pub trait BinaryNodeTrait: DynClone {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String>;
-    fn set_left(&mut self, _node: AstNode) {}
-    fn set_right(&mut self, _node: AstNode) {}
-}
-dyn_clone::clone_trait_object!(BinaryNodeTrait);
-
-pub trait NaryNodeTrait: DynClone {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String>;
-    fn prepend_child(&mut self, node: AstNode);
-    fn add_child(&mut self, node: AstNode);
-}
-dyn_clone::clone_trait_object!(NaryNodeTrait);
 
 /// returns the LiteralEnum associated to a node
 fn get_value(
-    opt_node: &mut Option<AstNode>,
+    opt_node: &mut Option<Box<dyn AstNode>>,
     symtable: &mut SymTable,
-) -> Result<LiteralEnum, String> {
+    code_pos: &CodePos,
+) -> Result<LiteralEnum, CrocoError> {
     match opt_node {
         Some(node) => {
-            let visited = node.visit(symtable)?.into_literal()?;
+            let visited = node.visit(symtable)?.into_literal(code_pos)?;
 
             if visited.is_void() {
                 panic!("should have got a value there !!");
             }
             Ok(visited)
         }
-        None => Err("One variable hasn't been initialized !".to_owned()),
+        None => Err(CrocoError::new(
+            code_pos,
+            "One variable hasn't been initialized !".to_owned(),
+        )),
     }
 }
 
 /// returns the number value of a node
 fn get_number_value(
-    opt_node: &mut Option<AstNode>,
+    opt_node: &mut Option<Box<dyn AstNode>>,
     symtable: &mut SymTable,
-) -> Result<f32, String> {
-    let node = get_value(opt_node, symtable)?;
+    code_pos: &CodePos,
+) -> Result<f32, CrocoError> {
+    let node = get_value(opt_node, symtable, &code_pos)?;
     match node {
         LiteralEnum::Num(x) => Ok(x.unwrap()),
-        _ => Err("Performing a math operation on a wrong variable type !".to_owned()),
+        _ => Err(CrocoError::new(
+            code_pos,
+            "Performing a math operation on a wrong variable type !".to_owned(),
+        )),
     }
 }
 
 #[derive(Clone)]
 pub struct FunctionCallNode {
     fn_name: String,
-    fn_args: Vec<AstNode>,
+    fn_args: Vec<Box<dyn AstNode>>,
+    code_pos: CodePos,
 }
 
 impl FunctionCallNode {
-    pub fn new(fn_name: String, fn_args: Vec<AstNode>) -> Self {
-        FunctionCallNode { fn_name, fn_args }
+    pub fn new(fn_name: String, fn_args: Vec<Box<dyn AstNode>>, code_pos: CodePos) -> Self {
+        FunctionCallNode {
+            fn_name,
+            fn_args,
+            code_pos,
+        }
     }
 }
 
-impl NaryNodeTrait for FunctionCallNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for FunctionCallNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         // resolve the function arguments
         let mut visited_args = Vec::new();
         for arg in self.fn_args.iter_mut() {
-            let value = arg.visit(symtable)?.into_literal()?;
+            let value = arg.visit(symtable)?.into_literal(&self.code_pos)?;
             if value.is_void() {
-                return Err(format!(
-                    "Empty value in {} function parameter",
-                    self.fn_name
+                return Err(CrocoError::new(
+                    &self.code_pos,
+                    format!("Empty value in {} function parameter", self.fn_name),
                 ));
             }
             visited_args.push(value);
         }
         // this clone call is taking 30-50% of the execution time in fib.croco >:(
-        let fn_decl = symtable.get_function(&self.fn_name)?.clone();
+        let fn_decl = symtable
+            .get_function(&self.fn_name)
+            .map_err(|e| CrocoError::new(&self.code_pos, e))?
+            .clone();
         // ensure that the arguments provided and the arguments in the function call match
         if visited_args.len() != fn_decl.args.len() {
-            return Err(format!(
+            return Err(CrocoError::new(
+                &self.code_pos,
+                format!(
                 "mismatched number of arguments in function {}\n expected {} parameters but got {}",
                 self.fn_name,
                 fn_decl.args.len(),
                 visited_args.len()
+            ),
             ));
         }
         for (i, arg) in visited_args.iter().enumerate() {
             if !literal_eq(arg, &fn_decl.args[i].arg_type) {
-                return Err(format!(
-                    "parameter {} type doesn't match {} function definition",
-                    i + 1,
-                    self.fn_name
+                return Err(CrocoError::new(
+                    &self.code_pos,
+                    format!(
+                        "parameter {} type doesn't match {} function definition",
+                        i + 1,
+                        self.fn_name
+                    ),
                 ));
             }
         }
@@ -183,32 +172,34 @@ impl NaryNodeTrait for FunctionCallNode {
         let return_value: LiteralEnum;
 
         match fn_decl.body {
-            FunctionKind::Regular(func_call) => {
+            FunctionKind::Regular(mut block_node) => {
                 // get the block node of the function
-
-                let mut block_node = match func_call {
-                    AstNode::NaryNode(node) => node,
-                    _ => unreachable!(),
-                };
 
                 // inject the function arguments
                 for (i, arg) in visited_args.into_iter().enumerate() {
-                    let resolved_literal = AstNode::LeafNode(Box::new(LiteralNode::new(arg)));
+                    let resolved_literal = Box::new(LiteralNode::new(arg));
 
-                    block_node.prepend_child(AstNode::BinaryNode(Box::new(DeclNode::new(
+                    block_node.prepend_child(Box::new(DeclNode::new(
                         fn_decl.args[i].arg_name.clone(),
                         resolved_literal,
                         fn_decl.args[i].arg_type.clone(),
-                    ))));
+                        self.code_pos.clone(),
+                    )));
                 }
 
                 return_value = match block_node.visit(symtable)? {
                     NodeResult::Return(ret) => ret,
                     NodeResult::Break => {
-                        return Err("cannot exit a function with a break".to_owned())
+                        return Err(CrocoError::new(
+                            &self.code_pos,
+                            "cannot exit a function with a break".to_owned(),
+                        ))
                     }
                     NodeResult::Continue => {
-                        return Err("cannot use continue in a function".to_owned())
+                        return Err(CrocoError::new(
+                            &self.code_pos,
+                            "cannot use continue in a function".to_owned(),
+                        ))
                     }
                     // this must be void if it's returned by a block node
                     NodeResult::Literal(l) => l,
@@ -221,17 +212,20 @@ impl NaryNodeTrait for FunctionCallNode {
         }
 
         if !literal_eq(&fn_decl.return_type, &return_value) {
-            return Err(format!("function {} returned a wrong type", self.fn_name));
+            return Err(CrocoError::new(
+                &self.code_pos,
+                format!("function {} returned a wrong type", self.fn_name),
+            ));
         }
 
         Ok(NodeResult::Literal(return_value))
     }
 
-    fn prepend_child(&mut self, node: AstNode) {
+    fn prepend_child(&mut self, node: Box<dyn AstNode>) {
         self.fn_args.insert(0, node);
     }
 
-    fn add_child(&mut self, node: AstNode) {
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
         self.fn_args.push(node);
     }
 }
@@ -242,25 +236,35 @@ pub struct FunctionDeclNode {
     name: String,
     return_type: Option<LiteralEnum>,
     args: Option<Vec<TypedArg>>,
-    body: Option<AstNode>,
+    body: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
 }
 
 impl FunctionDeclNode {
-    pub fn new(name: String, return_type: LiteralEnum, args: Vec<TypedArg>) -> Self {
+    pub fn new(
+        name: String,
+        return_type: LiteralEnum,
+        args: Vec<TypedArg>,
+        code_pos: CodePos,
+    ) -> Self {
         FunctionDeclNode {
             name,
             return_type: Some(return_type),
             args: Some(args),
-            body: Some(AstNode::NaryNode(Box::new(BlockNode::new(BlockScope::New)))),
+            body: Some(Box::new(BlockNode::new(BlockScope::New))),
+            code_pos,
         }
     }
 }
 
-impl UnaryNodeTrait for FunctionDeclNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for FunctionDeclNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         // check if the function has aready been defined
         if symtable.get_function(&self.name).is_ok() {
-            return Err(format!("{} function name already used", self.name));
+            return Err(CrocoError::new(
+                &self.code_pos,
+                format!("{} function name already used", self.name),
+            ));
         }
 
         // once the function is declared we can move out its content since this node is not going to be used again
@@ -275,20 +279,8 @@ impl UnaryNodeTrait for FunctionDeclNode {
         Ok(NodeResult::Literal(LiteralEnum::Void))
     }
 
-    fn set_bottom(&mut self, node: AstNode) {
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
         self.body = Some(node);
-    }
-}
-
-#[derive(Clone)]
-pub enum BlockScope {
-    New,
-    Keep,
-}
-
-impl Default for BlockScope {
-    fn default() -> Self {
-        BlockScope::New
     }
 }
 
@@ -298,12 +290,12 @@ impl Default for BlockScope {
 #[derive(Clone)]
 pub struct BlockNode {
     // all instructions of the block node
-    body: Vec<AstNode>,
+    body: Vec<Box<dyn AstNode>>,
     scope: BlockScope,
     // instructions that get prepended, e.g variables in fn calls
-    // prepended: Vec<AstNode>,
+    // prepended: Vec<Box<dyn AstNode>>,
     // same as previous, useful for future defer calls
-    // appended: Vec<AstNode>
+    // appended: Vec<Box<dyn AstNode>>
 }
 
 impl BlockNode {
@@ -317,21 +309,20 @@ impl BlockNode {
     }
 }
 
-impl NaryNodeTrait for BlockNode {
-    fn prepend_child(&mut self, node: AstNode) {
+impl AstNode for BlockNode {
+    fn prepend_child(&mut self, node: Box<dyn AstNode>) {
         self.body.insert(0, node);
     }
 
-    fn add_child(&mut self, node: AstNode) {
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
         self.body.push(node);
     }
 
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         // push a new scope if needed
         match self.scope {
             BlockScope::New => symtable.add_scope(),
-            BlockScope::Keep => ()
+            BlockScope::Keep => (),
         }
 
         // early return from the block
@@ -362,7 +353,7 @@ impl NaryNodeTrait for BlockNode {
         // we're done with this scope, drop it
         match self.scope {
             BlockScope::New => symtable.drop_scope(),
-            BlockScope::Keep => ()
+            BlockScope::Keep => (),
         }
 
         Ok(value)
@@ -372,19 +363,20 @@ impl NaryNodeTrait for BlockNode {
 /// A node returning a value from a block
 #[derive(Clone)]
 pub struct ReturnNode {
-    bottom: AstNode,
+    bottom: Box<dyn AstNode>,
+    code_pos: CodePos,
 }
 
 impl ReturnNode {
-    pub fn new(bottom: AstNode) -> Self {
-        ReturnNode { bottom }
+    pub fn new(bottom: Box<dyn AstNode>, code_pos: CodePos) -> Self {
+        ReturnNode { bottom, code_pos }
     }
 }
 
-impl UnaryNodeTrait for ReturnNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for ReturnNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         Ok(NodeResult::Return(
-            self.bottom.visit(symtable)?.into_literal()?,
+            self.bottom.visit(symtable)?.into_literal(&self.code_pos)?,
         ))
     }
 }
@@ -395,41 +387,54 @@ pub struct DeclNode {
     // the var_name
     left: String,
     // the variable Assignement
-    right: AstNode,
+    right: Box<dyn AstNode>,
     // the type of the variable
     var_type: LiteralEnum,
+    code_pos: CodePos,
 }
 
 impl DeclNode {
-    pub fn new(var_name: String, expr: AstNode, var_type: LiteralEnum) -> Self {
+    pub fn new(
+        var_name: String,
+        expr: Box<dyn AstNode>,
+        var_type: LiteralEnum,
+        code_pos: CodePos,
+    ) -> Self {
         DeclNode {
             left: var_name,
             right: expr,
             var_type,
+            code_pos,
         }
     }
 }
 
-impl BinaryNodeTrait for DeclNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for DeclNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         if symtable.same_scope_symbol(&self.left) {
-            return Err(format!(
-                "The variable {} has already been declared",
-                self.left
+            return Err(CrocoError::new(
+                &self.code_pos,
+                format!("The variable {} has already been declared", self.left),
             ));
         }
 
-        let var_value = self.right.visit(symtable)?.into_literal()?;
+        let var_value = self.right.visit(symtable)?.into_literal(&self.code_pos)?;
 
         if !self.var_type.is_void() && !literal_eq(&var_value, &self.var_type) {
-            return Err(format!(
+            return Err(CrocoError::new(
+                &self.code_pos,
+                format!(
                 "variable {} has been explicitely given a type but is declared with another one",
                 &self.left
+            ),
             ));
         }
 
         if var_value.is_void() && self.var_type.is_void() {
-            return Err(format!("Unable to infer the type of {}", self.left));
+            return Err(CrocoError::new(
+                &self.code_pos,
+                format!("Unable to infer the type of {}", self.left),
+            ));
         }
         symtable.insert_symbol(&self.left, var_value);
         Ok(NodeResult::Literal(LiteralEnum::Void))
@@ -442,26 +447,33 @@ pub struct AssignmentNode {
     // variable to assign to
     left: String,
     // expr assigned
-    right: AstNode,
+    right: Box<dyn AstNode>,
+    code_pos: CodePos,
 }
 
 impl AssignmentNode {
-    pub fn new(var_name: String, expr: AstNode) -> Self {
+    pub fn new(var_name: String, expr: Box<dyn AstNode>, code_pos: CodePos) -> Self {
         AssignmentNode {
             left: var_name,
             right: expr,
+            code_pos,
         }
     }
 }
 
-impl BinaryNodeTrait for AssignmentNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let right_val = self.right.visit(symtable)?.into_literal()?;
+impl AstNode for AssignmentNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+        let right_val = self.right.visit(symtable)?.into_literal(&self.code_pos)?;
 
         if right_val.is_void() {
-            return Err(format!("Cannot assign {} to a void expression", &self.left));
+            return Err(CrocoError::new(
+                &self.code_pos,
+                format!("Cannot assign {} to a void expression", &self.left),
+            ));
         }
-        symtable.modify_symbol(&self.left, right_val)?;
+        symtable
+            .modify_symbol(&self.left, right_val)
+            .map_err(|e| CrocoError::new(&self.code_pos, e))?;
         Ok(NodeResult::Literal(LiteralEnum::Void))
     }
 }
@@ -470,17 +482,20 @@ impl BinaryNodeTrait for AssignmentNode {
 #[derive(Clone)]
 pub struct VarNode {
     name: String,
+    code_pos: CodePos,
 }
 
 impl VarNode {
-    pub fn new(name: String) -> Self {
-        VarNode { name }
+    pub fn new(name: String, code_pos: CodePos) -> Self {
+        VarNode { name, code_pos }
     }
 }
 
-impl LeafNodeTrait for VarNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let value = symtable.get_literal(&self.name)?;
+impl AstNode for VarNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+        let value = symtable
+            .get_literal(&self.name)
+            .map_err(|e| CrocoError::new(&self.code_pos, e))?;
         Ok(NodeResult::Literal(value.clone()))
     }
 }
@@ -498,23 +513,25 @@ impl LiteralNode {
 }
 
 // actually we can't move out as a node can be visited multiple times in a loop
-impl LeafNodeTrait for LiteralNode {
-    fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for LiteralNode {
+    fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         Ok(NodeResult::Literal(self.value.clone()))
     }
 }
 
 #[derive(Clone)]
 pub struct PlusNode {
-    left: Option<AstNode>,
-    right: Option<AstNode>,
+    left: Option<Box<dyn AstNode>>,
+    right: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
 }
 
 impl PlusNode {
-    pub fn new() -> Self {
+    pub fn new(code_pos: CodePos) -> Self {
         PlusNode {
             left: None,
             right: None,
+            code_pos,
         }
     }
 }
@@ -522,10 +539,10 @@ impl PlusNode {
 // TODO: remove implicit cast and introduce as keyword
 // TODO: put all math nodes together ?
 /// node handling additions and concatenations
-impl BinaryNodeTrait for PlusNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let left_val = get_value(&mut self.left, symtable)?;
-        let right_val = get_value(&mut self.right, symtable)?;
+impl AstNode for PlusNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+        let left_val = get_value(&mut self.left, symtable, &self.code_pos)?;
+        let right_val = get_value(&mut self.right, symtable, &self.code_pos)?;
 
         // different kinds of additions can happen
         // the PlusNode also works for concatenation.
@@ -564,7 +581,10 @@ impl BinaryNodeTrait for PlusNode {
 
                 LiteralEnum::Num(num) => Ok(NodeResult::Literal(txt_and_num(txt1, num, false))),
 
-                LiteralEnum::Bool(_) => Err("cannot add booleans".to_string()),
+                LiteralEnum::Bool(_) => Err(CrocoError::new(
+                    &self.code_pos,
+                    "cannot add booleans".to_string(),
+                )),
                 LiteralEnum::Void => unreachable!(),
             },
 
@@ -575,149 +595,175 @@ impl BinaryNodeTrait for PlusNode {
                     // self.value = num_and_num(num1, num2);
                     Ok(NodeResult::Literal(num_and_num(num1, num2)))
                 }
-                LiteralEnum::Bool(_) => Err("cannot add booleans".to_string()),
+                LiteralEnum::Bool(_) => Err(CrocoError::new(
+                    &self.code_pos,
+                    "cannot add booleans".to_string(),
+                )),
                 LiteralEnum::Void => unreachable!(),
             },
 
-            LiteralEnum::Bool(_) => Err("cannot add booleans".to_string()),
+            LiteralEnum::Bool(_) => Err(CrocoError::new(
+                &self.code_pos,
+                "cannot add booleans".to_string(),
+            )),
             LiteralEnum::Void => unreachable!(),
         }
     }
-    fn set_left(&mut self, node: AstNode) {
-        self.left = Some(node);
-    }
-
-    fn set_right(&mut self, node: AstNode) {
-        self.right = Some(node);
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.left.is_none() {
+            self.left = Some(node);
+        } else if self.right.is_none() {
+            self.right = Some(node);
+        } else {
+            unreachable!()
+        }
     }
 }
 
 #[derive(Clone)]
 pub struct MinusNode {
-    left: Option<AstNode>,
-    right: Option<AstNode>,
+    left: Option<Box<dyn AstNode>>,
+    right: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
 }
 
 impl MinusNode {
-    pub fn new() -> Self {
+    pub fn new(code_pos: CodePos) -> Self {
         MinusNode {
             left: None,
             right: None,
+            code_pos,
         }
     }
 }
 
-impl BinaryNodeTrait for MinusNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for MinusNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         let value = LiteralEnum::Num(Some(
-            get_number_value(&mut self.left, symtable)?
-                - get_number_value(&mut self.right, symtable)?,
+            get_number_value(&mut self.left, symtable, &self.code_pos)?
+                - get_number_value(&mut self.right, symtable, &self.code_pos)?,
         ));
         Ok(NodeResult::Literal(value))
     }
-    fn set_left(&mut self, node: AstNode) {
-        self.left = Some(node);
-    }
-
-    fn set_right(&mut self, node: AstNode) {
-        self.right = Some(node);
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.left.is_none() {
+            self.left = Some(node);
+        } else if self.right.is_none() {
+            self.right = Some(node);
+        } else {
+            unreachable!()
+        }
     }
 }
 
 #[derive(Clone)]
 pub struct MultiplicateNode {
-    left: Option<AstNode>,
-    right: Option<AstNode>,
+    left: Option<Box<dyn AstNode>>,
+    right: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
 }
 
 impl MultiplicateNode {
-    pub fn new() -> Self {
+    pub fn new(code_pos: CodePos) -> Self {
         MultiplicateNode {
             left: None,
             right: None,
+            code_pos,
         }
     }
 }
 
-impl BinaryNodeTrait for MultiplicateNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for MultiplicateNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         let value = LiteralEnum::Num(Some(
-            get_number_value(&mut self.left, symtable)?
-                * get_number_value(&mut self.right, symtable)?,
+            get_number_value(&mut self.left, symtable, &self.code_pos)?
+                * get_number_value(&mut self.right, symtable, &self.code_pos)?,
         ));
         Ok(NodeResult::Literal(value))
     }
 
-    fn set_left(&mut self, node: AstNode) {
-        self.left = Some(node);
-    }
-
-    fn set_right(&mut self, node: AstNode) {
-        self.right = Some(node);
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.left.is_none() {
+            self.left = Some(node);
+        } else if self.right.is_none() {
+            self.right = Some(node);
+        } else {
+            unreachable!()
+        }
     }
 }
 
 #[derive(Clone)]
 pub struct DivideNode {
-    left: Option<AstNode>,
-    right: Option<AstNode>,
+    left: Option<Box<dyn AstNode>>,
+    right: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
 }
 
 impl DivideNode {
-    pub fn new() -> Self {
+    pub fn new(code_pos: CodePos) -> Self {
         DivideNode {
             left: None,
             right: None,
+            code_pos,
         }
     }
 }
 
-impl BinaryNodeTrait for DivideNode {
-    fn set_left(&mut self, node: AstNode) {
-        self.left = Some(node);
-    }
-
-    fn set_right(&mut self, node: AstNode) {
-        self.right = Some(node);
-    }
-
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for DivideNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         let value = LiteralEnum::Num(Some(
-            get_number_value(&mut self.left, symtable)?
-                / get_number_value(&mut self.right, symtable)?,
+            get_number_value(&mut self.left, symtable, &self.code_pos)?
+                / get_number_value(&mut self.right, symtable, &self.code_pos)?,
         ));
         Ok(NodeResult::Literal(value))
+    }
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.left.is_none() {
+            self.left = Some(node);
+        } else if self.right.is_none() {
+            self.right = Some(node);
+        } else {
+            unreachable!()
+        }
     }
 }
 
 #[derive(Clone)]
 pub struct PowerNode {
-    left: Option<AstNode>,
-    right: Option<AstNode>,
+    left: Option<Box<dyn AstNode>>,
+    right: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
 }
 
 impl PowerNode {
-    pub fn new() -> Self {
+    pub fn new(code_pos: CodePos) -> Self {
         PowerNode {
             left: None,
             right: None,
+            code_pos,
         }
     }
 }
 
-impl BinaryNodeTrait for PowerNode {
-    fn set_left(&mut self, node: AstNode) {
-        self.left = Some(node);
+impl AstNode for PowerNode {
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.left.is_none() {
+            self.left = Some(node);
+        } else if self.right.is_none() {
+            self.right = Some(node);
+        } else {
+            unreachable!()
+        }
     }
 
-    fn set_right(&mut self, node: AstNode) {
-        self.right = Some(node);
-    }
-
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         let value = LiteralEnum::Num(Some(
-            get_number_value(&mut self.left, symtable)?
-                .powf(get_number_value(&mut self.right, symtable)?),
+            get_number_value(&mut self.left, symtable, &self.code_pos)?.powf(get_number_value(
+                &mut self.right,
+                symtable,
+                &self.code_pos,
+            )?),
         ));
         Ok(NodeResult::Literal(value))
     }
@@ -726,43 +772,53 @@ impl BinaryNodeTrait for PowerNode {
 #[derive(Clone)]
 /// A node used to compare two values, returns a boolean
 pub struct CompareNode {
-    left: Option<AstNode>,
-    right: Option<AstNode>,
+    left: Option<Box<dyn AstNode>>,
+    right: Option<Box<dyn AstNode>>,
     compare_kind: OperatorEnum,
+    code_pos: CodePos,
 }
 
 impl CompareNode {
-    pub fn new(compare_kind: OperatorEnum) -> Self {
+    pub fn new(compare_kind: OperatorEnum, code_pos: CodePos) -> Self {
         CompareNode {
             left: None,
             right: None,
             compare_kind,
+            code_pos,
         }
     }
 }
 
-impl BinaryNodeTrait for CompareNode {
-    fn set_left(&mut self, node: AstNode) {
-        self.left = Some(node);
+impl AstNode for CompareNode {
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.left.is_none() {
+            self.left = Some(node);
+        } else if self.right.is_none() {
+            self.right = Some(node);
+        } else {
+            unreachable!()
+        }
     }
 
-    fn set_right(&mut self, node: AstNode) {
-        self.right = Some(node);
-    }
-
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
-        let left_val = get_value(&mut self.left, symtable)?;
-        let right_val = get_value(&mut self.right, symtable)?;
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+        let left_val = get_value(&mut self.left, symtable, &self.code_pos)?;
+        let right_val = get_value(&mut self.right, symtable, &self.code_pos)?;
 
         if !literal_eq(&left_val, &right_val) {
-            return Err("cannot compare different types".to_owned());
+            return Err(CrocoError::new(
+                &self.code_pos,
+                "cannot compare different types".to_owned(),
+            ));
         }
 
         if (self.compare_kind != OperatorEnum::Equals
             || self.compare_kind == OperatorEnum::NotEquals)
             && !left_val.is_num()
         {
-            return Err("can compare only numbers".to_owned());
+            return Err(CrocoError::new(
+                &self.code_pos,
+                "can compare only numbers".to_owned(),
+            ));
         }
 
         let value = match self.compare_kind {
@@ -783,32 +839,45 @@ impl BinaryNodeTrait for CompareNode {
 #[derive(Clone)]
 pub struct IfNode {
     // comparison value (a CompareNode)
-    left: AstNode,
+    left: Option<Box<dyn AstNode>>,
     // if body (a BlockNode)
-    right: AstNode,
+    right: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
 }
 
 impl IfNode {
-    pub fn new(left: AstNode, right: AstNode) -> Self {
-        IfNode { left, right }
+    pub fn new(left: Box<dyn AstNode>, right: Box<dyn AstNode>, code_pos: CodePos) -> Self {
+        IfNode {
+            left: Some(left),
+            right: Some(right),
+            code_pos,
+        }
     }
 }
 
-impl BinaryNodeTrait for IfNode {
-    fn set_left(&mut self, node: AstNode) {
-        self.left = node;
+impl AstNode for IfNode {
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.left.is_none() {
+            self.left = Some(node);
+        } else if self.right.is_none() {
+            self.right = Some(node);
+        } else {
+            unreachable!()
+        }
     }
 
-    fn set_right(&mut self, node: AstNode) {
-        self.right = node;
-    }
-
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         // there should always be a boolean condition, check if it's fullfilled
-        let cond_ok = self.left.visit(symtable)?.into_literal()?.into_bool();
+        let cond_ok = self
+            .left
+            .as_mut()
+            .unwrap()
+            .visit(symtable)?
+            .into_literal(&self.code_pos)?
+            .into_bool();
 
         if cond_ok {
-            let value = self.right.visit(symtable)?;
+            let value = self.right.as_mut().unwrap().visit(symtable)?;
             match value {
                 // propagate the early-return
                 NodeResult::Return(_) | NodeResult::Break | NodeResult::Continue => {
@@ -826,30 +895,43 @@ impl BinaryNodeTrait for IfNode {
 #[derive(Clone)]
 pub struct WhileNode {
     // comparison value (a CompareNode)
-    left: AstNode,
+    left: Option<Box<dyn AstNode>>,
     // while body (a BlockNode)
-    right: AstNode,
+    right: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
 }
 
 impl WhileNode {
-    pub fn new(left: AstNode, right: AstNode) -> Self {
-        WhileNode { left, right }
+    pub fn new(left: Box<dyn AstNode>, right: Box<dyn AstNode>, code_pos: CodePos) -> Self {
+        WhileNode {
+            left: Some(left),
+            right: Some(right),
+            code_pos,
+        }
     }
 }
 
-impl BinaryNodeTrait for WhileNode {
-    fn set_left(&mut self, node: AstNode) {
-        self.left = node;
+impl AstNode for WhileNode {
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.left.is_none() {
+            self.left = Some(node);
+        } else if self.right.is_none() {
+            self.right = Some(node);
+        } else {
+            unreachable!()
+        }
     }
-
-    fn set_right(&mut self, node: AstNode) {
-        self.right = node;
-    }
-
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         // loop while the condition is ok
-        while self.left.visit(symtable)?.into_literal()?.into_bool() {
-            let value = self.right.visit(symtable)?;
+        while self
+            .left
+            .as_mut()
+            .unwrap()
+            .visit(symtable)?
+            .into_literal(&self.code_pos)?
+            .into_bool()
+        {
+            let value = self.right.as_mut().unwrap().visit(symtable)?;
             match value {
                 // propagate the early-return
                 NodeResult::Return(_) => return Ok(value),
@@ -872,8 +954,8 @@ impl BreakNode {
     }
 }
 
-impl LeafNodeTrait for BreakNode {
-    fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for BreakNode {
+    fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         Ok(NodeResult::Break)
     }
 }
@@ -888,8 +970,8 @@ impl ContinueNode {
     }
 }
 
-impl LeafNodeTrait for ContinueNode {
-    fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for ContinueNode {
+    fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         Ok(NodeResult::Continue)
     }
 }
@@ -897,23 +979,33 @@ impl LeafNodeTrait for ContinueNode {
 #[derive(Clone)]
 pub struct ImportNode {
     name: String,
-    bottom: Option<AstNode>,
+    bottom: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
 }
 
 // imports code from another module, at runtime.
 impl ImportNode {
-    pub fn new(name: String) -> Self {
-        ImportNode { name, bottom: None }
+    pub fn new(name: String, code_pos: CodePos) -> Self {
+        ImportNode {
+            name,
+            bottom: None,
+            code_pos,
+        }
     }
 }
 
-impl UnaryNodeTrait for ImportNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, String> {
+impl AstNode for ImportNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         // we have a relative path e.g import "./my_module"
         // look for a file with this name
         if self.name.contains('.') {
-            let file_contents = fs::read_to_string(format!("{}.croco", self.name))
-                .map_err(|_| format!("cannot find the file {}.croco", self.name))?;
+            let file_contents =
+                fs::read_to_string(format!("{}.croco", self.name)).map_err(|_| {
+                    CrocoError::new(
+                        &self.code_pos,
+                        format!("cannot find the file {}.croco", self.name),
+                    )
+                })?;
 
             // lex the new import
             // namespace everything created there with the import name
@@ -932,7 +1024,6 @@ impl UnaryNodeTrait for ImportNode {
             }
 
             // import name should be the real import name now.
-            println!("{}", import_name);
             lexer.set_namespace(import_name.to_owned());
             let tokens = lexer.process(&file_contents)?;
 
@@ -956,9 +1047,9 @@ impl UnaryNodeTrait for ImportNode {
             if symtable.import_builtin_module(&self.name) {
                 Ok(NodeResult::Literal(LiteralEnum::Void))
             } else {
-                Err(format!(
-                    "{} module not found in the builtin library",
-                    self.name
+                Err(CrocoError::new(
+                    &self.code_pos,
+                    format!("{} module not found in the builtin library", self.name),
                 ))
             }
         }

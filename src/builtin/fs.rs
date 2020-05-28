@@ -16,7 +16,7 @@ pub fn get_module() -> BuiltinModule {
         BuiltinFunction {
             name: "exists".to_owned(),
             args: vec![LiteralEnum::Str(None)],
-            return_type: LiteralEnum::Void,
+            return_type: LiteralEnum::Bool(None),
             pointer: exists,
         },
         BuiltinFunction {

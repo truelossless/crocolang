@@ -40,6 +40,6 @@ fn exec(mut args: Vec<LiteralEnum>) -> LiteralEnum {
         let stdout = String::from_utf8_lossy(&output.stdout);
         LiteralEnum::Str(Some(stdout.into_owned()))
     } else {
-        LiteralEnum::Str(Some("".to_owned()))
+        LiteralEnum::Str(Some(String::new()))
     }
 }

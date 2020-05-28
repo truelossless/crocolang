@@ -1,8 +1,10 @@
 use crate::ast::*;
+use crate::error::CrocoError;
 use crate::token;
 use crate::token::{
-    KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
+    CodePos, KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
 };
+use Token::EOF;
 
 #[derive(Clone, Debug)]
 pub struct TypedArg {
@@ -17,132 +19,194 @@ impl TypedArg {
 }
 
 struct ParsedIdentifier {
-    content: AstNode,
+    content: Box<dyn AstNode>,
     is_fn_call: bool,
 }
 
 impl ParsedIdentifier {
-    fn new(content: AstNode, is_fn_call: bool) -> Self {
+    fn new(content: Box<dyn AstNode>, is_fn_call: bool) -> Self {
         ParsedIdentifier {
             content,
             is_fn_call,
         }
     }
 }
-
 #[derive(Default)]
 pub struct Parser {
     scope: BlockScope,
+    token_pos: CodePos,
 }
 
 impl Parser {
     pub fn new() -> Self {
         Parser {
             scope: BlockScope::New,
+            token_pos: CodePos {
+                file: String::new(),
+                line: 0,
+                word: 0
+            },
+        }
+    }
+
+    pub fn next_token(
+        &mut self,
+        iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
+    ) -> Token {
+        if let Some((token, pos)) = iter.next() {
+            self.token_pos = pos;
+            token
+        } else {
+            Token::EOF
+        }
+    }
+
+    // i'm not really sure how I could return a reference created in this function (if it's even possible)
+    // maybe something like peek_token<'a>(&mut self, iter: &'a mut iter....) -> &'a Token
+    pub fn peek_token(
+        &mut self,
+        iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
+    ) -> Token {
+        match iter.peek() {
+            Some((token, pos)) => {
+                self.token_pos = pos.clone();
+                token.clone()
+            }
+            None => EOF,
         }
     }
 
     pub fn set_scope(&mut self, scope: BlockScope) {
         self.scope = scope;
-        println!("changed scope");
     }
 
     /// util to build a node from a token
-    fn get_node(token: Token) -> Result<AstNode, String> {
+    fn get_node(&self, token: Token) -> Result<Box<dyn AstNode>, CrocoError> {
         // println!("got token {:?}", token);
 
         match token {
-            Identifier(identifier) => {
-                Ok(AstNode::LeafNode(Box::new(VarNode::new(identifier.name))))
-            }
-            Literal(literal) => Ok(AstNode::LeafNode(Box::new(LiteralNode::new(literal)))),
-            Operator(Plus) => Ok(AstNode::BinaryNode(Box::new(PlusNode::new()))),
-            Operator(Minus) => Ok(AstNode::BinaryNode(Box::new(MinusNode::new()))),
-            Operator(Multiplicate) => Ok(AstNode::BinaryNode(Box::new(MultiplicateNode::new()))),
-            Operator(Divide) => Ok(AstNode::BinaryNode(Box::new(DivideNode::new()))),
-            Operator(Power) => Ok(AstNode::BinaryNode(Box::new(PowerNode::new()))),
-            Operator(Equals) => Ok(AstNode::BinaryNode(Box::new(CompareNode::new(Equals)))),
-            Operator(NotEquals) => Ok(AstNode::BinaryNode(Box::new(CompareNode::new(NotEquals)))),
-            Operator(GreaterOrEqual) => Ok(AstNode::BinaryNode(Box::new(CompareNode::new(
+            Identifier(identifier) => Ok(Box::new(VarNode::new(
+                identifier.name,
+                self.token_pos.clone(),
+            ))),
+            Literal(literal) => Ok(Box::new(LiteralNode::new(literal))),
+            Operator(Plus) => Ok(Box::new(PlusNode::new(self.token_pos.clone()))),
+            Operator(Minus) => Ok(Box::new(MinusNode::new(self.token_pos.clone()))),
+            Operator(Multiplicate) => Ok(Box::new(MultiplicateNode::new(self.token_pos.clone()))),
+            Operator(Divide) => Ok(Box::new(DivideNode::new(self.token_pos.clone()))),
+            Operator(Power) => Ok(Box::new(PowerNode::new(self.token_pos.clone()))),
+            Operator(Equals) => Ok(Box::new(CompareNode::new(Equals, self.token_pos.clone()))),
+            Operator(NotEquals) => Ok(Box::new(CompareNode::new(
+                NotEquals,
+                self.token_pos.clone(),
+            ))),
+            Operator(GreaterOrEqual) => Ok(Box::new(CompareNode::new(
                 GreaterOrEqual,
-            )))),
-            Operator(GreaterThan) => {
-                Ok(AstNode::BinaryNode(Box::new(CompareNode::new(GreaterThan))))
-            }
-            Operator(LowerOrEqual) => Ok(AstNode::BinaryNode(Box::new(CompareNode::new(
+                self.token_pos.clone(),
+            ))),
+            Operator(GreaterThan) => Ok(Box::new(CompareNode::new(
+                GreaterThan,
+                self.token_pos.clone(),
+            ))),
+            Operator(LowerOrEqual) => Ok(Box::new(CompareNode::new(
                 LowerOrEqual,
-            )))),
-            Operator(LowerThan) => Ok(AstNode::BinaryNode(Box::new(CompareNode::new(LowerThan)))),
-            _ => Err(format!("can't evaluate token in expression: {:?}", token)),
+                self.token_pos.clone(),
+            ))),
+            Operator(LowerThan) => Ok(Box::new(CompareNode::new(
+                LowerThan,
+                self.token_pos.clone(),
+            ))),
+            _ => Err(CrocoError::new(
+                &self.token_pos,
+                format!("can't evaluate token in expression: {:?}", token),
+            )),
         }
     }
 
     /// util to add a node to the output
-    fn add_node(output: &mut Vec<AstNode>, token: Token) -> Result<(), String> {
-        let root_node_obj = Parser::get_node(token)?;
+    fn add_node(
+        &mut self,
+        output: &mut Vec<Box<dyn AstNode>>,
+        token: Token,
+    ) -> Result<(), CrocoError> {
+        let pos = self.token_pos.clone();
+        let mut root_node = self.get_node(token)?;
 
-        let mut binary_root_node = match root_node_obj {
-            AstNode::BinaryNode(node) => node,
-            _ => panic!("Trying to add a node in an expr but the parent is not a binary node !"),
+        let right = match output.pop() {
+            Some(x) => x,
+            None => {
+                return Err(CrocoError::new(
+                    &pos,
+                    "missing element in expression".to_owned(),
+                ))
+            }
         };
 
-        match output.pop() {
-            Some(x) => binary_root_node.set_right(x),
-            None => return Err("missing element in expression".to_owned()),
-        }
+        let left = match output.pop() {
+            Some(x) => x,
+            None => {
+                return Err(CrocoError::new(
+                    &pos,
+                    "missing element in expression".to_owned(),
+                ))
+            }
+        };
 
-        match output.pop() {
-            Some(x) => binary_root_node.set_left(x),
-            None => return Err("missing element in expression".to_owned()),
-        }
+        root_node.add_child(left);
+        root_node.add_child(right);
 
-        output.push(AstNode::BinaryNode(binary_root_node));
+        output.push(root_node);
         Ok(())
     }
 
     /// Parses an identifier into either a FunctionCallNode or a VariableNode
     fn parse_identifier(
-        iter: &mut std::iter::Peekable<std::vec::IntoIter<Token>>,
+        &mut self,
+        iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         identifier: token::Identifier,
-    ) -> Result<ParsedIdentifier, String> {
-        let next_token = iter.peek();
+    ) -> Result<ParsedIdentifier, CrocoError> {
+        let next_token = self.peek_token(iter);
 
         match next_token {
-            Some(Separator(LeftParenthesis)) => (),
+            Separator(LeftParenthesis) => (),
             _ => {
                 return Ok(ParsedIdentifier::new(
-                    AstNode::LeafNode(Box::new(VarNode::new(identifier.name))),
+                    Box::new(VarNode::new(identifier.name, self.token_pos.clone())),
                     false,
                 ))
             }
         }
         iter.next();
-        let mut fn_args: Vec<AstNode> = Vec::new();
+        let mut fn_args: Vec<Box<dyn AstNode>> = Vec::new();
 
         loop {
             // TODO: avoid hello()) function calls
-            if let Some(Separator(RightParenthesis)) = iter.peek() {
-                iter.next();
-                break;
+            if let Separator(RightParenthesis) = self.peek_token(iter) {
+                    self.next_token(iter);
+                    break;
             }
 
-            fn_args.push(Parser::parse_expr(iter)?);
-            Parser::discard_newlines(iter);
+            fn_args.push(self.parse_expr(iter)?);
+            self.discard_newlines(iter);
 
-            match iter.next() {
-                Some(Separator(Comma)) => (),
-                Some(Separator(RightParenthesis)) => break,
+            match self.next_token(iter) {
+                Separator(Comma) => (),
+                Separator(RightParenthesis) => break,
                 _ => {
-                    return Err(format!(
-                        "unexpected token in {} function call",
-                        identifier.name
+                    return Err(CrocoError::new(
+                        &self.token_pos,
+                        format!("unexpected token in {} function call", identifier.name),
                     ))
                 }
             }
         }
 
         Ok(ParsedIdentifier::new(
-            AstNode::NaryNode(Box::new(FunctionCallNode::new(identifier.name, fn_args))),
+            Box::new(FunctionCallNode::new(
+                identifier.name,
+                fn_args,
+                self.token_pos.clone(),
+            )),
             true,
         ))
     }
@@ -152,11 +216,12 @@ impl Parser {
     // https://en.wikipedia.org/wiki/Shunting-yard_algorithm
     // https://www.klittlepage.com/2013/12/22/twelve-days-2013-shunting-yard-algorithm/
     fn parse_expr(
-        iter: &mut std::iter::Peekable<std::vec::IntoIter<Token>>,
-    ) -> Result<AstNode, String> {
+        &mut self,
+        iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
+    ) -> Result<Box<dyn AstNode>, CrocoError> {
         // and an expression to finish.
         let mut stack: Vec<Token> = Vec::new(); // == operand stack
-        let mut output: Vec<AstNode> = Vec::new(); // == operator stack
+        let mut output: Vec<Box<dyn AstNode>> = Vec::new(); // == operator stack
 
         // util to know which operator has the highest priority (higher value is higher priority)
         let get_precedence = |op: &Token| -> u8 {
@@ -196,9 +261,10 @@ impl Parser {
         // call_my_fn(3 + 4) <- this right parenthesis is the end of the function
         let mut parenthesis_opened = false;
 
-        while let Some(next_token) = iter.peek() {
+        loop {
+
             // make sure that this token belongs to the expression
-            match next_token {
+            match self.peek_token(iter) {
                 // the right parenthesis is the end of a function
                 Separator(RightParenthesis) => {
                     if !parenthesis_opened {
@@ -207,30 +273,28 @@ impl Parser {
                 }
 
                 // end of an expr
-                Separator(NewLine) | Separator(Comma) | Separator(LeftBracket) => break,
+                Separator(NewLine) | Separator(Comma) | Separator(LeftBracket) | EOF => break,
                 _ => (),
             }
 
             // now that we know that the token is right, we can consume it
-            let token_expr = iter.next().unwrap(); // we can safely unwrap as we already have peeked
-
-            match token_expr {
+            let expr_token = self.next_token(iter);
+            match expr_token {
                 Identifier(identifier) => {
-                    output.push(Parser::parse_identifier(iter, identifier)?.content)
+                    output.push(self.parse_identifier(iter, identifier)?.content)
                 }
-                Literal(_) => output.push(Parser::get_node(token_expr)?),
+                Literal(_) => output.push(self.get_node(expr_token)?),
                 Operator(_) => {
                     while let Some(top) = stack.last() {
                         match top {
                             Operator(_) => {
                                 if (!right_associative(&top)
-                                    && get_precedence(&top) == get_precedence(&token_expr))
-                                    || get_precedence(&top) > get_precedence(&token_expr)
+                                    && get_precedence(&top) == get_precedence(&expr_token))
+                                    || get_precedence(&top) > get_precedence(&expr_token)
                                 {
                                     let op = stack.pop().unwrap();
-
                                     match op {
-                                        Operator(_) => Parser::add_node(&mut output, op)?,
+                                        Operator(_) => self.add_node(&mut output, op)?,
                                         _ => panic!("not an operator found in the stack"),
                                     }
                                 } else {
@@ -243,10 +307,10 @@ impl Parser {
                         }
                     }
 
-                    stack.push(token_expr);
+                    stack.push(expr_token);
                 }
                 Separator(LeftParenthesis) => {
-                    stack.push(token_expr);
+                    stack.push(expr_token);
                     parenthesis_opened = true;
                 }
                 Separator(RightParenthesis) => {
@@ -260,15 +324,12 @@ impl Parser {
                                 let popped = stack.pop();
                                 match popped {
                                     Some(Operator(_)) => {
-                                        Parser::add_node(&mut output, popped.unwrap())?
-                                    }
-                                    None => {
-                                        return Err("missing parenthesis in expression".to_owned())
+                                        self.add_node(&mut output, popped.unwrap())?
                                     }
                                     _ => {
-                                        return Err(format!(
-                                            "expected an operator but got {:?}",
-                                            popped
+                                        return Err(CrocoError::new(
+                                            &self.token_pos,
+                                            "missing parenthesis in expression".to_owned(),
                                         ))
                                     }
                                 }
@@ -276,28 +337,32 @@ impl Parser {
                         }
                     }
                 }
-                _ => return Err("unexpected symbol in math expression".to_owned()),
+                _ => {
+                    return Err(CrocoError::new(
+                        &self.token_pos,
+                        "unexpected symbol in math expression".to_owned(),
+                    ))
+                }
             }
 
             // println!("stack: {:?}", stack);
             // println!("output: {:?}", output);
         }
 
-        while !stack.is_empty() {
-            let popped = stack.pop().unwrap();
-
+        while let Some(popped) = stack.pop() {
             match popped {
                 Separator(LeftParenthesis) => {
-                    return Err("missing parenthesis in expression".to_owned())
+                    return Err(CrocoError::new(
+                        &self.token_pos,
+                        "missing parenthesis in expression".to_owned(),
+                    ))
                 }
-                _ => Parser::add_node(&mut output, popped)?,
+                _ => self.add_node(&mut output, popped)?,
             }
         }
 
         if output.is_empty() {
-            return Ok(AstNode::LeafNode(Box::new(LiteralNode::new(
-                LiteralEnum::Void,
-            ))));
+            return Ok(Box::new(LiteralNode::new(LiteralEnum::Void)));
         }
 
         Ok(output.pop().unwrap())
@@ -306,11 +371,19 @@ impl Parser {
     /// Parses a code block e.g for loop body, function body, etc.
     /// warning: it consumes the closing right bracket but not the opening one
     fn parse_block(
-        iter: &mut std::iter::Peekable<std::vec::IntoIter<Token>>,
-        scope: BlockScope
-    ) -> Result<AstNode, String> {
+        &mut self,
+        iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
+        scope: BlockScope,
+    ) -> Result<Box<dyn AstNode>, CrocoError> {
         let mut block = BlockNode::new(scope);
-        while let Some(token) = iter.next() {
+        // loop until we have no token remaining
+        loop {
+            // a discard token means that we have no token left
+            let token = self.next_token(iter);
+            if let EOF = token {
+                break;
+            }
+
             match token {
                 // ending the block
                 Separator(RightBracket) => break,
@@ -319,135 +392,142 @@ impl Parser {
                 Keyword(Let) => {
                     // rust is too dumb to figure out that out_node is always initalized so we
                     // have to wrap out_node in an Option
-                    let mut out_node: Option<AstNode> = None;
+                    let mut out_node: Option<Box<dyn AstNode>> = None;
 
                     // we're expecting a variable name
-                    let identifier = Parser::expect_identifier(
+                    let identifier = self.expect_identifier(
                         iter,
                         "expected a variable name after the let keyword",
                     )?;
 
                     let mut assign_type: LiteralEnum = LiteralEnum::Void;
 
-                    match iter.next().as_ref() {
+                    match self.next_token(iter) {
                         // we're giving a value to our variable with type inference
-                        Some(Operator(Assign)) => {
-                            out_node = Some(Parser::parse_expr(iter)?);
+                        Operator(Assign) => {
+                            out_node = Some(self.parse_expr(iter)?);
                         }
 
                         // we're giving a type annotation
-                        Some(Keyword(Num)) => assign_type = LiteralEnum::Num(None),
-                        Some(Keyword(Str)) => assign_type = LiteralEnum::Str(None),
-                        Some(Keyword(Bool)) => assign_type = LiteralEnum::Bool(None),
+                        Keyword(Num) => assign_type = LiteralEnum::Num(None),
+                        Keyword(Str) => assign_type = LiteralEnum::Str(None),
+                        Keyword(Bool) => assign_type = LiteralEnum::Bool(None),
 
                         // newline: we're declaring a variable without value or type
                         // for now we're not able to infer the variable type.
-                        Some(Separator(NewLine)) => {
-                            return Err(format!(
-                                "cannot infer the variable type of {}",
-                                identifier.name
+                        Separator(NewLine) => {
+                            return Err(CrocoError::new(
+                                &self.token_pos,
+                                format!("cannot infer the variable type of {}", identifier.name),
                             ))
                         }
                         _ => {
-                            return Err(format!(
-                                "expected an equals sign after {}",
-                                identifier.name
+                            return Err(CrocoError::new(
+                                &self.token_pos,
+                                format!("expected an equals sign after {}", identifier.name),
                             ))
                         }
                     }
 
                     // if we had a type annotation we need to check again for the variable value
                     if !assign_type.is_void() {
-                        match iter.next() {
-                            Some(Operator(Assign)) => {
-                                out_node = Some(Parser::parse_expr(iter)?);
+                        match self.next_token(iter) {
+                            Operator(Assign) => {
+                                out_node = Some(self.parse_expr(iter)?);
                             }
                             // we can infer the default value since we have the type annotation
-                            Some(Separator(NewLine)) => {
+                            Separator(NewLine) => {
                                 out_node = match assign_type {
-                                    LiteralEnum::Bool(_) => Some(Parser::get_node(Literal(
-                                        LiteralEnum::Bool(Some(false)),
-                                    ))?),
+                                    LiteralEnum::Bool(_) => Some(
+                                        self.get_node(Literal(LiteralEnum::Bool(Some(false))))?,
+                                    ),
                                     LiteralEnum::Num(_) => {
-                                        Some(Parser::get_node(Literal(LiteralEnum::Num(Some(0.))))?)
+                                        Some(self.get_node(Literal(LiteralEnum::Num(Some(0.))))?)
                                     }
-                                    LiteralEnum::Str(_) => Some(Parser::get_node(Literal(
-                                        LiteralEnum::Str(Some("".to_owned())),
+                                    LiteralEnum::Str(_) => Some(self.get_node(Literal(
+                                        LiteralEnum::Str(Some(String::new())),
                                     ))?),
                                     _ => {
-                                        return Err(format!(
-                                            "cannot infer default value for {}",
-                                            identifier.name
+                                        return Err(CrocoError::new(
+                                            &self.token_pos,
+                                            format!(
+                                                "cannot infer default value for {}",
+                                                identifier.name
+                                            ),
                                         ))
                                     }
                                 }
                             }
                             _ => {
-                                return Err(format!(
-                                    "expected an equals sign after {}",
-                                    identifier.name
+                                return Err(CrocoError::new(
+                                    &self.token_pos,
+                                    format!("expected an equals sign after {}", identifier.name),
                                 ))
                             }
                         }
                     }
 
                     // add this statement to the block
-                    block.add_child(AstNode::BinaryNode(Box::new(DeclNode::new(
+                    block.add_child(Box::new(DeclNode::new(
                         identifier.get_namespaced_name(),
                         out_node.unwrap(),
                         assign_type,
-                    ))));
+                        self.token_pos.clone(),
+                    )));
                 }
 
                 // assigning a new value to a variable, or calling a function
                 Identifier(identifier) => {
-                    let parsed_identifier = Parser::parse_identifier(iter, identifier.clone())?;
+                    let parsed_identifier = self.parse_identifier(iter, identifier.clone())?;
 
                     // we're calling a function
                     if parsed_identifier.is_fn_call {
+
+                        self.expect_token(iter, Separator(NewLine), "expected a new line after function call")?;
+
                         block.add_child(parsed_identifier.content);
                         continue;
                     }
 
-                    let next_token = iter.next();
-
-                    match next_token {
+                    let op_token = self.next_token(iter);
+                    match op_token {
 
                         // assigning to a variable
-                        Some(Operator(Assign))
-                        | Some(Operator(PlusEquals))
-                        | Some(Operator(MinusEquals))
-                        | Some(Operator(MultiplicateEquals))
-                        | Some(Operator(DivideEquals))
-                        | Some(Operator(PowerEquals)) => {
+                        Operator(Assign)
+                        | Operator(PlusEquals)
+                        | Operator(MinusEquals)
+                        | Operator(MultiplicateEquals)
+                        | Operator(DivideEquals)
+                        | Operator(PowerEquals) => {
 
-                            let out_node = Parser::parse_expr(iter)?;
-
+                            let out_node = self.parse_expr(iter)?;
                             // add to the root function this statement
-                            if next_token == Some(Operator(Assign)) {
-                                block.add_child(AstNode::BinaryNode(Box::new(AssignmentNode::new(identifier.name, out_node))));
+                            if op_token == Operator(Assign) {
+                                block.add_child(Box::new(AssignmentNode::new(identifier.name, out_node, self.token_pos.clone())));
                             } else {
-                                let mut dyn_op_node: Box<dyn BinaryNodeTrait> = match next_token {
-                                    Some(Operator(PlusEquals)) => Box::new(PlusNode::new()),
-                                    Some(Operator(MinusEquals)) => Box::new(MinusNode::new()),
-                                    Some(Operator(MultiplicateEquals)) => {
-                                        Box::new(MultiplicateNode::new())
+                                let mut dyn_op_node: Box<dyn AstNode> = match op_token {
+                                    Operator(PlusEquals) => Box::new(PlusNode::new(self.token_pos.clone())),
+                                    Operator(MinusEquals) => Box::new(MinusNode::new(self.token_pos.clone())),
+                                    Operator(MultiplicateEquals) => {
+                                        Box::new(MultiplicateNode::new(self.token_pos.clone()))
                                     }
-                                    Some(Operator(DivideEquals)) => Box::new(DivideNode::new()),
-                                    Some(Operator(PowerEquals)) => Box::new(PowerNode::new()),
+                                    Operator(DivideEquals) => Box::new(DivideNode::new(self.token_pos.clone())),
+                                    Operator(PowerEquals) => Box::new(PowerNode::new(self.token_pos.clone())),
                                     _ => unreachable!(),
                                 };
-                                let var_node = AstNode::LeafNode(Box::new(VarNode::new(identifier.name.clone())));
-                                dyn_op_node.set_left(var_node);
-                                dyn_op_node.set_right(out_node);
-                                let op_node = AstNode::BinaryNode(dyn_op_node);
-                                block.add_child(AstNode::BinaryNode(Box::new(AssignmentNode::new(identifier.name, op_node))));
+                                let var_node = Box::new(VarNode::new(identifier.name.clone(), self.token_pos.clone()));
+                                dyn_op_node.add_child(var_node);
+                                dyn_op_node.add_child(out_node);
+
+                                self.expect_token(iter, Separator(NewLine), "expected a new line after assignation")?;
+
+                                block.add_child(Box::new(AssignmentNode::new(identifier.name, dyn_op_node, self.token_pos.clone())));
                             }
                         }
                         _ => {
-                            return Err(format!(
-                                "expected an assignation sign or a function call after the identifier {}",
-                                identifier.name
+                            return Err(CrocoError::new(
+                                &self.token_pos,
+                                format!("expected an assignation sign or a function call after the identifier {}", identifier.name)
                             ))
                         }
                     }
@@ -455,29 +535,30 @@ impl Parser {
 
                 // declaring a function
                 Keyword(Function) => {
-                    let identifier = match iter.next() {
-                        Some(Identifier(identifier)) => identifier,
-                        _ => {
-                            return Err(
-                                "expecting the function name after function declaration".to_owned()
-                            )
-                        }
-                    };
+                    let identifier = self.expect_identifier(
+                        iter,
+                        "expected the function name after function declaration",
+                    )?;
 
-                    Parser::expect_token(
+                    self.expect_token(
                         iter,
                         Separator(LeftParenthesis),
-                        "expecting a left parenthensis after the function name",
+                        "expected a left parenthensis after the function name",
                     )?;
 
                     let mut typed_args: Vec<TypedArg> = Vec::new();
                     // continue to look for args while we haven't found a right parenthesis
                     let mut parenthesis_consumed = false;
-                    while Some(&Separator(RightParenthesis)) != iter.peek() {
-                        Parser::discard_newlines(iter);
+
+                    loop {
+                        let peek_token = self.peek_token(iter);
+                        if peek_token == EOF || peek_token == Separator(RightParenthesis) {
+                            break;
+                        }
+                        self.discard_newlines(iter);
 
                         // we're expecting an argument variable name here
-                        let arg_name = Parser::expect_identifier(
+                        let arg_name = self.expect_identifier(
                             iter,
                             &format!(
                                 "expected an argument name in {} function declaration",
@@ -486,31 +567,33 @@ impl Parser {
                         )?;
 
                         // here this should be the argument type
-                        let arg_type = match iter.next() {
-                            Some(Keyword(Num)) => LiteralEnum::Num(None),
-                            Some(Keyword(Str)) => LiteralEnum::Str(None),
-                            Some(Keyword(Bool)) => LiteralEnum::Bool(None),
+                        let arg_type = match self.next_token(iter) {
+                            Keyword(Num) => LiteralEnum::Num(None),
+                            Keyword(Str) => LiteralEnum::Str(None),
+                            Keyword(Bool) => LiteralEnum::Bool(None),
                             _ => {
-                                return Err(format!(
-                                    "expected an argument type for {}",
-                                    arg_name.name
+                                return Err(CrocoError::new(
+                                    &self.token_pos,
+                                    format!("expected an argument type for {}", arg_name.name),
                                 ))
                             }
                         };
                         typed_args.push(TypedArg::new(arg_name.name, arg_type));
 
-                        Parser::discard_newlines(iter);
+                        self.discard_newlines(iter);
 
-                        match iter.next() {
-                            Some(Separator(Comma)) => (),
-                            Some(Separator(RightParenthesis)) => {
+                        match self.next_token(iter) {
+                            Separator(Comma) => (),
+                            Separator(RightParenthesis) => {
                                 parenthesis_consumed = true;
                                 break;
                             }
                             _ => {
-                                return Err(format!(
+                                return Err(CrocoError::new(
+                                    &self.token_pos,
+                                    format!(
                                     "expected a comma or a right parenthesis in {} function call",
-                                    identifier.name
+                                    identifier.name),
                                 ))
                             }
                         }
@@ -525,28 +608,31 @@ impl Parser {
                     // fn bla()
                     // Void
                     // { ...
-                    Parser::discard_newlines(iter);
+                    self.discard_newlines(iter);
 
                     // if the return type isn't specified the function is Void
                     let mut return_type = LiteralEnum::Void;
 
-                    match iter.next() {
-                        Some(Keyword(Num)) => return_type = LiteralEnum::Num(None),
-                        Some(Keyword(Str)) => return_type = LiteralEnum::Str(None),
-                        Some(Keyword(Bool)) => return_type = LiteralEnum::Bool(None),
-                        Some(Separator(LeftBracket)) => (),
+                    match self.next_token(iter) {
+                        Keyword(Num) => return_type = LiteralEnum::Num(None),
+                        Keyword(Str) => return_type = LiteralEnum::Str(None),
+                        Keyword(Bool) => return_type = LiteralEnum::Bool(None),
+                        Separator(LeftBracket) => (),
                         _ => {
-                            return Err(format!(
-                                "expected left bracket after {} function declaration",
-                                identifier.name
+                            return Err(CrocoError::new(
+                                &self.token_pos,
+                                format!(
+                                    "expected left bracket after {} function declaration",
+                                    identifier.name
+                                ),
                             ))
                         }
                     }
 
-                    Parser::discard_newlines(iter);
+                    self.discard_newlines(iter);
 
                     if return_type != LiteralEnum::Void {
-                        Parser::expect_token(
+                        self.expect_token(
                             iter,
                             Separator(LeftBracket),
                             &format!(
@@ -558,129 +644,149 @@ impl Parser {
 
                     // we can't declare a function with a dot in its name
                     if identifier.name.contains('.') {
-                        return Err("a function cannot have a dot in its name".to_owned());
+                        return Err(CrocoError::new(
+                            &self.token_pos,
+                            "a function cannot have a dot in its name".to_owned(),
+                        ));
                     }
 
                     // get the namespaced name of the function
                     let fn_name = identifier.get_namespaced_name();
 
-                    let mut func_decl = FunctionDeclNode::new(fn_name, return_type, typed_args);
-                    func_decl.set_bottom(Parser::parse_block(iter, BlockScope::New)?);
+                    let mut func_decl =
+                        FunctionDeclNode::new(fn_name, return_type, typed_args, self.token_pos.clone());
+                    func_decl.add_child(self.parse_block(iter, BlockScope::New)?);
 
-                    block.add_child(AstNode::UnaryNode(Box::new(func_decl)));
+                    block.add_child(Box::new(func_decl));
                 }
 
                 // returning a value
                 Keyword(Return) => {
-                    let return_node = Parser::parse_expr(iter)?;
-                    block.add_child(AstNode::UnaryNode(Box::new(ReturnNode::new(return_node))));
+                    let return_node = self.parse_expr(iter)?;
+                    // TODO: correct CodePos
+                    block.add_child(Box::new(ReturnNode::new(return_node, self.token_pos.clone())));
                 }
 
                 // if block
                 Keyword(If) => {
-                    let cond = Parser::parse_expr(iter)?;
+                    let cond = self.parse_expr(iter)?;
 
-                    Parser::expect_token(
+                    self.expect_token(
                         iter,
                         Separator(LeftBracket),
                         "expected left bracket after if expression",
                     )?;
 
-                    let body = Parser::parse_block(iter, BlockScope::New)?;
-                    block.add_child(AstNode::BinaryNode(Box::new(IfNode::new(cond, body))))
+                    let body = self.parse_block(iter, BlockScope::New)?;
+                    block.add_child(Box::new(IfNode::new(cond, body, self.token_pos.clone())))
                 }
 
                 // while loop
                 Keyword(While) => {
-                    let cond = Parser::parse_expr(iter)?;
+                    let cond = self.parse_expr(iter)?;
 
-                    Parser::expect_token(
+                    self.expect_token(
                         iter,
                         Separator(LeftBracket),
                         "expected a left bracket after while expression",
                     )?;
 
-                    let body = Parser::parse_block(iter, BlockScope::New)?;
-                    block.add_child(AstNode::BinaryNode(Box::new(WhileNode::new(cond, body))))
+                    let body = self.parse_block(iter, BlockScope::New)?;
+                    block.add_child(Box::new(WhileNode::new(cond, body, self.token_pos.clone())))
                 }
 
                 // break from a loop
-                Keyword(Break) => block.add_child(AstNode::LeafNode(Box::new(BreakNode::new()))),
+                Keyword(Break) => block.add_child(Box::new(BreakNode::new())),
 
                 // continue from a loop
-                Keyword(Continue) => {
-                    block.add_child(AstNode::LeafNode(Box::new(ContinueNode::new())))
-                }
+                Keyword(Continue) => block.add_child(Box::new(ContinueNode::new())),
 
                 // dynamically importing a package
                 Keyword(Import) => {
                     let import_name =
-                        Parser::expect_str(iter, "expected an str after the import keyword")?;
-                    let import_node = AstNode::UnaryNode(Box::new(ImportNode::new(import_name)));
+                        self.expect_str(iter, "expected an str after the import keyword")?;
+                    let import_node = Box::new(ImportNode::new(import_name, self.token_pos.clone()));
                     block.add_child(import_node);
                 }
 
                 Separator(NewLine) => continue,
                 // TODO: impl line numbers / rows
-                el => return Err(format!("unexpected token: {:?}", el)),
+                el => {
+                    return Err(CrocoError::new(
+                        &self.token_pos,
+                        format!("unexpected token: {:?}", el),
+                    ))
+                }
             }
         }
 
-        Ok(AstNode::NaryNode(Box::new(block)))
+        Ok(Box::new(block))
     }
 
     /// Expects a token
     fn expect_token(
-        iter: &mut std::iter::Peekable<std::vec::IntoIter<Token>>,
+        &mut self,
+        iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         token: Token,
         error_msg: &str,
-    ) -> Result<(), String> {
-        if iter.next() == Some(token) {
+    ) -> Result<(), CrocoError> {
+
+        // The EOF token is behaving like a newline in expect
+        let mut next_token = self.next_token(iter);
+        if next_token == EOF {
+            next_token = Separator(NewLine);
+        }
+
+        if next_token == token {
             Ok(())
         } else {
-            Err(error_msg.to_owned())
+            Err(CrocoError::new(&self.token_pos, error_msg.to_owned()))
         }
     }
 
     /// Expects an identifier and returns its name
     fn expect_identifier(
-        iter: &mut std::iter::Peekable<std::vec::IntoIter<Token>>,
+        &mut self,
+        iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         error_msg: &str,
-    ) -> Result<token::Identifier, String> {
-        match iter.next() {
-            Some(Identifier(identifier)) => Ok(identifier),
-            _ => Err(error_msg.to_owned()),
+    ) -> Result<token::Identifier, CrocoError> {
+
+        match self.next_token(iter) {
+            Identifier(identifier) => Ok(identifier),
+            _ => Err(CrocoError::new(&self.token_pos, error_msg.to_owned())),
         }
     }
 
     /// Expects a literal string a returns its value
     fn expect_str(
-        iter: &mut std::iter::Peekable<std::vec::IntoIter<Token>>,
+        &mut self,
+        iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         error_msg: &str,
-    ) -> Result<String, String> {
-        match iter.next() {
-            Some(Literal(LiteralEnum::Str(Some(s)))) => Ok(s),
-            _ => Err(error_msg.to_owned()),
+    ) -> Result<String, CrocoError> {
+        match self.next_token(iter) {
+            Literal(LiteralEnum::Str(Some(s))) => Ok(s),
+            _ => Err(CrocoError::new(&self.token_pos, error_msg.to_owned())),
         }
     }
 
     /// Discards all next tokens that are newlines
-    fn discard_newlines(iter: &mut std::iter::Peekable<std::vec::IntoIter<Token>>) {
-        while let Some(token) = iter.peek() {
-            match token {
-                Separator(NewLine) => {
-                    iter.next();
-                }
-                _ => break,
-            }
+    fn discard_newlines(
+        &mut self,
+        iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
+    ) {
+        while let Separator(NewLine) = self.peek_token(iter) {
+            self.next_token(iter);
         }
     }
 
     /// builds an Abstact Syntax Tree (AST) with the results of the lexer.
-    pub fn process(&mut self, tokens: Vec<Token>) -> Result<AstNode, String> {
+    pub fn process(
+        &mut self,
+        tokens: Vec<(Token, CodePos)>,
+    ) -> Result<Box<dyn AstNode>, CrocoError> {
         // iterator which returns a movable and peekable token iterator
         let mut iter = tokens.into_iter().peekable();
-        let root = Parser::parse_block(&mut iter, self.scope.clone())?;
+        let root = self.parse_block(&mut iter, self.scope.clone())?;
         Ok(root)
     }
 }

@@ -65,7 +65,7 @@ impl PartialOrd for LiteralEnum {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SeparatorEnum {
     LeftParenthesis,
     RightParenthesis,
@@ -103,7 +103,7 @@ pub enum OperatorEnum {
     Power,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum KeywordEnum {
     Bool,
     Break,
@@ -149,7 +149,18 @@ impl Identifier {
     }
 }
 
-#[derive(Debug, PartialEq)]
+
+/// tracks the position of a piece of code
+#[derive(Debug, Clone, Default)]
+pub struct CodePos {
+    pub file: String,
+    pub line: u32,
+    pub word: u16 
+}
+
+#[derive(Debug, Clone, PartialEq)]
+/// represents a token extracted by the Lexer
+/// lists the different kinds of tokens
 pub enum Token {
     Literal(LiteralEnum),
     Separator(SeparatorEnum),
@@ -157,4 +168,5 @@ pub enum Token {
     Identifier(Identifier),
     Keyword(KeywordEnum),
     Discard,
+    EOF
 }
