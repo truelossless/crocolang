@@ -140,7 +140,7 @@ The interesting bits is the relative performance to other languages.
 ```
 $ time node bench_name.js
 $ time python bench_name.py
-$ time ./croco.exe
+$ time ./croco bench_name.croco
 ```
 
 |benchmark name     |  node    |python|croco|
