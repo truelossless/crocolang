@@ -20,7 +20,10 @@ fn starts_ascii(el: &str) -> bool {
 }
 
 fn is_number(el: &str) -> Option<f32> {
-    el.parse().ok()
+    match el.parse() {
+        Ok(num) => Some(num),
+        _ => None
+    }
 }
 
 #[derive(Default)]
@@ -156,12 +159,6 @@ impl Lexer {
                         if x == &"=" {
                             iter.next();
                             ret = Operator(MinusEquals);
-                        } else {
-                            let num = is_number(&x);
-                            if let Some(y) = num {
-                                iter.next();
-                                ret = Literal(LiteralEnum::Num(Some(-y)));
-                            }
                         }
                     }
 
@@ -261,6 +258,19 @@ impl Lexer {
                         if x == &"|" {
                             iter.next();
                             ret = Operator(Or);
+                        }
+                    }
+
+                    ret
+                }
+
+                "!" => {
+                    let mut ret = Operator(Bang);
+
+                    if let Some(x) = iter.peek() {
+                        if x == &"=" {
+                            iter.next();
+                            ret = Operator(NotEquals);
                         }
                     }
 

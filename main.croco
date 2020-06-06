@@ -1,20 +1,7 @@
-import "os"
-import "math"
-import "fs"
-import "http"
+let a = 3 == 3
 
-println("nice")
-println(os.exec("git --version"))
+let testeuh = !a
 
-if math.pi > 3 {
-  println("pi is a big number")
+if !testeuh {
+    println("yay !")
 }
-
-if fs.exists("UNICORN.exe") {
-  println("I don't believe it")
-}
-
-println(http.get("https://www.twitter.com/robots.txt"))
-
-assert(true == false)
-

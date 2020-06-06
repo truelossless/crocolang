@@ -11,6 +11,14 @@ use crate::token::{literal_eq, CodePos, LiteralEnum, OperatorEnum};
 
 use crate::error::CrocoError;
 
+// this is mostly used by the shunting yard algorithm to provide more info on what we're working with.
+pub enum AstNodeType {
+    LeafNode,
+    UnaryNode,
+    BinaryNode,
+    NaryNode,
+}
+
 // TODO: remove distinctions between left and right and store all node children in a Vec
 pub trait AstNode: DynClone {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError>;
@@ -18,6 +26,9 @@ pub trait AstNode: DynClone {
         unimplemented!();
     }
     fn add_child(&mut self, _node: Box<dyn AstNode>) {
+        unimplemented!();
+    }
+    fn get_type(&self) -> AstNodeType {
         unimplemented!();
     }
 }
@@ -518,7 +529,6 @@ impl AstNode for LiteralNode {
         Ok(NodeResult::Literal(self.value.clone()))
     }
 }
-
 #[derive(Clone)]
 pub struct PlusNode {
     left: Option<Box<dyn AstNode>>,
@@ -618,6 +628,9 @@ impl AstNode for PlusNode {
             unreachable!()
         }
     }
+    fn get_type(&self) -> AstNodeType {
+        AstNodeType::BinaryNode
+    }
 }
 
 #[derive(Clone)]
@@ -653,6 +666,44 @@ impl AstNode for MinusNode {
         } else {
             unreachable!()
         }
+    }
+    fn get_type(&self) -> AstNodeType {
+        AstNodeType::BinaryNode
+    }
+}
+#[derive(Clone)]
+pub struct UnaryMinusNode {
+    bottom: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
+}
+
+impl UnaryMinusNode {
+    pub fn new(code_pos: CodePos) -> Self {
+        UnaryMinusNode {
+            bottom: None,
+            code_pos,
+        }
+    }
+}
+
+impl AstNode for UnaryMinusNode {
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+        let value = LiteralEnum::Num(Some(-get_number_value(
+            &mut self.bottom,
+            symtable,
+            &self.code_pos,
+        )?));
+        Ok(NodeResult::Literal(value))
+    }
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.bottom.is_none() {
+            self.bottom = Some(node);
+        } else {
+            unreachable!()
+        }
+    }
+    fn get_type(&self) -> AstNodeType {
+        AstNodeType::UnaryNode
     }
 }
 
@@ -691,6 +742,10 @@ impl AstNode for MultiplicateNode {
             unreachable!()
         }
     }
+
+    fn get_type(&self) -> AstNodeType {
+        AstNodeType::BinaryNode
+    }
 }
 
 #[derive(Clone)]
@@ -726,6 +781,9 @@ impl AstNode for DivideNode {
         } else {
             unreachable!()
         }
+    }
+    fn get_type(&self) -> AstNodeType {
+        AstNodeType::BinaryNode
     }
 }
 
@@ -766,6 +824,51 @@ impl AstNode for PowerNode {
             )?),
         ));
         Ok(NodeResult::Literal(value))
+    }
+    fn get_type(&self) -> AstNodeType {
+        AstNodeType::BinaryNode
+    }
+}
+
+#[derive(Clone)]
+// a node used to invert a boolean value
+pub struct NotNode {
+    bottom: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
+}
+
+impl NotNode {
+    pub fn new(code_pos: CodePos) -> Self {
+        NotNode {
+            bottom: None,
+            code_pos,
+        }
+    }
+}
+
+impl AstNode for NotNode {
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.bottom.is_none() {
+            self.bottom = Some(node);
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+        match self.bottom.as_mut().unwrap().visit(symtable)? {
+            NodeResult::Literal(LiteralEnum::Bool(Some(b))) => {
+                Ok(NodeResult::Literal(LiteralEnum::Bool(Some(!b))))
+            }
+            _ => Err(CrocoError::new(
+                &self.code_pos,
+                "cannot invert something that isn't a boolean".to_owned(),
+            )),
+        }
+    }
+
+    fn get_type(&self) -> AstNodeType {
+        AstNodeType::UnaryNode
     }
 }
 
@@ -832,6 +935,9 @@ impl AstNode for CompareNode {
         };
 
         Ok(NodeResult::Literal(LiteralEnum::Bool(Some(value))))
+    }
+    fn get_type(&self) -> AstNodeType {
+        AstNodeType::BinaryNode
     }
 }
 

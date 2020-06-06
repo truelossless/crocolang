@@ -44,7 +44,7 @@ impl Parser {
             token_pos: CodePos {
                 file: String::new(),
                 line: 0,
-                word: 0
+                word: 0,
             },
         }
     }
@@ -92,6 +92,7 @@ impl Parser {
             Literal(literal) => Ok(Box::new(LiteralNode::new(literal))),
             Operator(Plus) => Ok(Box::new(PlusNode::new(self.token_pos.clone()))),
             Operator(Minus) => Ok(Box::new(MinusNode::new(self.token_pos.clone()))),
+            Operator(UnaryMinus) => Ok(Box::new(UnaryMinusNode::new(self.token_pos.clone()))),
             Operator(Multiplicate) => Ok(Box::new(MultiplicateNode::new(self.token_pos.clone()))),
             Operator(Divide) => Ok(Box::new(DivideNode::new(self.token_pos.clone()))),
             Operator(Power) => Ok(Box::new(PowerNode::new(self.token_pos.clone()))),
@@ -116,6 +117,7 @@ impl Parser {
                 LowerThan,
                 self.token_pos.clone(),
             ))),
+            Operator(Bang) => Ok(Box::new(NotNode::new(self.token_pos.clone()))),
             _ => Err(CrocoError::new(
                 &self.token_pos,
                 format!("can't evaluate token in expression: {:?}", token),
@@ -142,17 +144,21 @@ impl Parser {
             }
         };
 
-        let left = match output.pop() {
-            Some(x) => x,
-            None => {
-                return Err(CrocoError::new(
-                    &pos,
-                    "missing element in expression".to_owned(),
-                ))
-            }
-        };
+        // if we have a binary node we must get two elements on the output
+        if let AstNodeType::BinaryNode = root_node.get_type() {
+            let left = match output.pop() {
+                Some(x) => x,
+                None => {
+                    return Err(CrocoError::new(
+                        &pos,
+                        "missing element in expression".to_owned(),
+                    ))
+                }
+            };
 
-        root_node.add_child(left);
+            root_node.add_child(left);
+        }
+
         root_node.add_child(right);
 
         output.push(root_node);
@@ -182,8 +188,8 @@ impl Parser {
         loop {
             // TODO: avoid hello()) function calls
             if let Separator(RightParenthesis) = self.peek_token(iter) {
-                    self.next_token(iter);
-                    break;
+                self.next_token(iter);
+                break;
             }
 
             fn_args.push(self.parse_expr(iter)?);
@@ -236,6 +242,7 @@ impl Parser {
                 Operator(Plus) | Operator(Minus) => 5,
                 Operator(Multiplicate) | Operator(Divide) => 6,
                 Operator(Power) => 7,
+                Operator(UnaryMinus) => 8,
                 _ => unreachable!(),
             }
         };
@@ -261,8 +268,21 @@ impl Parser {
         // call_my_fn(3 + 4) <- this right parenthesis is the end of the function
         let mut parenthesis_opened = false;
 
-        loop {
+        // sometimes minus can behave as an unary operator, e.g
+        // let a = --6
+        // let a = -(6*4)
+        // so we need to keep track of the last token
+        let mut last_token = Discard;
+        let is_unary = |last_token: &Token| -> bool {
+            match last_token {
+                Operator(_) | Discard => {
+                    true
+                }
+                _ => false,
+            }
+        };
 
+        loop {
             // make sure that this token belongs to the expression
             match self.peek_token(iter) {
                 // the right parenthesis is the end of a function
@@ -278,13 +298,40 @@ impl Parser {
             }
 
             // now that we know that the token is right, we can consume it
-            let expr_token = self.next_token(iter);
+            let mut expr_token = self.next_token(iter);
+            let mut expr_token_clone = expr_token.clone();
+
             match expr_token {
                 Identifier(identifier) => {
                     output.push(self.parse_identifier(iter, identifier)?.content)
                 }
                 Literal(_) => output.push(self.get_node(expr_token)?),
                 Operator(_) => {
+                    
+                    // if we have an unary operator flag it accordingly
+                    // https://github.com/MacTee/Shunting-Yard-Algorithm/blob/master/ShuntingYard/InfixToPostfixConverter.cs
+                    match expr_token {
+                        Operator(Minus) if is_unary(&last_token) => {
+                            expr_token = Operator(UnaryMinus);
+                            expr_token_clone = Operator(UnaryMinus);
+                        }
+                        Operator(Bang) if !is_unary(&last_token) => {
+                            return Err(CrocoError::new(
+                                &self.token_pos,
+                                "misuse of the bang operator".to_owned(),
+                            ))
+                        }
+                        // do nothing as "!" is always unary
+                        Operator(Bang) => (),
+                        _ if is_unary(&last_token) => {
+                            return Err(CrocoError::new(
+                                &self.token_pos,
+                                "not a valid unary operator".to_owned(),
+                            ))
+                        }
+                        _ => ()
+                    }
+
                     while let Some(top) = stack.last() {
                         match top {
                             Operator(_) => {
@@ -344,7 +391,7 @@ impl Parser {
                     ))
                 }
             }
-
+            last_token = expr_token_clone;
             // println!("stack: {:?}", stack);
             // println!("output: {:?}", output);
         }
@@ -482,8 +529,11 @@ impl Parser {
 
                     // we're calling a function
                     if parsed_identifier.is_fn_call {
-
-                        self.expect_token(iter, Separator(NewLine), "expected a new line after function call")?;
+                        self.expect_token(
+                            iter,
+                            Separator(NewLine),
+                            "expected a new line after function call",
+                        )?;
 
                         block.add_child(parsed_identifier.content);
                         continue;
@@ -653,8 +703,12 @@ impl Parser {
                     // get the namespaced name of the function
                     let fn_name = identifier.get_namespaced_name();
 
-                    let mut func_decl =
-                        FunctionDeclNode::new(fn_name, return_type, typed_args, self.token_pos.clone());
+                    let mut func_decl = FunctionDeclNode::new(
+                        fn_name,
+                        return_type,
+                        typed_args,
+                        self.token_pos.clone(),
+                    );
                     func_decl.add_child(self.parse_block(iter, BlockScope::New)?);
 
                     block.add_child(Box::new(func_decl));
@@ -664,7 +718,10 @@ impl Parser {
                 Keyword(Return) => {
                     let return_node = self.parse_expr(iter)?;
                     // TODO: correct CodePos
-                    block.add_child(Box::new(ReturnNode::new(return_node, self.token_pos.clone())));
+                    block.add_child(Box::new(ReturnNode::new(
+                        return_node,
+                        self.token_pos.clone(),
+                    )));
                 }
 
                 // if block
@@ -705,7 +762,8 @@ impl Parser {
                 Keyword(Import) => {
                     let import_name =
                         self.expect_str(iter, "expected an str after the import keyword")?;
-                    let import_node = Box::new(ImportNode::new(import_name, self.token_pos.clone()));
+                    let import_node =
+                        Box::new(ImportNode::new(import_name, self.token_pos.clone()));
                     block.add_child(import_node);
                 }
 
@@ -730,7 +788,6 @@ impl Parser {
         token: Token,
         error_msg: &str,
     ) -> Result<(), CrocoError> {
-
         // The EOF token is behaving like a newline in expect
         let mut next_token = self.next_token(iter);
         if next_token == EOF {
@@ -750,7 +807,6 @@ impl Parser {
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         error_msg: &str,
     ) -> Result<token::Identifier, CrocoError> {
-
         match self.next_token(iter) {
             Identifier(identifier) => Ok(identifier),
             _ => Err(CrocoError::new(&self.token_pos, error_msg.to_owned())),

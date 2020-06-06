@@ -95,9 +95,13 @@ pub enum OperatorEnum {
     GreaterOrEqual,
     LowerThan,
     LowerOrEqual,
+    Bang,
 
     Plus,
     Minus,
+    // this is never constructed by the lexer but is needed
+    // in the shunting yard algorithm later.
+    UnaryMinus,
     Multiplicate,
     Divide,
     Power,

@@ -56,12 +56,6 @@ impl fmt::Display for CrocoError {
         let mut errored_line = lines.nth(self.pos.line as usize).unwrap().unwrap();
         // newline are wrapped at the end of the line in our lexer
         errored_line += "\n";
-        let a: Vec<_> = errored_line
-            .split_word_bound_indices()
-            .collect();
-        println!("{:?}", a);
-        println!("{:?}", errored_line);
-        println!("{}", self.pos.word);
         let errored_word = errored_line
             .split_word_bound_indices()
             .nth((self.pos.word) as usize)
@@ -91,8 +85,14 @@ impl fmt::Display for CrocoError {
         // in mymod.croco at line 45
         write!(
             f,
-            "\n{}\n{}\n\n{}: {}\nin {} at line {}\n",
-            errored_line, indicator, error_kind, self.message, self.pos.file, self.pos.line
+            "\n{}\n{}\n\n{}: {}\nin {} at line {}, position {}\n",
+            errored_line,
+            indicator,
+            error_kind,
+            self.message,
+            self.pos.file,
+            self.pos.line,
+            errored_word.0
         )
     }
 }
