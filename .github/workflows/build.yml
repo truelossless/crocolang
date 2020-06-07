@@ -20,8 +20,23 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    
     - name: Build release
       run: cargo build --release --target-dir ${{ matrix.os }}
+    
+    # save the file
+    - uses: actions/upload-artifact@v1
+      if: ${{ matrix.os != "windows-latest" }}
+      with:
+        name: croco-${{ matrix.os }}
+        path: ./${{ matrix.os }}/release/croco
+
+    # on windows the executable is ending with a .exe
+    - uses: actions/upload-artifact@v1
+      if: ${{ matrix.os == "windows-latest" }}
+      with:
+        name: croco-${{ matrix.os }}
+        path: ./${{ matrix.os }}/release/croco.exe
   
   # upload the resulting binaries to github releases
   upload:
@@ -29,13 +44,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      # retreive the previously saved binaries
+      - uses: actions/download-artifact@v2
+        with:
+          name: croco-ubuntu-latest
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: croco-windows-latest
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: croco-macos-latest
+
       # get the commit hash
       # https://github.community/t/add-short-sha-to-github-context/16418/11
       - name: get commit infos
         id: commit
-        run: |
-          echo "::set-output name=hash::$(echo ${GITHUB_SHA} | cut -c1-8)"
-          echo "::set-output name=msg::$(git log --format=%B -n 1 ${{ github.event.after }})"
+        run: echo "::set-output name=hash::$(echo ${GITHUB_SHA} | cut -c1-8)"
+        # echo "::set-output name=msg::$(git log --format=%B -n 1 ${{ github.event.after }})"
 
       - name: create release
         id: create_release
@@ -45,7 +72,7 @@ jobs:
         with:
           tag_name: ${{ steps.commit.outputs.hash }}
           release_name: Release ${{ steps.commit.outputs.hash }}
-          body: This is an automated build from commit ${{ steps.commit.outputs.hash }}.\n\n${{ steps.commit.outputs.msg }}
+          body: This is an automated build for commit ${{ steps.commit.outputs.hash }}.
           draft: false
           prerelease: true
       
@@ -55,7 +82,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./ubuntu-latest/release/croco
+          asset_path: croco-linux-latest
           asset_name: croco-linux-${{ steps.commit.outputs.hash }}
           asset_content_type: application/x-elf
 
@@ -65,7 +92,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./windows-latest/release/croco.exe
+          asset_path: croco-windows-latest
           asset_name: croco-windows-${{ steps.commit.outputs.hash }}.exe
           asset_content_type: application/x-msdownload
       
@@ -75,6 +102,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./macos-latest/release/croco
+          asset_path: croco-macos-latest
           asset_name: croco-macos-${{ steps.commit.outputs.hash }}
           asset_content_type: application/x-elf

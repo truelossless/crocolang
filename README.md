@@ -1,7 +1,9 @@
 # Croco lang
 
-Just a smol interpreted language to experiment, and to learn rust.
-My goal is to improve my language understanding, and to build my dream language.
+![build](https://github.com/truelossless/crocolang/workflows/build/badge.svg)
+![tests](https://github.com/truelossless/crocolang/workflows/tests/badge.svg)
+
+Croco is a small and fun-to-use interpreted language written in Rust.
 
 You can see some examples of the syntax below :)  
 For the partial spec and more examples, see [here](SPEC.md).
