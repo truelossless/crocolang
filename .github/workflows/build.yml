@@ -26,14 +26,14 @@ jobs:
     
     # save the file
     - uses: actions/upload-artifact@v1
-      if: ${{ matrix.os != "windows-latest" }}
+      if: ${{ matrix.os != 'windows-latest' }}
       with:
         name: croco-${{ matrix.os }}
         path: ./${{ matrix.os }}/release/croco
 
     # on windows the executable is ending with a .exe
     - uses: actions/upload-artifact@v1
-      if: ${{ matrix.os == "windows-latest" }}
+      if: ${{ matrix.os == 'windows-latest' }}
       with:
         name: croco-${{ matrix.os }}
         path: ./${{ matrix.os }}/release/croco.exe
