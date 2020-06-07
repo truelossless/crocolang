@@ -1,4 +1,4 @@
-name: Croco tests
+name: Croco builds
 
 on:
   push:
