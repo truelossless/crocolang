@@ -1,18 +1,16 @@
 # Croco lang
 
-I will talk here about my dream interpreted language; and not the current state of this repository.
+Here is the spec of Croco, an interpreted language. The implementation percentage is shown for each point discussed.  
 Croco is designed to be a fun, fast, and easy to use programming language.
 
-## Variables [20%]
+## Variables [40%]
 
-### Primary types [60%]
+### Primitives [70%]
 
 - `num` represents a number (integer or floating point, with positive or negative values).  
 Its default value is `0`.
-
 - `str` represents a string of characters. Note that there isn't a char type.  
 Its default value is `""`.
-
 - `bool` represents a boolean, either `false` or `true`.  
 Its default value is `false`.
 
@@ -20,7 +18,8 @@ Its default value is `false`.
 
 Variables can be declared with the `let` keyword.  
 Variables must be declared.
-If the variable is assigned immediatly, you don't need to annotate its type.
+If the variable is assigned immediatly, you don't need to annotate its type.  
+Variables should use camel_case.
 
 ```croco
 let text = "hello world"
@@ -35,12 +34,65 @@ let data = 0
 
 ### Strong typing
 
-Variables cannot change type (as opposed to JS)
+Variables cannot change type.
 ```croco
 let foo = "beep boop i'm a robot"
 foo = 0101011010
 
 // ERROR !
+```
+
+### Casting [70%]
+
+Primitive types can all be casted from one to another with the `as` operator.  
+The only cast that can fail is `str` -> `num`  .
+The specific behavior of the casts is described in the examples below.
+
+```croco
+// num to str
+assert(3 as str == "3")
+
+// num to bool
+assert(0 as bool == false) // 0 is the only falsy value
+assert(-34 as bool == true)
+
+// str to num
+let failed_cast = "yo !" as num // ERROR !
+assert("-12" as num == -12)
+
+// str to bool
+assert("ahahhldsf" as bool == false)
+assert("true" as bool == true)
+
+// bool to str
+assert(false as str == "false")
+assert(true as str == "true")
+
+// bool to num
+assert(false as num == 0)
+assert(true as num == 1)
+```
+
+### Structs [0%]
+
+Structs must be defined with the `struct` before they are created.  
+There is no anonymous objects.  
+Structs should use PascalCase.
+
+```croco
+struct Character {
+    name str
+    hp num
+    is_alive bool
+}
+
+let char = Character {
+    name: "xXWarriorXx",
+    hp: 100,
+    is_alive: true
+}
+
+println(char.name)
 ```
 
 ## Lööps [20%]
@@ -77,7 +129,7 @@ while true {
         continue
     }
 
-    println("" + a)
+    println(a as str)
 
     if a == 2 {
         break
@@ -118,9 +170,29 @@ greet()
 let books_sold_today = books_sold()
 ```
 
+### Methods
+Structs can also have functions.
+```croco
+struct Character {
+
+    name str
+
+    fn hi() {
+        println(self.name)
+    }
+}
+
+let bobby = Character {
+    name: "Bobby"
+}
+
+bobby.hi()
+```
+
 ## Control flow [20%]
 
-`if`, `elif` and `else` can be used for conditionnal matching.
+`if`, `elif` and `else` can be used for conditionnal matching.  
+At the moment only `ìf` is implemented.
 
 ```croco
 let croco_state = "good"
@@ -136,7 +208,7 @@ if croco_state == "bad" {
 
 ## Imports [40%]
 
-You can import other files by specifying their name with the `import` keyword.  
+You can import other files by specifying their path with the `import` keyword.  
 You have to specify the name of the file before using the functions / variables declared there.
 
 math.croco
@@ -146,12 +218,89 @@ let pi = 3.14159
 
 main.croco
 ```croco
-import math
+import "./math"
 println(math.pi)
-``` 
+```
 
-### Known isssue
+you can also use builtin librairies. In this case, you don't specify a path but a name.
+
+```croco
+import "math"
+println(math.e)
+```
+
+### Conditional imports
+
+imports are resolved at runtime so you can lazily load them.  
+imports can go out of scope, like regular variables.
+
+```croco
+
+let should_use_ext = true
+
+if should_use_ext {
+    import "./ext"
+    ext.hello()
+}
+
+if true {
+    import "math"
+}
+// you cannot use math here because it went out of scope
+```
+
+### Known issues
 Importing one file will import all files imported by this file.
+
+## Traits [0%]
+Traits are used for polymorphism. They are similar to go interfaces. A struct implementing all the functions of a trait automatically implements this trait. The function definitions must match. A trait is entirely considered as a type.
+
+```croco
+
+trait speak {
+    yell() str
+    say() str
+}
+
+struct Dog {
+    fn yell() str {
+        return "WOOF"
+    }
+
+    fn say() str {
+        return "woof"
+    }
+}
+
+struct Cat {
+    fn yell() str {
+        return "MIAAAA"
+    }
+
+    fn say() str {
+        return "miou"
+    }
+}
+
+let animal speak = Dog {}
+println(animal.speak()); 
+
+animal = Cat {}
+println(animal.yell());
+```
+```
+woof
+MIAAAA
+```
+
+## Built-in librairies
+
+Croco aims to have a really complete standard library.  
+Here are the first implemented:
+- `fs`
+- `http`
+- `math`
+- `os`
 
 ## Built-in test framework [0%]
 
@@ -197,3 +346,20 @@ bool long_ass_and_yet_readable_variable_name = true
 // DON'T !!
 bool unreadableStringGivingJavaVietnamFlashbacks = false
 ```
+
+## Appendix
+
+### Operator precedence
+Higher value means higher priority.
+
+|operator         |precedence|
+|-----------------|----------|
+|`\|\|`           |1         |
+|`&&`             |2         |
+|`==` `!=`        |3         |
+|`>` `>=` `<` `<=`|4         |
+|`as`             |5         |
+|`+` `-`          |6         |
+|`*` `/`          |7         |
+|`- (unary)`      |8         |
+|`^`              |9         |

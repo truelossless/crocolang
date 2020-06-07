@@ -1,7 +1,2 @@
-let a = 3 == 3
-
-let testeuh = !a
-
-if !testeuh {
-    println("yay !")
-}
+let a = 12+4*2^8/4
+println(a as str)

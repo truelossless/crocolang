@@ -7,7 +7,7 @@ use crate::lexer::Lexer;
 use crate::parser::{Parser, TypedArg};
 
 use crate::symbol::{FunctionCall, FunctionKind, SymTable, Symbol};
-use crate::token::{literal_eq, CodePos, LiteralEnum, OperatorEnum};
+use crate::token::{literal_eq, CodePos, LiteralEnum, OperatorEnum, LiteralEnum::*};
 
 use crate::error::CrocoError;
 
@@ -111,10 +111,13 @@ fn get_number_value(
 ) -> Result<f32, CrocoError> {
     let node = get_value(opt_node, symtable, &code_pos)?;
     match node {
-        LiteralEnum::Num(x) => Ok(x.unwrap()),
+        Num(x) => Ok(x.ok_or_else(|| CrocoError::new(
+            code_pos,
+            "performing an operation with a type instead of a value".to_owned()
+        )))?,
         _ => Err(CrocoError::new(
             code_pos,
-            "Performing a math operation on a wrong variable type !".to_owned(),
+            "performing an operation on a wrong variable type !".to_owned(),
         )),
     }
 }
@@ -287,7 +290,7 @@ impl AstNode for FunctionDeclNode {
         let fn_call = FunctionCall::new(args, return_type, FunctionKind::Regular(body));
 
         symtable.register_fn(name, Symbol::Function(fn_call));
-        Ok(NodeResult::Literal(LiteralEnum::Void))
+        Ok(NodeResult::Literal(Void))
     }
 
     fn add_child(&mut self, node: Box<dyn AstNode>) {
@@ -337,7 +340,7 @@ impl AstNode for BlockNode {
         }
 
         // early return from the block
-        let mut value = NodeResult::Literal(LiteralEnum::Void);
+        let mut value = NodeResult::Literal(Void);
         // iterate over all nodes in the body
         for node in self.body.iter_mut()
         // .chain(self.prepended.iter_mut())
@@ -358,7 +361,7 @@ impl AstNode for BlockNode {
 
         // return void if there is no return value
         if let NodeResult::Literal(_) = value {
-            value = NodeResult::Literal(LiteralEnum::Void)
+            value = NodeResult::Literal(Void)
         }
 
         // we're done with this scope, drop it
@@ -448,7 +451,7 @@ impl AstNode for DeclNode {
             ));
         }
         symtable.insert_symbol(&self.left, var_value);
-        Ok(NodeResult::Literal(LiteralEnum::Void))
+        Ok(NodeResult::Literal(Void))
     }
 }
 
@@ -485,7 +488,7 @@ impl AstNode for AssignmentNode {
         symtable
             .modify_symbol(&self.left, right_val)
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
-        Ok(NodeResult::Literal(LiteralEnum::Void))
+        Ok(NodeResult::Literal(Void))
     }
 }
 
@@ -554,70 +557,18 @@ impl AstNode for PlusNode {
         let left_val = get_value(&mut self.left, symtable, &self.code_pos)?;
         let right_val = get_value(&mut self.right, symtable, &self.code_pos)?;
 
-        // different kinds of additions can happen
+        // different kinds of additions can happen (concatenation or number addition)
         // the PlusNode also works for concatenation.
-
-        let txt_and_txt = |txt1: Option<String>, txt2: Option<String>| -> LiteralEnum {
-            let mut left_str = txt1.unwrap();
-            let right_str = txt2.unwrap();
-            left_str.push_str(&right_str);
-            LiteralEnum::Str(Some(left_str))
-        };
-
-        let txt_and_num =
-            |txt: Option<String>, num: Option<f32>, number_first: bool| -> LiteralEnum {
-                let mut txt_str = txt.unwrap();
-                let mut num_str = num.unwrap().to_string();
-
-                if number_first {
-                    num_str.push_str(&txt_str);
-                } else {
-                    txt_str.push_str(&num_str);
-                }
-
-                LiteralEnum::Str(Some(txt_str))
-            };
-
-        let num_and_num = |num1: Option<f32>, num2: Option<f32>| -> LiteralEnum {
-            let num1_val = num1.unwrap();
-            let num2_val = num2.unwrap();
-
-            LiteralEnum::Num(Some(num1_val + num2_val))
-        };
-
-        match left_val {
-            LiteralEnum::Str(txt1) => match right_val {
-                LiteralEnum::Str(txt2) => Ok(NodeResult::Literal(txt_and_txt(txt1, txt2))),
-
-                LiteralEnum::Num(num) => Ok(NodeResult::Literal(txt_and_num(txt1, num, false))),
-
-                LiteralEnum::Bool(_) => Err(CrocoError::new(
-                    &self.code_pos,
-                    "cannot add booleans".to_string(),
-                )),
-                LiteralEnum::Void => unreachable!(),
-            },
-
-            LiteralEnum::Num(num1) => match right_val {
-                LiteralEnum::Str(txt) => Ok(NodeResult::Literal(txt_and_num(txt, num1, true))),
-
-                LiteralEnum::Num(num2) => {
-                    // self.value = num_and_num(num1, num2);
-                    Ok(NodeResult::Literal(num_and_num(num1, num2)))
-                }
-                LiteralEnum::Bool(_) => Err(CrocoError::new(
-                    &self.code_pos,
-                    "cannot add booleans".to_string(),
-                )),
-                LiteralEnum::Void => unreachable!(),
-            },
-
-            LiteralEnum::Bool(_) => Err(CrocoError::new(
+        let pair = (left_val, right_val);
+        let value = match pair {
+            (Num(Some(n1)), Num(Some(n2))) => Num(Some(n1 + n2)),
+            (Str(Some(s1)), Str(Some(s2))) => Str(Some(format!("{}{}", s1, s2))),
+            _ => return Err(CrocoError::new(
                 &self.code_pos,
-                "cannot add booleans".to_string(),
-            )),
-            LiteralEnum::Void => unreachable!(),
-        }
+                "cannot add these two types together".to_owned()
+            ))
+        };
+        Ok(NodeResult::Literal(value))
     }
     fn add_child(&mut self, node: Box<dyn AstNode>) {
         if self.left.is_none() {
@@ -652,7 +603,7 @@ impl MinusNode {
 
 impl AstNode for MinusNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        let value = LiteralEnum::Num(Some(
+        let value = Num(Some(
             get_number_value(&mut self.left, symtable, &self.code_pos)?
                 - get_number_value(&mut self.right, symtable, &self.code_pos)?,
         ));
@@ -688,7 +639,7 @@ impl UnaryMinusNode {
 
 impl AstNode for UnaryMinusNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        let value = LiteralEnum::Num(Some(-get_number_value(
+        let value = Num(Some(-get_number_value(
             &mut self.bottom,
             symtable,
             &self.code_pos,
@@ -726,7 +677,7 @@ impl MultiplicateNode {
 
 impl AstNode for MultiplicateNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        let value = LiteralEnum::Num(Some(
+        let value = Num(Some(
             get_number_value(&mut self.left, symtable, &self.code_pos)?
                 * get_number_value(&mut self.right, symtable, &self.code_pos)?,
         ));
@@ -767,7 +718,7 @@ impl DivideNode {
 
 impl AstNode for DivideNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        let value = LiteralEnum::Num(Some(
+        let value = Num(Some(
             get_number_value(&mut self.left, symtable, &self.code_pos)?
                 / get_number_value(&mut self.right, symtable, &self.code_pos)?,
         ));
@@ -816,7 +767,7 @@ impl AstNode for PowerNode {
     }
 
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        let value = LiteralEnum::Num(Some(
+        let value = Num(Some(
             get_number_value(&mut self.left, symtable, &self.code_pos)?.powf(get_number_value(
                 &mut self.right,
                 symtable,
@@ -831,7 +782,76 @@ impl AstNode for PowerNode {
 }
 
 #[derive(Clone)]
-// a node used to invert a boolean value
+/// a node used to cast primitives
+pub struct AsNode {
+    left: Option<Box<dyn AstNode>>,
+    right: Option<Box<dyn AstNode>>,
+    code_pos: CodePos,
+}
+
+impl AsNode {
+    pub fn new(code_pos: CodePos) -> Self {
+        AsNode {
+            left: None,
+            right: None,
+            code_pos,
+        }
+    }
+}
+
+impl AstNode for AsNode {
+    fn add_child(&mut self, node: Box<dyn AstNode>) {
+        if self.left.is_none() {
+            self.left = Some(node);
+        } else if self.right.is_none() {
+            self.right = Some(node);
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+        
+        let val = self.left.as_mut().unwrap().visit(symtable)?.into_literal(&self.code_pos)?;
+        let as_type = self.right.as_mut().unwrap().visit(symtable)?.into_literal(&self.code_pos)?;
+
+        let pair = (val, as_type);
+        let casted = match pair {
+
+            // useless cast
+            (Bool(_), Bool(_)) | (Str(_), Str(_)) | (Num(_), Num(_)) => return Err(CrocoError::new(
+                &self.code_pos,
+                "redundant cast".to_owned()
+            )),
+
+            (Bool(Some(b)), Num(_)) => if b { Num(Some(1.)) } else { Num(Some(0.)) }
+            (Bool(Some(b)), Str(_)) => if b { Str(Some("true".to_owned())) } else { Str(Some("false".to_owned())) }
+
+            (Num(Some(n)), Bool(_)) => if n == 0. { Bool(Some(false)) } else { Bool(Some(true)) }
+            (Num(Some(n)), Str(_)) => Str(Some(n.to_string())),
+
+            (Str(Some(s)), Num(_)) => {
+                let n = s.parse().map_err(|_| CrocoError::new(
+                    &self.code_pos,
+                    "could not parse the str into a num".to_owned()
+                ))?;
+                Num(Some(n))
+            }
+            (Str(Some(s)), Bool(_)) => if s == "true" { Bool(Some(true)) } else { Bool(Some(false)) }
+
+            _ => unreachable!()
+        };
+
+        Ok(NodeResult::Literal(casted))
+    }
+
+    fn get_type(&self) -> AstNodeType {
+        AstNodeType::BinaryNode
+    }
+}
+
+#[derive(Clone)]
+/// a node used to invert a boolean value
 pub struct NotNode {
     bottom: Option<Box<dyn AstNode>>,
     code_pos: CodePos,
@@ -851,14 +871,14 @@ impl AstNode for NotNode {
         if self.bottom.is_none() {
             self.bottom = Some(node);
         } else {
-            unreachable!()
+            unreachable!();
         }
     }
 
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         match self.bottom.as_mut().unwrap().visit(symtable)? {
-            NodeResult::Literal(LiteralEnum::Bool(Some(b))) => {
-                Ok(NodeResult::Literal(LiteralEnum::Bool(Some(!b))))
+            NodeResult::Literal(Bool(Some(b))) => {
+                Ok(NodeResult::Literal(Bool(Some(!b))))
             }
             _ => Err(CrocoError::new(
                 &self.code_pos,
@@ -934,7 +954,7 @@ impl AstNode for CompareNode {
             _ => unreachable!(),
         };
 
-        Ok(NodeResult::Literal(LiteralEnum::Bool(Some(value))))
+        Ok(NodeResult::Literal(Bool(Some(value))))
     }
     fn get_type(&self) -> AstNodeType {
         AstNodeType::BinaryNode
@@ -993,7 +1013,7 @@ impl AstNode for IfNode {
             }
         }
 
-        Ok(NodeResult::Literal(LiteralEnum::Void))
+        Ok(NodeResult::Literal(Void))
     }
 }
 
@@ -1041,12 +1061,12 @@ impl AstNode for WhileNode {
             match value {
                 // propagate the early-return
                 NodeResult::Return(_) => return Ok(value),
-                NodeResult::Break => return Ok(NodeResult::Literal(LiteralEnum::Void)),
+                NodeResult::Break => return Ok(NodeResult::Literal(Void)),
                 NodeResult::Literal(_) | NodeResult::Continue => (),
             }
         }
 
-        Ok(NodeResult::Literal(LiteralEnum::Void))
+        Ok(NodeResult::Literal(Void))
     }
 }
 
@@ -1144,14 +1164,14 @@ impl AstNode for ImportNode {
             bottom.visit(symtable)?;
             self.bottom = Some(bottom);
 
-            Ok(NodeResult::Literal(LiteralEnum::Void))
+            Ok(NodeResult::Literal(Void))
 
         // we have an absolute path e.g import "math"
         // we are looking for a builtin module with this name
         } else {
             // check if the module part of the std library
             if symtable.import_builtin_module(&self.name) {
-                Ok(NodeResult::Literal(LiteralEnum::Void))
+                Ok(NodeResult::Literal(Void))
             } else {
                 Err(CrocoError::new(
                     &self.code_pos,

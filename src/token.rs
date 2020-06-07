@@ -85,6 +85,7 @@ pub enum OperatorEnum {
     DivideEquals,
     PowerEquals,
 
+    // binary operators
     Or,
     And,
     BitwiseOr,
@@ -95,16 +96,20 @@ pub enum OperatorEnum {
     GreaterOrEqual,
     LowerThan,
     LowerOrEqual,
-    Bang,
 
     Plus,
     Minus,
-    // this is never constructed by the lexer but is needed
-    // in the shunting yard algorithm later.
-    UnaryMinus,
     Multiplicate,
     Divide,
     Power,
+    
+    As,
+
+    // unary operators
+    Bang,
+    // this is never constructed by the lexer but is needed
+    // in the shunting yard algorithm later.
+    UnaryMinus,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -124,6 +124,9 @@ impl Lexer {
                 }
                 ";" => Separator(Semicolon),
                 // operators
+
+                // as can be viewed as a keyword but it behaves as an unary operator
+                "as" => Operator(As),
                 "=" => {
                     let mut ret = Operator(Assign);
 
@@ -294,11 +297,6 @@ impl Lexer {
                 "struct" => Keyword(Struct),
                 "test" => Keyword(Test),
                 "return" => Keyword(Return),
-
-                // imports are resolved directly by the lexer.
-                // the imported file is then also processed by the lexer
-                // and the tokens are prepended to the one contained in
-                // the main file.
                 "import" => Keyword(Import),
 
                 // variables

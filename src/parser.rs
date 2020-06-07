@@ -90,6 +90,9 @@ impl Parser {
                 self.token_pos.clone(),
             ))),
             Literal(literal) => Ok(Box::new(LiteralNode::new(literal))),
+            Keyword(Num) => Ok(Box::new(LiteralNode::new(LiteralEnum::Num(None)))),
+            Keyword(Str) => Ok(Box::new(LiteralNode::new(LiteralEnum::Str(None)))),
+            Keyword(Bool) => Ok(Box::new(LiteralNode::new(LiteralEnum::Bool(None)))),
             Operator(Plus) => Ok(Box::new(PlusNode::new(self.token_pos.clone()))),
             Operator(Minus) => Ok(Box::new(MinusNode::new(self.token_pos.clone()))),
             Operator(UnaryMinus) => Ok(Box::new(UnaryMinusNode::new(self.token_pos.clone()))),
@@ -118,6 +121,7 @@ impl Parser {
                 self.token_pos.clone(),
             ))),
             Operator(Bang) => Ok(Box::new(NotNode::new(self.token_pos.clone()))),
+            Operator(As) => Ok(Box::new(AsNode::new(self.token_pos.clone()))),
             _ => Err(CrocoError::new(
                 &self.token_pos,
                 format!("can't evaluate token in expression: {:?}", token),
@@ -239,10 +243,11 @@ impl Parser {
                 | Operator(GreaterThan)
                 | Operator(LowerOrEqual)
                 | Operator(LowerThan) => 4,
-                Operator(Plus) | Operator(Minus) => 5,
-                Operator(Multiplicate) | Operator(Divide) => 6,
-                Operator(Power) => 7,
+                Operator(As) => 5,
+                Operator(Plus) | Operator(Minus) => 6,
+                Operator(Multiplicate) | Operator(Divide) => 7,
                 Operator(UnaryMinus) => 8,
+                Operator(Power) => 9,
                 _ => unreachable!(),
             }
         };
@@ -275,9 +280,7 @@ impl Parser {
         let mut last_token = Discard;
         let is_unary = |last_token: &Token| -> bool {
             match last_token {
-                Operator(_) | Discard => {
-                    true
-                }
+                Operator(_) | Discard => true,
                 _ => false,
             }
         };
@@ -305,9 +308,8 @@ impl Parser {
                 Identifier(identifier) => {
                     output.push(self.parse_identifier(iter, identifier)?.content)
                 }
-                Literal(_) => output.push(self.get_node(expr_token)?),
+                Literal(_) | Keyword(Num) | Keyword(Str) | Keyword(Bool) => output.push(self.get_node(expr_token)?),
                 Operator(_) => {
-                    
                     // if we have an unary operator flag it accordingly
                     // https://github.com/MacTee/Shunting-Yard-Algorithm/blob/master/ShuntingYard/InfixToPostfixConverter.cs
                     match expr_token {
@@ -329,7 +331,7 @@ impl Parser {
                                 "not a valid unary operator".to_owned(),
                             ))
                         }
-                        _ => ()
+                        _ => (),
                     }
 
                     while let Some(top) = stack.last() {

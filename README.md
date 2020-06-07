@@ -45,7 +45,7 @@ fn fib(n num) num {
     return fib(n - 1) + fib(n - 2)
 }
 
-println("" + fib(20))
+println(fib(20) as str)
 ```
 ```
 6765
@@ -56,7 +56,7 @@ String interpolation and functions
 fn fancy_disp(n num) {
 
     let fancy = "Your variable equals " + n
-    println(fancy + ". that's nice uh ?")
+    println(fancy as str + ". that's nice uh ?")
 }
 
 let bruh = (54^2 + 7) / (12.3+24*7) *0.6
@@ -73,7 +73,7 @@ fn divide_by_6(n num) num {
     return n/6
 }
 
-println("" + divide_by_6(24))
+println(divide_by_6(24) as str)
 ```
 ```
 4
@@ -82,14 +82,14 @@ println("" + divide_by_6(24))
 ### Variable assignment
 
 ```croco
-let this_is_12_squared = (5*3-3)^2
-let operator_precedence = 12-4*2^8/8
-println(this_is_12_squared)
-println(operator_precedence)
+let this_is_12_squared = -(5*3-3)^2
+let operator_precedence = 12+4*2^8/4
+println(this_is_12_squared as str)
+println(operator_precedence as str)
 ```
 ```
-144
--116
+-144
+268
 ```
 
 ### Builtin functions
@@ -127,7 +127,6 @@ User-agent: *
 Disallow: /
 
 Assertion failed !
-
 ```
 
 ## Benchmarks
@@ -161,4 +160,4 @@ Apparently python doesn't do any tail call optimization for recursive functions,
 
 ## IDE support
 
-I made a Visual Studio code extension that adds basic syntax highlighting. It is available under the `croco-0.1.0.vsix` file. Follow [these instructions for the installation](https://marketplace.visualstudio.com/items?itemName=fabiospampinato.vscode-install-vsix).
+I made a Visual Studio code extension that adds basic syntax highlighting. It is available under the `croco-0.0.2.vsix` file. Follow [these instructions for the installation](https://marketplace.visualstudio.com/items?itemName=fabiospampinato.vscode-install-vsix).
