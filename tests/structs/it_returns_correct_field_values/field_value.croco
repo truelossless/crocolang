@@ -1,0 +1,9 @@
+struct Croco {
+    a str
+}
+
+let croco = Croco {
+    a: "croco"
+}
+
+assert(croco.a == "croco")

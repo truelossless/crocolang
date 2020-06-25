@@ -1,5 +1,6 @@
-use crate::builtin::{BuiltinFunction, BuiltinModule};
-use crate::token::LiteralEnum;
+use crate::builtin::*;
+use crate::symbol::{Symbol, Symbol::*};
+use crate::token::LiteralEnum::*;
 
 use reqwest;
 
@@ -7,8 +8,8 @@ use reqwest;
 pub fn get_module() -> BuiltinModule {
     let functions = vec![BuiltinFunction {
         name: "get".to_owned(),
-        args: vec![LiteralEnum::Str(None)],
-        return_type: LiteralEnum::Str(None),
+        args: vec![Primitive(Str(None))],
+        return_type: Primitive(Str(None)),
         pointer: get,
     }];
 
@@ -18,20 +19,21 @@ pub fn get_module() -> BuiltinModule {
 }
 
 /// returns the contents of a page given an url
-fn get(mut args: Vec<LiteralEnum>) -> LiteralEnum {
-    let arg = args.remove(0).into_str();
+fn get(mut args: Vec<Symbol>) -> Symbol {
 
-    let req = reqwest::blocking::get(&arg);
+    let url = get_arg_str(&mut args);
+
+    let req = reqwest::blocking::get(&url);
     
     // return an empty string if we have an error
     // TODO: implement errors
     if req.is_err() {
-        return LiteralEnum::Str(Some(String::new()));
+        return Primitive(Str(Some(String::new())));
     }
     let res = req.unwrap();
 
     match res.text() {
-        Ok(text) => LiteralEnum::Str(Some(text)),
-        Err(_) => LiteralEnum::Str(Some(String::new()))
+        Ok(text) => Primitive(Str(Some(text))),
+        Err(_) => Primitive(Str(Some(String::new())))
     }
 }

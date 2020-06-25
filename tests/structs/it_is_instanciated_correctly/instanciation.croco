@@ -1,0 +1,9 @@
+struct Simple {
+    a num
+    b str
+}
+
+let a = Simple {
+    a: 12
+    b: "hello world"
+}

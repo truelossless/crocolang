@@ -1,0 +1,9 @@
+struct Simple {
+    a num
+}
+
+let simple = Simple {
+    a: 5
+}
+
+simple.a = "error"

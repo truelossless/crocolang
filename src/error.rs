@@ -23,7 +23,7 @@ pub struct CrocoError {
 impl CrocoError {
     pub fn new(pos: &CodePos, message: String) -> Self {
         CrocoError {
-            kind: CrocoErrorKind::Runtime,
+            kind: CrocoErrorKind::Unknown,
             pos: pos.clone(),
             message,
         }
@@ -48,7 +48,7 @@ impl fmt::Display for CrocoError {
         };
 
         // get the line involved
-        let mut lines = io::BufReader::new(File::open(&self.pos.file).unwrap()).lines();
+        let mut lines = io::BufReader::new(File::open(&*self.pos.file).unwrap()).lines();
         let mut indicator = String::new();
 
         // we know that the line is present so just unwrap
@@ -91,13 +91,12 @@ impl fmt::Display for CrocoError {
             error_kind,
             self.message,
             self.pos.file,
-            self.pos.line,
-            errored_word.0
+            self.pos.line + 1,  // lines start at 1
+            errored_word.0 + 1  // cols start at 1
         )
     }
 }
 
-// A unique format for dubugging output
 impl fmt::Debug for CrocoError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self.kind)

@@ -6,7 +6,8 @@
 Croco is a small and fun-to-use interpreted language written in Rust.
 
 You can see some examples of the syntax below :)  
-For the partial spec and more examples, see [here](SPEC.md).
+Simple examples of the syntax can be seen under the `tests` folder.
+For the partial spec and even more examples, see [here](SPEC.md).
 
 PULL REQUESTS ARE WELCOME SO YOU CAN IMPROVE MY MESS !
 

@@ -3,9 +3,8 @@ use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::symbol::SymTable;
 use crate::token::CodePos;
-use std::fs;
+use std::{fs, rc::Rc};
 
-#[derive(Default)]
 pub struct Interpreter {
     lexer: Lexer,
     parser: Parser,
@@ -26,7 +25,7 @@ impl Interpreter {
         let contents = fs::read_to_string(file_path).map_err(|_| {
             let mut err = CrocoError::new(
                 &CodePos {
-                    file: file_path.to_owned(),
+                    file: Rc::from(file_path),
                     line: 0,
                     word: 0,
                 },
@@ -36,11 +35,14 @@ impl Interpreter {
             err
         })?;
 
-        self.lexer.set_file(file_path.to_owned());
+        self.lexer.set_file(file_path);
         self.exec(&contents)
     }
 
     pub fn exec(&mut self, code: &str) -> Result<(), CrocoError> {
+        // empty the symtable
+        self.symtable = SymTable::new();
+
         let tokens;
         let mut tree;
 
@@ -62,9 +64,11 @@ impl Interpreter {
             }
         }
 
-        // println!("symbol tables: {:?}", self.symtable);
         // import the builtin library
         self.symtable.import_builtin_module("global");
+        self.symtable.import_builtin_module("os");
+
+        // println!("symbol tables: {:?}", self.symtable);
 
         if let Err(mut e) = tree.visit(&mut self.symtable) {
             e.set_kind(CrocoErrorKind::Runtime);
@@ -74,5 +78,11 @@ impl Interpreter {
         // println!("symbol tables: {:?}", self.symtable);
 
         Ok(())
+    }
+}
+
+impl Default for Interpreter {
+    fn default() -> Self {
+        Interpreter::new()
     }
 }

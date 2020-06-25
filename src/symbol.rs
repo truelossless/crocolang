@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-
+use std::fmt;
 use crate::ast::AstNode;
 use crate::builtin::{get_module, BuiltinCallback, BuiltinFunction, BuiltinVar};
 use crate::parser::TypedArg;
@@ -12,16 +12,25 @@ pub enum FunctionKind {
     Builtin(BuiltinCallback),
 }
 
-#[derive(Clone)]
-pub struct FunctionCall {
-    pub args: Vec<TypedArg>,
-    pub body: FunctionKind,
-    pub return_type: LiteralEnum,
+impl fmt::Debug for FunctionKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FunctionKind::Regular(_) => write!(f, "Regular"),
+            FunctionKind::Builtin(_) => write!(f, "Builtin")
+        }
+    }
 }
 
-impl<'a> FunctionCall {
-    pub fn new(args: Vec<TypedArg>, return_type: LiteralEnum, body: FunctionKind) -> Self {
-        FunctionCall {
+#[derive(Clone, Debug)]
+pub struct FunctionDecl {
+    pub args: Vec<TypedArg>,
+    pub body: FunctionKind,
+    pub return_type: Symbol,
+}
+
+impl FunctionDecl {
+    pub fn new(args: Vec<TypedArg>, return_type: Symbol, body: FunctionKind) -> Self {
+        FunctionDecl {
             args,
             return_type,
             body,
@@ -29,40 +38,130 @@ impl<'a> FunctionCall {
     }
 }
 
-/// a Symbol in the symbol table. Could be either a Literal or a function call
-#[derive(Clone)]
+/// representation of a built struct
+#[derive(Clone, Debug)]
+pub struct Struct {
+    // the fields, populated with values
+    // we use an option because in declarations we don't want the overhead of an HashMap allocation
+    pub fields: Option<HashMap<String, Symbol>>,
+
+    // the corresponding type of the struct, as as StructDecl
+    // TODO: consider edge cases where someone could override a struct with a deeper scoped struct of the same name
+    pub struct_type: String,
+}
+
+impl Struct {
+    pub fn new(struct_type: String) -> Self {
+        Struct {
+            fields: None,
+            struct_type,
+        }
+    }
+}
+
+/// a symbol in the symbol table. Could be either a primitive, a function, or a struct.
+#[derive(Clone, Debug)]
 pub enum Symbol {
-    Literal(LiteralEnum),
-    Function(FunctionCall),
+    // a primitive such as 3 or false
+    Primitive(LiteralEnum),
+
+    // a pointer to a function such as let "a = b" where b is a FunctionDecl
+    // Function(FunctionPointer)
+
+    // a function, local to this scope (will be useful for struct methods)
+    // FunctionClosure(FunctionDecl)
+
+    // a symbol reference
+    // Ref(Rc<RefCell<Symbol>>)
+
+    // a structure built from a StructDecl such as "let a = b {}"
+    Struct(Struct),
+}
+
+impl Symbol {
+    pub fn into_primitive(self) -> Result<LiteralEnum, String> {
+        match self {
+            Symbol::Primitive(p) => Ok(p),
+            _ => Err("expected a primitive".to_owned()),
+        }
+    }
+
+    pub fn into_struct(self) -> Result<Struct, String> {
+        match self {
+            Symbol::Struct(s) => Ok(s),
+            _ => Err("expected a struct".to_owned()),
+        }
+    }
+
+    pub fn is_void(&self) -> bool {
+        match self {
+            Symbol::Primitive(LiteralEnum::Void) => true,
+            _ => false,
+        }
+    }
+}
+
+/// a top-level declaration such as a function declaration or a struct declaration
+#[derive(Clone, Debug)]
+pub enum Decl {
+    // the blueprint of a function such as "fn a {}"
+    FunctionDecl(FunctionDecl),
+
+    // the blueprint of a struct such as "struct a {}"
+    StructDecl(HashMap<String, Symbol>),
+}
+
+/// compare if two symbols are equals e.g they use the same struct
+pub fn symbol_eq(a: &Symbol, b: &Symbol) -> bool {
+    let pair = (a, b);
+    match pair {
+        (Symbol::Primitive(a), Symbol::Primitive(b)) => literal_eq(a, b),
+        (Symbol::Struct(a), Symbol::Struct(b)) => a.struct_type == b.struct_type,
+        _ => false,
+    }
 }
 
 /// SymTable represents symbol tables where all the variables are stored.
 /// The Vec represents the different scopes of variables, introduced by BlockNodes
 /// The Hashmap stores variables by name, and bind them to a value.
-#[derive(Clone, Default)]
-pub struct SymTable(Vec<HashMap<String, Symbol>>);
+/// Top level contains all struct and function declarations.
+#[derive(Clone, Default, Debug)]
+pub struct SymTable {
+    symbols: Vec<HashMap<String, Symbol>>,
+    top_level: HashMap<String, Decl>,
+}
 
 impl SymTable {
     pub fn new() -> Self {
-        SymTable(vec![HashMap::new()])
+        SymTable {
+            symbols: vec![HashMap::new()],
+            top_level: HashMap::new(),
+        }
     }
 
-    /// returns wether or not a variable with the same name exists on this scope
-    pub fn same_scope_symbol(&self, var_name: &str) -> bool {
-        self.0.last().unwrap().get(var_name).is_some()
+    /// return the desired symbol starting from the inner scope
+    pub fn get_mut_symbol(&mut self, var_name: &str) -> Result<&mut Symbol, String> {
+        for table in self.symbols.iter_mut().rev() {
+            if let Some(symbol) = table.get_mut(var_name) {
+                return Ok(symbol);
+            }
+        }
+
+        // the variable doesn't exist
+        Err(format!("variable {} has not been declared", var_name))
     }
 
-    /// return the desired variable starting from the inner scope
+    /// return the desired primitive starting from the inner scope
     pub fn get_literal(&mut self, var_name: &str) -> Result<&mut LiteralEnum, String> {
-        for table in self.0.iter_mut().rev() {
+        for table in self.symbols.iter_mut().rev() {
             match table.get_mut(var_name) {
-                Some(Symbol::Function(_)) => {
+                Some(Symbol::Primitive(ref mut literal)) => return Ok(literal),
+                Some(_) => {
                     return Err(format!(
-                        "trying to get {} as a variable but it's a function",
+                        "trying to get {} as a variable but it's not",
                         var_name
                     ))
                 }
-                Some(Symbol::Literal(ref mut literal)) => return Ok(literal),
                 None => (),
             }
         }
@@ -71,60 +170,106 @@ impl SymTable {
         Err(format!("variable {} has not been declared", var_name))
     }
 
-    /// return the desired function starting from the inner scope
-    pub fn get_function(&mut self, fn_name: &str) -> Result<&mut FunctionCall, String> {
-        for table in self.0.iter_mut().rev() {
-            match table.get_mut(fn_name) {
-                Some(Symbol::Literal(_)) => {
-                    return Err(format!(
-                        "trying to get {} as a function but it's a variable",
-                        fn_name
-                    ))
-                }
-                Some(Symbol::Function(ref mut function)) => return Ok(function),
-                None => (),
+    /// return the desired function declaration starting from the inner scope
+    pub fn get_function_decl(&mut self, fn_name: &str) -> Result<&mut FunctionDecl, String> {
+        match self.top_level.get_mut(fn_name) {
+            Some(Decl::FunctionDecl(ref mut function)) => return Ok(function),
+            Some(_) => {
+                return Err(format!(
+                    "trying to get {} as a function but it's not",
+                    fn_name
+                ))
             }
+            None => (),
         }
 
         // the function doesn't exist
         Err(format!("function {} has not been declared", fn_name))
     }
 
-    /// modify a variable already present in the symbol table
-    pub fn modify_symbol(&mut self, var_name: &str, var_value: LiteralEnum) -> Result<(), String> {
-        for table in self.0.iter_mut().rev() {
-            if let Some(old_symbol) = table.get_mut(var_name) {
-                match old_symbol {
-                    Symbol::Function(_) => {
-                        return Err(format!(
-                            "Cannot change the {} function to a variable",
-                            var_name
-                        ))
-                    }
-                    Symbol::Literal(old_var_value) => {
-                        if !literal_eq(old_var_value, &var_value) {
-                            return Err(format!(
-                                "Cannot assign another type to the variable {}",
-                                var_name
-                            ));
-                        } else {
-                            // update the value
-                            *old_var_value = var_value;
-                            return Ok(());
-                        }
-                    }
-                }
+    /// return the desired struct declaration starting from the inner scope
+    pub fn get_struct_decl(
+        &mut self,
+        struct_type: &str,
+    ) -> Result<&mut HashMap<String, Symbol>, String> {
+        match self.top_level.get_mut(struct_type) {
+            Some(Decl::StructDecl(ref mut struct_decl)) => return Ok(struct_decl),
+            Some(_) => {
+                return Err(format!(
+                    "trying to get {} as a struct but it's not",
+                    struct_type
+                ))
             }
+            None => (),
         }
-        Err(format!("Can't assign to undeclared variable {}", var_name))
+
+        // the function doesn't exist
+        Err(format!("struct {} has not been declared", struct_type))
     }
 
     /// insert to the closest scope
-    pub fn insert_symbol(&mut self, var_name: &str, var_value: LiteralEnum) {
-        self.0
+    pub fn insert_symbol(&mut self, name: &str, symbol: Symbol) -> Result<(), String> {
+        if self
+            .symbols
             .last_mut()
             .unwrap()
-            .insert(var_name.to_owned(), Symbol::Literal(var_value));
+            .insert(name.to_owned(), symbol)
+            .is_none()
+        {
+            Ok(())
+        } else {
+            Err(format!(
+                "variable already declared with name {} in this scope",
+                name
+            ))
+        }
+    }
+
+    /// insert to the global scope
+    pub fn insert_global_symbol(&mut self, name: String, symbol: Symbol) -> Result<(), String> {
+        if self
+            .symbols
+            .first_mut()
+            .unwrap()
+            .insert(name.to_owned(), symbol)
+            .is_none()
+        {
+            Ok(())
+        } else {
+            Err(format!(
+                "variable already declared with name {} in this scope",
+                name
+            ))
+        }
+    }
+
+    /// modify a symbol already present in the symbol table
+    pub fn modify_symbol(&mut self, name: &str, symbol: Symbol) -> Result<(), String> {
+        for table in self.symbols.iter_mut().rev() {
+            if let Some(old_symbol) = table.get_mut(name) {
+                if symbol_eq(&old_symbol, &symbol) {
+                    *old_symbol = symbol;
+                    return Ok(());
+                } else {
+                    return Err(format!(
+                        "Cannot assign another type to the variable {}",
+                        name
+                    ));
+                }
+            }
+        }
+        Err(format!("Can't assign to undeclared variable {}", name))
+    }
+
+    /// register a function or struct declaration
+    pub fn register_decl(&mut self, var_name: String, decl: Decl) -> Result<(), String> {
+        let res = self.top_level.insert(var_name, decl);
+
+        if res.is_some() {
+            Err("symbol already declared in this scope".to_owned())
+        } else {
+            Ok(())
+        }
     }
 
     pub fn import_builtin_module(&mut self, name: &str) -> bool {
@@ -137,7 +282,7 @@ impl SymTable {
             }
 
             for var in module.vars {
-                self.register_builtin_var(var, namespace)
+                self.register_builtin_var(var, namespace);
             }
             true
         } else {
@@ -145,18 +290,11 @@ impl SymTable {
         }
     }
 
-    pub fn register_fn(&mut self, fn_name: String, fn_symbol: Symbol) {
-        if let Symbol::Literal(_) = fn_symbol {
-            unreachable!();
-        }
-
-        self.0.last_mut().unwrap().insert(fn_name, fn_symbol);
-    }
-
     pub fn register_builtin_var(&mut self, var: BuiltinVar, module_name: &str) {
         let namespaced_name =
             Identifier::new(var.name, module_name.to_owned()).get_namespaced_name();
-        self.insert_symbol(&namespaced_name, var.value);
+        self.insert_global_symbol(namespaced_name, var.value)
+            .unwrap();
     }
 
     pub fn register_builtin_function(&mut self, function: BuiltinFunction, module_name: &str) {
@@ -167,7 +305,7 @@ impl SymTable {
             typed_args.push(TypedArg::new(String::new(), el));
         }
 
-        let builtin = FunctionCall::new(
+        let builtin = FunctionDecl::new(
             typed_args,
             function.return_type,
             FunctionKind::Builtin(function.pointer),
@@ -176,14 +314,15 @@ impl SymTable {
         let namespaced_name =
             Identifier::new(function.name, module_name.to_owned()).get_namespaced_name();
 
-        self.register_fn(namespaced_name, Symbol::Function(builtin));
+        self.register_decl(namespaced_name, Decl::FunctionDecl(builtin))
+            .unwrap();
     }
 
     pub fn add_scope(&mut self) {
-        self.0.push(HashMap::new());
+        self.symbols.push(HashMap::new());
     }
 
     pub fn drop_scope(&mut self) {
-        self.0.pop();
+        self.symbols.pop();
     }
 }

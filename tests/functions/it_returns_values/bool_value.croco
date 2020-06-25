@@ -1,0 +1,4 @@
+fn a() num {
+    return 42
+}
+assert(a() == 42)

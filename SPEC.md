@@ -87,12 +87,12 @@ struct Character {
 }
 
 let char = Character {
-    name: "xXWarriorXx",
-    hp: 100,
-    is_alive: true
+    hp: 100
+    name: "xXWarriorXx"
 }
 
 println(char.name)
+println(char.is_alive) // will default to false
 ```
 
 ## Lööps [20%]

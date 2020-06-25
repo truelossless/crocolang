@@ -1,2 +1,11 @@
-let a = 12+4*2^8/4
-println(a as str)
+struct Simple {
+    a num
+}
+
+let simple = Simple {
+    a: 5
+}
+
+simple.a = "error"
+
+println(simple.a)

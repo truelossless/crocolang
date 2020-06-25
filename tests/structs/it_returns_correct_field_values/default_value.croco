@@ -1,0 +1,11 @@
+struct Croco {
+    a str
+    b num
+    c bool
+}
+
+let croco Croco
+
+assert(croco.a == "")
+assert(croco.b == 0)
+assert(croco.c == false)

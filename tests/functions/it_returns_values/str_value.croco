@@ -1,0 +1,4 @@
+fn a() str {
+    return "croco"
+}
+assert(a() == "croco")

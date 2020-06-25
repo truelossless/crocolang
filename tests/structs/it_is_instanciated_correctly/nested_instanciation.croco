@@ -1,0 +1,19 @@
+struct First {
+    a num
+    b str
+    c Second
+}
+
+struct Second {
+    a num
+    b str
+}
+
+let a = First {
+    a: 12
+    b: "hello world"
+    c: Second {
+        a: -5
+        b: "hi"
+    }
+}

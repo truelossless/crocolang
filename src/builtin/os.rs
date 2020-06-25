@@ -1,5 +1,6 @@
-use crate::builtin::{BuiltinFunction, BuiltinModule};
-use crate::token::LiteralEnum;
+use crate::builtin::*;
+use crate::symbol::{Symbol, Symbol::*};
+use crate::token::LiteralEnum::*;
 
 use std::process::Command;
 
@@ -7,8 +8,8 @@ use std::process::Command;
 pub fn get_module() -> BuiltinModule {
     let functions = vec![BuiltinFunction {
         name: "exec".to_owned(),
-        args: vec![LiteralEnum::Str(None)],
-        return_type: LiteralEnum::Str(None),
+        args: vec![Primitive(Str(None))],
+        return_type: Primitive(Str(None)),
         pointer: exec,
     }];
 
@@ -18,16 +19,16 @@ pub fn get_module() -> BuiltinModule {
 }
 
 /// executes a system command
-fn exec(mut args: Vec<LiteralEnum>) -> LiteralEnum {
-    let arg = args.remove(0).into_str();
+fn exec(mut args: Vec<Symbol>) -> Symbol {
+    let command_str = get_arg_str(&mut args);
     
     let command = if cfg!(target_os = "windows") {
         Command::new("cmd")
-        .args(&["/C", &arg])
+        .args(&["/C", &command_str])
         .output()
     } else {
         Command::new("sh")
-        .args(&["-c", &arg])
+        .args(&["-c", &command_str])
         .output()
     };
     
@@ -38,8 +39,8 @@ fn exec(mut args: Vec<LiteralEnum>) -> LiteralEnum {
     if let Ok(output) = command 
     {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        LiteralEnum::Str(Some(stdout.into_owned()))
+        Primitive(Str(Some(stdout.into_owned())))
     } else {
-        LiteralEnum::Str(Some(String::new()))
+        Primitive(Str(Some(String::new())))
     }
 }

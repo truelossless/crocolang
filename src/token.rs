@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{rc::Rc, cmp::Ordering};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralEnum {
@@ -74,6 +74,8 @@ pub enum SeparatorEnum {
     Semicolon,
     NewLine,
     Comma,
+    Colon,
+    Dot
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -150,19 +152,23 @@ impl Identifier {
     }
     ///  returns the namespaced name of the identifer
     pub fn get_namespaced_name(self) -> String {
-        if self.namespace.is_empty() {
-            self.name
-        } else {
-            format!("{}.{}", self.namespace, self.name)
-        }
+        
+        self.name
+        // TODO: re-enable namespaces when the parser will support top level statements
+        // if self.namespace.is_empty() {
+        //     self.name
+        // } else {
+        //     format!("{}.{}", self.namespace, self.name)
+        // }
     }
 }
 
 
 /// tracks the position of a piece of code
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct CodePos {
-    pub file: String,
+    // we can use a Rc here to avoid copying strings around
+    pub file: Rc<str>,
     pub line: u32,
     pub word: u16 
 }

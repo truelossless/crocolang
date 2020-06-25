@@ -4,4 +4,4 @@ while a < 1000000 {
     a += 1
 }
 
-println("" + a)
+println(a as str)

@@ -15,22 +15,22 @@ pub mod math;
 // the os module
 pub mod os;
 
-use crate::token::LiteralEnum;
+use crate::symbol::{Symbol, Struct};
 
 /// callback to a built-in function
-pub type BuiltinCallback = fn(Vec<LiteralEnum>) -> LiteralEnum;
+pub type BuiltinCallback = fn(Vec<Symbol>) -> Symbol;
 
 /// representation of a built-in function
 pub struct BuiltinFunction {
     pub name: String,
-    pub args: Vec<LiteralEnum>,
-    pub return_type: LiteralEnum,
+    pub args: Vec<Symbol>,
+    pub return_type: Symbol,
     pub pointer: BuiltinCallback
 }
 
 pub struct BuiltinVar {
     pub name: String,
-    pub value: LiteralEnum
+    pub value: Symbol
 }
 
 /// representation of a built-in module
@@ -56,4 +56,21 @@ pub fn get_module(name: &str) -> Option<BuiltinModule> {
     };
 
     Some(module)
+}
+
+// utils to easily get args
+pub fn get_arg_str(args: &mut Vec<Symbol>) -> String {
+    args.remove(0).into_primitive().unwrap().into_str()
+}
+
+pub fn _get_arg_num(args: &mut Vec<Symbol>) -> f32 {
+    args.remove(0).into_primitive().unwrap().into_num()
+}
+
+pub fn get_arg_bool(args: &mut Vec<Symbol>) -> bool {
+    args.remove(0).into_primitive().unwrap().into_bool()
+}
+
+pub fn _get_arg_struct(args: &mut Vec<Symbol>) -> Struct {
+    args.remove(0).into_struct().unwrap()
 }
