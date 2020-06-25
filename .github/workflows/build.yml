@@ -22,21 +22,21 @@ jobs:
     - uses: actions/checkout@v2
     
     - name: Build release
-      run: cargo build --release --target-dir ${{ matrix.os }}
+      run: cargo build --release
     
     # save the file
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v2
       if: ${{ matrix.os != 'windows-latest' }}
       with:
         name: croco-${{ matrix.os }}
-        path: ./${{ matrix.os }}/release/croco
+        path: ./target/release/croco
 
     # on windows the executable is ending with a .exe
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v2
       if: ${{ matrix.os == 'windows-latest' }}
       with:
         name: croco-${{ matrix.os }}
-        path: ./${{ matrix.os }}/release/croco.exe
+        path: ./target/release/croco.exe
   
   # upload the resulting binaries to github releases
   upload:
@@ -48,14 +48,17 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: croco-ubuntu-latest
+          path: linux
 
       - uses: actions/download-artifact@v2
         with:
           name: croco-windows-latest
+          path: windows
 
       - uses: actions/download-artifact@v2
         with:
           name: croco-macos-latest
+          path: macos
 
       # get the commit hash
       # https://github.community/t/add-short-sha-to-github-context/16418/11
@@ -82,7 +85,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: croco-linux-latest
+          asset_path: ./linux/croco
           asset_name: croco-linux-${{ steps.commit.outputs.hash }}
           asset_content_type: application/x-elf
 
@@ -92,7 +95,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: croco-windows-latest
+          asset_path: ./windows/croco.exe
           asset_name: croco-windows-${{ steps.commit.outputs.hash }}.exe
           asset_content_type: application/x-msdownload
       
@@ -102,6 +105,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: croco-macos-latest
+          asset_path: ./macos/croco
           asset_name: croco-macos-${{ steps.commit.outputs.hash }}
           asset_content_type: application/x-elf
