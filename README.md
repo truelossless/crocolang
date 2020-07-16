@@ -11,8 +11,14 @@ For the partial spec and even more examples, see [here](SPEC.md).
 
 PULL REQUESTS ARE WELCOME SO YOU CAN IMPROVE MY MESS !
 
+## Downloading croco
+
+Croco is automatically built for Windows, MacOS and Linux, for each Git commit.  
+[You can download it here.](https://github.com/truelossless/crocolang/releases/latest)
+
 ## Building croco
 
+You can also build Croco by yourself easely.  
 Make sure Rust is installed and run in the main directory
 ```bash
 cargo build --release
@@ -57,7 +63,7 @@ println(fib(20) as str)
 String interpolation and functions
 ```croco
 fn fancy_disp(n num) {
-    let fancy = "Your variable equals " + (n as str)
+    let fancy = "Your variable equals " + n as str
     println(fancy + ". that's nice uh ?")
 }
 
@@ -96,7 +102,7 @@ println(operator_precedence as str)
 
 ### Builtin functions
 
-NOTE: right now namespaces are broken: use directly `exec` if you `import "os"` 
+NOTE: right now namespaces are broken: use directly the function name without the module name.
 
 ```croco
 
@@ -152,9 +158,9 @@ $ time croco bench_name.croco
 |loop, n=1000000    |     230ms| 236ms|376ms|
 
 We're getting there :D  
-Croco is fully interpreted, so it's normal that it's slower than node, which is basically a VM.  
+Croco is fully interpreted, so it's normal that it's way slower than Node, which is basically a VM.  
 However, it should be closer to python performance, but it's clear that there's still a long way to go !
-Apparently python doesn't do any tail call optimization for recursive functions, so it's weird that croco is THAT slow with fibonacci.
+Apparently Python doesn't do any tail call optimization for recursive functions, so it's weird that croco is THAT slow with fibonacci. Actually Python is jitted so that's probably why. 
 
 ### Where are the performance culprits ?
 

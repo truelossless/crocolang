@@ -39,6 +39,7 @@ impl AstNode for AsNode {
             .unwrap()
             .visit(symtable)?
             .into_symbol(&self.code_pos)?;
+            
         let as_type = self
             .right
             .as_mut()

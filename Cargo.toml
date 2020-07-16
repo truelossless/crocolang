@@ -1,6 +1,6 @@
 [package]
 name = "croco_lang"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["truelossless <esteban.gressard@gmail.com>"]
 edition = "2018"
 
