@@ -3,63 +3,61 @@ use crate::error::CrocoError;
 use crate::symbol::{SymTable, Symbol};
 use crate::token::{CodePos, LiteralEnum::*};
 
-/// a node representing an if statement
+/// a node representing an if / elif / else structure
 #[derive(Clone)]
 pub struct IfNode {
     // comparison value (a CompareNode)
-    left: Option<Box<dyn AstNode>>,
-    // if body (a BlockNode)
-    right: Option<Box<dyn AstNode>>,
+    conditions: Vec<Box<dyn AstNode>>,
+    // if / elif / else bodies (a BlockNode)
+    bodies: Vec<Box<dyn AstNode>>,
     code_pos: CodePos,
 }
 
 impl IfNode {
-    pub fn new(left: Box<dyn AstNode>, right: Box<dyn AstNode>, code_pos: CodePos) -> Self {
+    pub fn new(
+        conditions: Vec<Box<dyn AstNode>>,
+        bodies: Vec<Box<dyn AstNode>>,
+        code_pos: CodePos,
+    ) -> Self {
         IfNode {
-            left: Some(left),
-            right: Some(right),
+            conditions,
+            bodies,
             code_pos,
         }
     }
 }
 
 impl AstNode for IfNode {
-    fn add_child(&mut self, node: Box<dyn AstNode>) {
-        if self.left.is_none() {
-            self.left = Some(node);
-        } else if self.right.is_none() {
-            self.right = Some(node);
-        } else {
-            unreachable!()
-        }
-    }
-
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        // there should always be a boolean condition, check if it's fullfilled
-        let cond_ok = self
-            .left
-            .as_mut()
-            .unwrap()
-            .visit(symtable)?
-            .into_symbol(&self.code_pos)?
-            .into_primitive()
-            .map_err(|_| {
-                CrocoError::new(
-                    &self.code_pos,
-                    "expected a boolean for the condition".to_owned(),
-                )
-            })?
-            .into_bool();
+        for (condition, body) in self.conditions.iter_mut().zip(self.bodies.iter_mut()) {
+            let code_pos = &self.code_pos;
 
-        if cond_ok {
-            let value = self.right.as_mut().unwrap().visit(symtable)?;
-            match value {
-                // propagate the early-return
-                NodeResult::Return(_) | NodeResult::Break | NodeResult::Continue => {
-                    return Ok(value)
+            // check if the boolean condition is fullfilled
+            let cond_ok = condition
+                .visit(symtable)?
+                .into_symbol(code_pos)?
+                .into_primitive()
+                .map_err(|_| {
+                    CrocoError::new(code_pos, "expected a boolean for the condition".to_owned())
+                })?
+                .into_bool();
+
+            // if the condition is fullfilled visit the corresponding body and exit early
+            if cond_ok {
+                let value = body.visit(symtable)?;
+                match value {
+                    // propagate the early-return
+                    NodeResult::Return(_) | NodeResult::Break | NodeResult::Continue => {
+                        return Ok(value)
+                    }
+                    _ => return Ok(NodeResult::Symbol(Symbol::Primitive(Void))),
                 }
-                _ => (),
             }
+        }
+
+        // if the length doesn't match this means that the last body is an else body
+        if self.conditions.len() != self.bodies.len() {
+            self.bodies.last_mut().unwrap().visit(symtable)?;
         }
 
         Ok(NodeResult::Symbol(Symbol::Primitive(Void)))

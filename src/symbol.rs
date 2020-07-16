@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use std::fmt;
 use crate::ast::AstNode;
 use crate::builtin::{get_module, BuiltinCallback, BuiltinFunction, BuiltinVar};
 use crate::parser::TypedArg;
 use crate::token::{literal_eq, Identifier, LiteralEnum};
+use std::collections::HashMap;
+use std::fmt;
 
 /// Either the function is a classic function or a built-in function
 #[derive(Clone)]
@@ -16,7 +16,7 @@ impl fmt::Debug for FunctionKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FunctionKind::Regular(_) => write!(f, "Regular"),
-            FunctionKind::Builtin(_) => write!(f, "Builtin")
+            FunctionKind::Builtin(_) => write!(f, "Builtin"),
         }
     }
 }

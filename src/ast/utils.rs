@@ -1,6 +1,6 @@
 use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, Symbol, Struct};
+use crate::symbol::{Struct, SymTable, Symbol};
 use crate::token::{CodePos, LiteralEnum, LiteralEnum::*};
 
 /// returns the LiteralEnum associated to a node
@@ -53,15 +53,17 @@ pub fn get_number_value(
 }
 
 /// initializes recursively a symbol to its default value
-pub fn init_default(symbol: &mut Symbol, symtable: &mut SymTable, code_pos: &CodePos) -> Result<(), CrocoError> {
-
+pub fn init_default(
+    symbol: &mut Symbol,
+    symtable: &mut SymTable,
+    code_pos: &CodePos,
+) -> Result<(), CrocoError> {
     *symbol = match symbol {
         Symbol::Primitive(Num(_)) => Symbol::Primitive(Num(Some(0.))),
         Symbol::Primitive(Str(_)) => Symbol::Primitive(Str(Some(String::new()))),
         Symbol::Primitive(Bool(_)) => Symbol::Primitive(Bool(Some(false))),
 
         Symbol::Struct(s) => {
-
             let mut struct_decl_default = symtable
                 .get_struct_decl(&s.struct_type)
                 .map_err(|e| CrocoError::new(&code_pos, e))?
@@ -71,12 +73,10 @@ pub fn init_default(symbol: &mut Symbol, symtable: &mut SymTable, code_pos: &Cod
                 init_default(field, symtable, code_pos)?;
             }
 
-            Symbol::Struct(
-                Struct {
-                    struct_type: s.struct_type.clone(),
-                    fields: Some(struct_decl_default),
-                }
-            )
+            Symbol::Struct(Struct {
+                struct_type: s.struct_type.clone(),
+                fields: Some(struct_decl_default),
+            })
         }
 
         // we cannot have a struct with a void primitive

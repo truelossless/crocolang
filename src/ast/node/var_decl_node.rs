@@ -33,9 +33,7 @@ impl VarDeclNode {
 
 impl AstNode for VarDeclNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        
         let value = match &mut self.right {
-
             // there is a node
             Some(node) => {
                 let var_value = node.visit(symtable)?.into_symbol(&self.code_pos)?;
@@ -63,12 +61,11 @@ impl AstNode for VarDeclNode {
 
             // no node, use the defaut value
             None => {
-
                 if self.var_type.is_void() {
                     return Err(CrocoError::new(
                         &self.code_pos,
-                        format!("cannot infer the type of the variable {}", self.left)
-                    ))
+                        format!("cannot infer the type of the variable {}", self.left),
+                    ));
                 }
 
                 init_default(&mut self.var_type, symtable, &self.code_pos)?;

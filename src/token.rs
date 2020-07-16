@@ -1,4 +1,4 @@
-use std::{rc::Rc, cmp::Ordering};
+use std::{cmp::Ordering, rc::Rc};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralEnum {
@@ -75,7 +75,7 @@ pub enum SeparatorEnum {
     NewLine,
     Comma,
     Colon,
-    Dot
+    Dot,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -104,7 +104,7 @@ pub enum OperatorEnum {
     Multiplicate,
     Divide,
     Power,
-    
+
     As,
 
     // unary operators
@@ -152,7 +152,6 @@ impl Identifier {
     }
     ///  returns the namespaced name of the identifer
     pub fn get_namespaced_name(self) -> String {
-        
         self.name
         // TODO: re-enable namespaces when the parser will support top level statements
         // if self.namespace.is_empty() {
@@ -163,14 +162,13 @@ impl Identifier {
     }
 }
 
-
 /// tracks the position of a piece of code
 #[derive(Debug, Clone)]
 pub struct CodePos {
     // we can use a Rc here to avoid copying strings around
     pub file: Rc<str>,
     pub line: u32,
-    pub word: u16 
+    pub word: u16,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -183,5 +181,5 @@ pub enum Token {
     Identifier(Identifier),
     Keyword(KeywordEnum),
     Discard,
-    EOF
+    EOF,
 }

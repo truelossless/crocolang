@@ -3,7 +3,6 @@ use gumdrop::Options;
 
 #[derive(Options)]
 struct MyOptions {
-
     #[options(free, help = "the .croco file to execute")]
     input: Vec<String>,
 
@@ -15,7 +14,6 @@ struct MyOptions {
 }
 
 pub fn main() {
- 
     let opts = MyOptions::parse_args_default_or_exit();
 
     if opts.version {

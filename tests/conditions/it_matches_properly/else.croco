@@ -1,0 +1,9 @@
+let cond = false
+
+if cond {
+    assert(false)
+} else {
+    cond = true
+}
+
+assert(cond)

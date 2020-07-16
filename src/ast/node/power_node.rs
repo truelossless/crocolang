@@ -1,7 +1,7 @@
-use crate::ast::{AstNode, NodeResult, AstNodeType};
 use crate::ast::utils::get_number_value;
+use crate::ast::{AstNode, AstNodeType, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{Symbol, SymTable};
+use crate::symbol::{SymTable, Symbol};
 use crate::token::{CodePos, LiteralEnum::*};
 
 #[derive(Clone)]

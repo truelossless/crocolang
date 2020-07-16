@@ -44,14 +44,12 @@ impl AstNode for StructAssignmentNode {
             match current_struct_symbol {
                 Symbol::Struct(s) => {
                     current_struct_symbol =
-                        s.fields
-                            .as_mut()
-                            .unwrap()
-                            .get_mut(field)
-                            .ok_or(CrocoError::new(
+                        s.fields.as_mut().unwrap().get_mut(field).ok_or_else(|| {
+                            CrocoError::new(
                                 &self.code_pos,
                                 format!("this field doesn't exist on {}", field),
-                            ))?;
+                            )
+                        })?;
                 }
 
                 _ => {

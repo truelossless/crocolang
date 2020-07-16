@@ -1,10 +1,10 @@
-use crate::token::CodePos;
-use std::fmt;
-use std::fs::File;
 use std::io::{self, BufRead};
 use unicode_segmentation::UnicodeSegmentation;
+use std::fs::File;
+use std::fmt;
+use crate::token::CodePos;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CrocoErrorKind {
     Unknown,
     IO,      // when a file failed to open
@@ -46,6 +46,12 @@ impl fmt::Display for CrocoError {
             CrocoErrorKind::IO => "File error",
             CrocoErrorKind::Unknown => unreachable!(),
         };
+
+        // for a file error just print a minimal message
+        // if there is no file path then the code was provided as a string that we haven't anymore
+        if CrocoErrorKind::IO == self.kind || self.pos.file.is_empty() {
+            return write!(f, "\n{}: {}", error_kind, self.message,);
+        }
 
         // get the line involved
         let mut lines = io::BufReader::new(File::open(&*self.pos.file).unwrap()).lines();

@@ -64,3 +64,10 @@ impl TypedArg {
         TypedArg { arg_name, arg_type }
     }
 }
+
+/// defines if a struct declaration can be present in an expression
+#[derive(PartialEq, Copy, Clone)]
+pub enum ExprParsingType {
+    AllowStructDeclaration,
+    DenyStructDeclaration,
+}

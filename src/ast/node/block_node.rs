@@ -1,7 +1,7 @@
 use crate::ast::{AstNode, BlockScope, NodeResult};
-use crate::symbol::{SymTable, Symbol};
-use crate::token::{LiteralEnum::*};
 use crate::error::CrocoError;
+use crate::symbol::{SymTable, Symbol};
+use crate::token::LiteralEnum::*;
 
 /// node containing multiple instructions
 /// creates a new scope, or not

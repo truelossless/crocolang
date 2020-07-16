@@ -21,23 +21,18 @@ pub fn get_module() -> BuiltinModule {
 /// executes a system command
 fn exec(mut args: Vec<Symbol>) -> Symbol {
     let command_str = get_arg_str(&mut args);
-    
+
     let command = if cfg!(target_os = "windows") {
-        Command::new("cmd")
-        .args(&["/C", &command_str])
-        .output()
+        Command::new("cmd").args(&["/C", &command_str]).output()
     } else {
-        Command::new("sh")
-        .args(&["-c", &command_str])
-        .output()
+        Command::new("sh").args(&["-c", &command_str]).output()
     };
-    
+
     // whenenever an error happens, we're just returning empty strings for the moment
     // TODO: implement error types
     // fn exec() !str
     // !str is either ok(str) or err
-    if let Ok(output) = command 
-    {
+    if let Ok(output) = command {
         let stdout = String::from_utf8_lossy(&output.stdout);
         Primitive(Str(Some(stdout.into_owned())))
     } else {

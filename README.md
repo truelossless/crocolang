@@ -57,9 +57,8 @@ println(fib(20) as str)
 String interpolation and functions
 ```croco
 fn fancy_disp(n num) {
-
-    let fancy = "Your variable equals " + n
-    println(fancy as str + ". that's nice uh ?")
+    let fancy = "Your variable equals " + (n as str)
+    println(fancy + ". that's nice uh ?")
 }
 
 let bruh = (54^2 + 7) / (12.3+24*7) *0.6
@@ -96,6 +95,8 @@ println(operator_precedence as str)
 ```
 
 ### Builtin functions
+
+NOTE: right now namespaces are broken: use directly `exec` if you `import "os"` 
 
 ```croco
 
@@ -142,7 +143,7 @@ The interesting bits is the relative performance to other languages.
 ```
 $ time node bench_name.js
 $ time python bench_name.py
-$ time ./croco bench_name.croco
+$ time croco bench_name.croco
 ```
 
 |benchmark name     |  node    |python|croco|
@@ -163,4 +164,4 @@ Apparently python doesn't do any tail call optimization for recursive functions,
 
 ## IDE support
 
-I made a Visual Studio code extension that adds basic syntax highlighting. It is available under the `croco-0.0.2.vsix` file. Follow [these instructions for the installation](https://marketplace.visualstudio.com/items?itemName=fabiospampinato.vscode-install-vsix).
+I made a Visual Studio code extension that adds basic syntax highlighting. It is available under the `croco-0.0.3.vsix` file. Follow [these instructions for the installation](https://marketplace.visualstudio.com/items?itemName=fabiospampinato.vscode-install-vsix).

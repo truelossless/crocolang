@@ -1,11 +1,3 @@
-struct Simple {
-    a num
-}
+let a = 3
 
-let simple = Simple {
-    a: 5
-}
-
-simple.a = "error"
-
-println(simple.a)
+println("a is indeed " + a as str)

@@ -1,7 +1,7 @@
-use crate::ast::{AstNode, NodeResult, utils::init_default};
+use crate::ast::{utils::init_default, AstNode, NodeResult};
 use crate::error::CrocoError;
 use crate::symbol::{symbol_eq, Struct, SymTable, Symbol};
-use crate::token::{CodePos};
+use crate::token::CodePos;
 use std::collections::HashMap;
 
 /// a node holding a struct
@@ -29,7 +29,6 @@ impl StructCreateNode {
 // actually we can't move out as a node can be visited multiple times in a loop
 impl AstNode for StructCreateNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        
         let mut struct_symbol = Struct {
             struct_type: self.struct_type.clone(),
             fields: Some(HashMap::new()),

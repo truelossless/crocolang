@@ -20,11 +20,10 @@ pub fn get_module() -> BuiltinModule {
 
 /// returns the contents of a page given an url
 fn get(mut args: Vec<Symbol>) -> Symbol {
-
     let url = get_arg_str(&mut args);
 
     let req = reqwest::blocking::get(&url);
-    
+
     // return an empty string if we have an error
     // TODO: implement errors
     if req.is_err() {
@@ -34,6 +33,6 @@ fn get(mut args: Vec<Symbol>) -> Symbol {
 
     match res.text() {
         Ok(text) => Primitive(Str(Some(text))),
-        Err(_) => Primitive(Str(Some(String::new())))
+        Err(_) => Primitive(Str(Some(String::new()))),
     }
 }

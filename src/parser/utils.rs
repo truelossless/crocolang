@@ -1,10 +1,9 @@
 use super::Parser;
 
 use crate::error::CrocoError;
-use crate::token::{Token, CodePos, Token::*, SeparatorEnum::*, Identifier, LiteralEnum};
+use crate::token::{CodePos, Identifier, LiteralEnum, SeparatorEnum::*, Token, Token::*};
 
 impl Parser {
-
     /// Expects a token
     pub fn expect_token(
         &mut self,

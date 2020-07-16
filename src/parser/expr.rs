@@ -1,4 +1,4 @@
-use super::Parser;
+use super::{ExprParsingType, Parser};
 
 use crate::ast::node::*;
 use crate::ast::AstNode;
@@ -16,6 +16,7 @@ impl Parser {
     pub fn parse_expr(
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
+        parse_type: ExprParsingType,
     ) -> Result<Box<dyn AstNode>, CrocoError> {
         // and an expression to finish.
         let mut stack: Vec<Token> = Vec::new(); // == operand stack
@@ -31,9 +32,9 @@ impl Parser {
                 | Operator(GreaterThan)
                 | Operator(LowerOrEqual)
                 | Operator(LowerThan) => 4,
-                Operator(As) => 5,
-                Operator(Plus) | Operator(Minus) => 6,
-                Operator(Multiplicate) | Operator(Divide) => 7,
+                Operator(Plus) | Operator(Minus) => 5,
+                Operator(Multiplicate) | Operator(Divide) => 6,
+                Operator(As) => 7,
                 Operator(UnaryMinus) => 8,
                 Operator(Power) => 9,
                 _ => unreachable!(),
@@ -91,7 +92,7 @@ impl Parser {
 
             match expr_token {
                 Identifier(identifier) => {
-                    output.push(self.parse_identifier(iter, identifier)?);
+                    output.push(self.parse_identifier(iter, identifier, parse_type)?);
                 }
                 Literal(_) | Keyword(Num) | Keyword(Str) | Keyword(Bool) => {
                     output.push(self.get_node(expr_token)?)

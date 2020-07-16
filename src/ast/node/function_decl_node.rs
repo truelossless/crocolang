@@ -1,5 +1,5 @@
-use crate::ast::{AstNode, BlockScope, NodeResult};
 use crate::ast::node::BlockNode;
+use crate::ast::{AstNode, BlockScope, NodeResult};
 
 use crate::parser::TypedArg;
 use crate::symbol::{Decl, FunctionDecl, FunctionKind, SymTable, Symbol};
@@ -18,12 +18,7 @@ pub struct FunctionDeclNode {
 }
 
 impl FunctionDeclNode {
-    pub fn new(
-        name: String,
-        return_type: Symbol,
-        args: Vec<TypedArg>,
-        code_pos: CodePos,
-    ) -> Self {
+    pub fn new(name: String, return_type: Symbol, args: Vec<TypedArg>, code_pos: CodePos) -> Self {
         FunctionDeclNode {
             name,
             return_type: Some(return_type),
@@ -36,7 +31,6 @@ impl FunctionDeclNode {
 
 impl AstNode for FunctionDeclNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-
         // once the function is declared we can move out its content since this node is not going to be used again
         let body = std::mem::replace(&mut self.body, None).unwrap();
         let args = std::mem::replace(&mut self.args, None).unwrap();
@@ -45,7 +39,8 @@ impl AstNode for FunctionDeclNode {
 
         let fn_decl = FunctionDecl::new(args, return_type, FunctionKind::Regular(body));
 
-        symtable.register_decl(name, Decl::FunctionDecl(fn_decl))
+        symtable
+            .register_decl(name, Decl::FunctionDecl(fn_decl))
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
         Ok(NodeResult::Symbol(Symbol::Primitive(Void)))
     }

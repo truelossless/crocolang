@@ -1,4 +1,4 @@
-use super::{Parser, TypedArg};
+use super::{ExprParsingType::*, Parser, TypedArg};
 
 use crate::ast::node::*;
 use crate::ast::{AstNode, BlockScope};
@@ -20,7 +20,6 @@ impl Parser {
         let mut block = BlockNode::new(scope);
         // loop until we have no token remaining
         loop {
-            // a discard token means that we have no token left
             let token = self.next_token(iter);
             if let EOF = token {
                 break;
@@ -45,7 +44,7 @@ impl Parser {
                     match self.next_token(iter) {
                         // we're giving a value to our variable with type inference
                         Operator(Assign) => {
-                            out_node = Some(self.parse_expr(iter)?);
+                            out_node = Some(self.parse_expr(iter, AllowStructDeclaration)?);
                         }
 
                         // we're giving a type annotation
@@ -76,7 +75,7 @@ impl Parser {
                     if !assign_type.is_void() {
                         match self.next_token(iter) {
                             Operator(Assign) => {
-                                out_node = Some(self.parse_expr(iter)?);
+                                out_node = Some(self.parse_expr(iter, AllowStructDeclaration)?);
                             }
                             Separator(NewLine) | EOF => (),
                             _ => {
@@ -99,14 +98,11 @@ impl Parser {
 
                 // assigning a new value to a variable / struct field, or calling a function
                 Identifier(identifier) => {
-
                     match self.next_token(iter) {
-
                         // it's a function call right after
                         Separator(LeftParenthesis) => {
-
                             block.add_child(self.parse_function_call(iter, identifier.name)?);
-                             
+
                             self.expect_token(
                                 iter,
                                 Separator(NewLine),
@@ -116,36 +112,41 @@ impl Parser {
 
                         // we're assigning to a struct field
                         Separator(Dot) => {
-
                             let mut fields: Vec<String> = Vec::new();
 
                             // get the field(s)
                             loop {
-
                                 fields.push(
-                                    self.expect_identifier(iter, "expected a field name after the dot")?.name
+                                    self.expect_identifier(
+                                        iter,
+                                        "expected a field name after the dot",
+                                    )?
+                                    .name,
                                 );
 
                                 match self.peek_token(iter) {
                                     Separator(Dot) => {
                                         self.next_token(iter);
                                     }
-                                    _ => break
+                                    _ => break,
                                 }
                             }
 
                             // only assignment is supported for now
                             self.expect_token(iter, Operator(Assign), "expected an equals sign")?;
 
-                            let expr = self.parse_expr(iter)?;
+                            let expr = self.parse_expr(iter, AllowStructDeclaration)?;
 
-                            block.add_child(Box::new(StructAssignmentNode::new(identifier.name, fields, expr, self.token_pos.clone())));
-
+                            block.add_child(Box::new(StructAssignmentNode::new(
+                                identifier.name,
+                                fields,
+                                expr,
+                                self.token_pos.clone(),
+                            )));
                         }
 
                         // assigning to a variable
                         Operator(op_token) => {
-                            
                             match op_token  {
 
                                 Assign
@@ -154,9 +155,9 @@ impl Parser {
                                 | MultiplicateEquals
                                 | DivideEquals
                                 | PowerEquals => {
-        
-                                    let out_node = self.parse_expr(iter)?;
-                                    
+
+                                    let out_node = self.parse_expr(iter, DenyStructDeclaration)?;
+
                                     // add to the root function this statement
                                     if op_token == Assign {
                                         block.add_child(Box::new(AssignmentNode::new(identifier.name, out_node, self.token_pos.clone())));
@@ -174,9 +175,9 @@ impl Parser {
                                         let var_node = Box::new(VarCallNode::new(identifier.name.clone(), self.token_pos.clone()));
                                         dyn_op_node.add_child(var_node);
                                         dyn_op_node.add_child(out_node);
-        
+
                                         self.expect_token(iter, Separator(NewLine), "expected a new line after assignation")?;
-        
+
                                         block.add_child(Box::new(AssignmentNode::new(identifier.name, dyn_op_node, self.token_pos.clone())));
                                     }
                                 }
@@ -187,14 +188,16 @@ impl Parser {
                                         format!("expected an assignation sign or a function call after the identifier {}", identifier.name)
                                     ))
                                 }
-                            }       
+                            }
                         }
-                    
-                        _ => return Err(CrocoError::new(
-                            &self.token_pos,
-                            "unexpected token after identifier".to_owned()
-                        ))
-                    }                    
+
+                        _ => {
+                            return Err(CrocoError::new(
+                                &self.token_pos,
+                                "unexpected token after identifier".to_owned(),
+                            ))
+                        }
+                    }
                 }
 
                 // declaring a struct
@@ -231,7 +234,9 @@ impl Parser {
                             Keyword(Num) => Symbol::Primitive(LiteralEnum::Num(None)),
                             Keyword(Str) => Symbol::Primitive(LiteralEnum::Str(None)),
                             Keyword(Bool) => Symbol::Primitive(LiteralEnum::Bool(None)),
-                            Identifier(struct_type) => Symbol::Struct(Struct::new(struct_type.name)),
+                            Identifier(struct_type) => {
+                                Symbol::Struct(Struct::new(struct_type.name))
+                            }
                             _ => {
                                 return Err(CrocoError::new(
                                     &self.token_pos,
@@ -281,8 +286,8 @@ impl Parser {
                             Separator(Comma) if first_arg_entered => {
                                 self.next_token(iter);
                             }
-                            
-                            Separator(Comma) => 
+
+                            Separator(Comma) =>
                                 return Err(CrocoError::new(
                                     &self.token_pos,
                                     "no argument before comma".to_owned(),
@@ -327,7 +332,7 @@ impl Parser {
                         typed_args.push(TypedArg::new(arg_name.name, arg_type));
                     }
 
-                    // TMight allow weird parsing: does it matter ?
+                    // Might allow weird parsing: does it matter ?
                     // fn bla()
                     // Void
                     // { ...
@@ -389,7 +394,7 @@ impl Parser {
 
                 // returning a value
                 Keyword(Return) => {
-                    let return_node = self.parse_expr(iter)?;
+                    let return_node = self.parse_expr(iter, AllowStructDeclaration)?;
                     // TODO: correct CodePos
                     block.add_child(Box::new(ReturnNode::new(
                         return_node,
@@ -399,7 +404,12 @@ impl Parser {
 
                 // if block
                 Keyword(If) => {
-                    let cond = self.parse_expr(iter)?;
+                    // we can have multiple conditions in an if  elif construct, we use an array to keep track of all of them
+                    let mut conditions: Vec<Box<dyn AstNode>> = Vec::new();
+                    // same for the statements inside the if / elif / else
+                    let mut bodies: Vec<Box<dyn AstNode>> = Vec::new();
+
+                    conditions.push(self.parse_expr(iter, DenyStructDeclaration)?);
 
                     self.expect_token(
                         iter,
@@ -407,13 +417,53 @@ impl Parser {
                         "expected left bracket after if expression",
                     )?;
 
-                    let body = self.parse_block(iter, BlockScope::New)?;
-                    block.add_child(Box::new(IfNode::new(cond, body, self.token_pos.clone())))
+                    bodies.push(self.parse_block(iter, BlockScope::New)?);
+
+                    // handle the elif conditions
+                    loop {
+                        match self.peek_token(iter) {
+                            Keyword(Elif) => {
+                                self.next_token(iter);
+
+                                conditions.push(self.parse_expr(iter, DenyStructDeclaration)?);
+
+                                self.expect_token(
+                                    iter,
+                                    Separator(LeftBracket),
+                                    "expected left bracket after elif expression",
+                                )?;
+
+                                bodies.push(self.parse_block(iter, BlockScope::New)?);
+                            }
+
+                            Keyword(Else) => {
+                                self.next_token(iter);
+
+                                self.expect_token(
+                                    iter,
+                                    Separator(LeftBracket),
+                                    "expected left bracket after else expression",
+                                )?;
+
+                                bodies.push(self.parse_block(iter, BlockScope::New)?);
+
+                                break;
+                            }
+
+                            _ => break,
+                        }
+                    }
+
+                    block.add_child(Box::new(IfNode::new(
+                        conditions,
+                        bodies,
+                        self.token_pos.clone(),
+                    )));
                 }
 
                 // while loop
                 Keyword(While) => {
-                    let cond = self.parse_expr(iter)?;
+                    let cond = self.parse_expr(iter, DenyStructDeclaration)?;
 
                     self.expect_token(
                         iter,

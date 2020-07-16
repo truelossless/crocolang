@@ -1,0 +1,7 @@
+let cond = false
+
+if !cond {
+    cond = true
+}
+
+assert(cond)

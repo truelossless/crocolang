@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, NodeResult};
-use crate::symbol::SymTable;
 use crate::error::CrocoError;
+use crate::symbol::SymTable;
 
 /// a node representing a continue statement
 #[derive(Clone)]

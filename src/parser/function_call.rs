@@ -1,11 +1,10 @@
-use super::Parser;
+use super::{ExprParsingType::*, Parser};
 use crate::ast::{node::FunctionCallNode, AstNode};
 use crate::error::CrocoError;
 use crate::token::SeparatorEnum::*;
 use crate::token::{CodePos, Token, Token::*};
 
 impl Parser {
-
     /// parses a function call
     /// warning: it does not consume the left parenthesis after the identifier name
     pub fn parse_function_call(
@@ -22,7 +21,7 @@ impl Parser {
                 break;
             }
 
-            fn_args.push(self.parse_expr(iter)?);
+            fn_args.push(self.parse_expr(iter, AllowStructDeclaration)?);
             self.discard_newlines(iter);
 
             match self.next_token(iter) {

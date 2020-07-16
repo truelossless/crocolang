@@ -2,3 +2,4 @@ fn a() {
     return
     assert(false)
 }
+a()

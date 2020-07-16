@@ -1,4 +1,4 @@
-fn a() num {
-    return 42
+fn a() bool {
+    return true
 }
-assert(a() == 42)
+assert(a())

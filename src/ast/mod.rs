@@ -3,8 +3,8 @@ mod utils;
 
 use dyn_clone::DynClone;
 
-use crate::symbol::{Symbol, SymTable};
-use crate::token::{CodePos};
+use crate::symbol::{SymTable, Symbol};
+use crate::token::CodePos;
 
 use crate::error::CrocoError;
 

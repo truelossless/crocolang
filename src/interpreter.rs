@@ -6,18 +6,13 @@ use crate::token::CodePos;
 use std::{fs, rc::Rc};
 
 pub struct Interpreter {
-    lexer: Lexer,
-    parser: Parser,
-    symtable: SymTable,
+    file_path: String,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
-            parser: Parser::new(),
-            lexer: Lexer::new(),
-            // create the symbol tables and add the global scope
-            symtable: SymTable::new(),
+            file_path: String::new(),
         }
     }
 
@@ -35,18 +30,17 @@ impl Interpreter {
             err
         })?;
 
-        self.lexer.set_file(file_path);
+        self.file_path = file_path.to_owned();
         self.exec(&contents)
     }
 
     pub fn exec(&mut self, code: &str) -> Result<(), CrocoError> {
-        // empty the symtable
-        self.symtable = SymTable::new();
-
         let tokens;
         let mut tree;
 
-        match self.lexer.process(code) {
+        let mut lexer = Lexer::new();
+        lexer.set_file(&self.file_path);
+        match lexer.process(code) {
             Ok(t) => tokens = t,
             Err(mut e) => {
                 e.set_kind(CrocoErrorKind::Syntax);
@@ -55,8 +49,8 @@ impl Interpreter {
         }
 
         // println!("tokens: {:?}", &tokens);
-
-        match self.parser.process(tokens) {
+        let mut parser = Parser::new();
+        match parser.process(tokens) {
             Ok(root_node) => tree = root_node,
             Err(mut e) => {
                 e.set_kind(CrocoErrorKind::Parse);
@@ -65,12 +59,11 @@ impl Interpreter {
         }
 
         // import the builtin library
-        self.symtable.import_builtin_module("global");
-        self.symtable.import_builtin_module("os");
+        let mut symtable = SymTable::new();
+        symtable.import_builtin_module("global");
 
         // println!("symbol tables: {:?}", self.symtable);
-
-        if let Err(mut e) = tree.visit(&mut self.symtable) {
+        if let Err(mut e) = tree.visit(&mut symtable) {
             e.set_kind(CrocoErrorKind::Runtime);
             return Err(e);
         }

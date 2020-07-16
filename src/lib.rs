@@ -1,9 +1,9 @@
 pub mod interpreter;
 
 mod ast;
-mod lexer;
-mod parser;
-mod token;
-mod symbol;
 mod builtin;
 mod error;
+mod lexer;
+mod parser;
+mod symbol;
+mod token;

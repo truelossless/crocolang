@@ -105,7 +105,7 @@ Currently only `while` is implemented.
 ```croco
 let a = 0
 while a < 5 {
-    println("a is indeed" + a)
+    println("a is indeed" + a as str)
 }
 ```
 
@@ -170,7 +170,7 @@ greet()
 let books_sold_today = books_sold()
 ```
 
-### Methods
+### Methods [0%]
 Structs can also have functions.
 ```croco
 struct Character {
@@ -219,10 +219,11 @@ let pi = 3.14159
 main.croco
 ```croco
 import "./math"
-println(math.pi)
+println(pi)
 ```
 
-you can also use builtin librairies. In this case, you don't specify a path but a name.
+you can also use built-in librairies. In this case, you don't specify a path but a name.  
+When importing built-in librairies, you must use the library name before calling any variable or function.
 
 ```croco
 import "math"
@@ -232,7 +233,8 @@ println(math.e)
 ### Conditional imports
 
 imports are resolved at runtime so you can lazily load them.  
-imports can go out of scope, like regular variables.
+imports can go out of scope, like regular variables.  
+NOTE: This is going to be removed soon as it can lead to bad practices !
 
 ```croco
 
@@ -253,7 +255,7 @@ if true {
 Importing one file will import all files imported by this file.
 
 ## Traits [0%]
-Traits are used for polymorphism. They are similar to go interfaces. A struct implementing all the functions of a trait automatically implements this trait. The function definitions must match. A trait is entirely considered as a type.
+Traits are used for polymorphism. They are similar to Go interfaces. A struct implementing all the functions of a trait automatically implements this trait. The function definitions must match. A trait is entirely considered as a type.
 
 ```croco
 
@@ -296,7 +298,7 @@ MIAAAA
 ## Built-in librairies
 
 Croco aims to have a really complete standard library.  
-Here are the first implemented:
+Here are the first modules implemented:
 - `fs`
 - `http`
 - `math`
@@ -314,7 +316,7 @@ fn choose() bool {
 }
 
 test "division" {
-    assert_eq(6/3, 2)
+    assert(6/3 == 2)
 }
 
 test "basic assert" {
@@ -335,7 +337,7 @@ let actual_code; // this is a comment
 
 ## Line endings
 LF line endings should be used, but CRLF are also supported. Each instruction is supposed to go on a new line, to prevent bad programming practices with multiple instructions on the same line.
-Putting a semicolon at the end of a line (or anywhere really) will result in an error.
+Hence you don't need semicolons or parenthesis around control keywords.
 
 ## Naming convention
 Variables should use the snake_case convention.
@@ -358,8 +360,8 @@ Higher value means higher priority.
 |`&&`             |2         |
 |`==` `!=`        |3         |
 |`>` `>=` `<` `<=`|4         |
-|`as`             |5         |
-|`+` `-`          |6         |
-|`*` `/`          |7         |
+|`+` `-`          |5         |
+|`*` `/`          |6         |
+|`as`             |7         |
 |`- (unary)`      |8         |
 |`^`              |9         |

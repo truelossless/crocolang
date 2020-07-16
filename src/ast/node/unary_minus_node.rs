@@ -1,5 +1,5 @@
-use crate::ast::{AstNode, NodeResult, AstNodeType};
 use crate::ast::utils::get_number_value;
+use crate::ast::{AstNode, AstNodeType, NodeResult};
 use crate::error::CrocoError;
 use crate::symbol::{SymTable, Symbol};
 use crate::token::{CodePos, LiteralEnum::*};
@@ -8,7 +8,6 @@ pub struct UnaryMinusNode {
     bottom: Option<Box<dyn AstNode>>,
     code_pos: CodePos,
 }
-
 
 impl UnaryMinusNode {
     pub fn new(code_pos: CodePos) -> Self {
