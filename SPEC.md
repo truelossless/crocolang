@@ -3,7 +3,7 @@
 Here is the spec of Croco, an interpreted language. The implementation percentage is shown for each point discussed.  
 Croco is designed to be a fun, fast, and easy to use programming language.
 
-## Variables [40%]
+## Variables [50%]
 
 ### Primitives [70%]
 
@@ -73,7 +73,18 @@ assert(false as num == 0)
 assert(true as num == 1)
 ```
 
-### Structs [0%]
+### Arrays [30%]
+
+Arrays don't have a fixed length.  
+All array elements must be of the same type.  
+You can use the array indexing syntax to get the value of a field.
+
+```croco
+let arr = [5, 3, 2, 8.8]
+println(arr[0])
+```
+
+### Structs [60%]
 
 Structs must be defined with the `struct` before they are created.  
 There is no anonymous objects.  
@@ -94,6 +105,8 @@ let char = Character {
 println(char.name)
 println(char.is_alive) // will default to false
 ```
+
+
 
 ## Lööps [20%]
 
@@ -192,7 +205,6 @@ bobby.hi()
 ## Control flow [20%]
 
 `if`, `elif` and `else` can be used for conditionnal matching.  
-At the moment only `ìf` is implemented.
 
 ```croco
 let croco_state = "good"

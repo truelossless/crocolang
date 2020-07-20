@@ -1,3 +1,9 @@
+mod array_create_node;
+pub use self::array_create_node::ArrayCreateNode;
+
+mod array_index_node;
+pub use self::array_index_node::ArrayIndexNode;
+
 mod as_node;
 pub use self::as_node::AsNode;
 

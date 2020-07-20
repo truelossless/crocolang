@@ -8,7 +8,8 @@ use crate::error::CrocoError;
 use crate::parser::ExprParsingType::*;
 use crate::token::{CodePos, Identifier, SeparatorEnum::*, Token, Token::*};
 
-/// Parses an identifier into either a FunctionCallNode or a VariableNode
+/// Parses an identifier in the right AstNode given the next tokens as the context
+/// e.g identifier[0] refers to an array while identifier.name refers to a struct
 impl Parser {
     pub fn parse_identifier(
         &mut self,
@@ -24,8 +25,9 @@ impl Parser {
                 self.next_token(iter);
                 Ok(self.parse_function_call(iter, identifier.name)?)
             }
+
             // struct instanciation
-            Separator(LeftBracket) if parse_type == AllowStructDeclaration => {
+            Separator(LeftCurlyBracket) if parse_type == AllowStructDeclaration => {
                 self.next_token(iter);
                 self.discard_newlines(iter);
 
@@ -34,7 +36,7 @@ impl Parser {
                 loop {
                     self.discard_newlines(iter);
 
-                    if let Separator(RightBracket) = self.peek_token(iter) {
+                    if let Separator(RightCurlyBracket) = self.peek_token(iter) {
                         self.next_token(iter);
                         break;
                     }
@@ -77,6 +79,26 @@ impl Parser {
                 }
 
                 Ok(out_node)
+            }
+
+            // array indexing
+            Separator(LeftSquareBracket) => {
+
+                self.next_token(iter);
+
+                let index = self.parse_expr(iter, DenyStructDeclaration)?;
+
+                self.expect_token(
+                    iter,
+                    Separator(RightSquareBracket),
+                    "expected right square bracket after accessing an array",
+                )?;
+
+                Ok(Box::new(ArrayIndexNode::new(
+                    identifier.name,
+                    index,
+                    self.token_pos.clone()
+                )))
             }
 
             // variable call

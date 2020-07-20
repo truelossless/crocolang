@@ -1,3 +1,4 @@
+mod array;
 mod block;
 mod expr;
 mod function_call;

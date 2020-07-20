@@ -49,6 +49,12 @@ impl AstNode for WhileNode {
                 )
             })?
             .into_bool()
+            .map_err(|_| {
+                CrocoError::new(
+                    &self.code_pos,
+                    "expected a boolean for the condition".to_owned(),
+                )
+            })?
         {
             let value = self.right.as_mut().unwrap().visit(symtable)?;
             match value {

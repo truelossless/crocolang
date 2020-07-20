@@ -26,7 +26,7 @@ impl AstNode for FunctionCallNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         // resolve the function arguments
         let mut visited_args = Vec::new();
-        for arg in self.args.iter_mut() {
+        for arg in &mut self.args {
             let value = arg.visit(symtable)?.into_symbol(&self.code_pos)?;
             visited_args.push(value);
         }

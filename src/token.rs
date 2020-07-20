@@ -27,24 +27,24 @@ impl LiteralEnum {
         }
     }
 
-    pub fn into_bool(self) -> bool {
+    pub fn into_bool(self) -> Result<bool, String> {
         match self {
-            LiteralEnum::Bool(Some(b)) => b,
-            _ => panic!("LiteralEnum is not a boolean !"),
+            LiteralEnum::Bool(Some(b)) => Ok(b),
+            _ => Err("expected a boolean".to_owned()),
         }
     }
 
-    pub fn into_str(self) -> String {
+    pub fn into_str(self) -> Result<String, String> {
         match self {
-            LiteralEnum::Str(Some(t)) => t,
-            _ => panic!("LiteralEnum is not a string !"),
+            LiteralEnum::Str(Some(t)) => Ok(t),
+            _ => Err("expected a string".to_owned()),
         }
     }
 
-    pub fn into_num(self) -> f32 {
+    pub fn into_num(self) -> Result<f32, String> {
         match self {
-            LiteralEnum::Num(Some(n)) => n,
-            _ => panic!("LiteralEnum is not a number !"),
+            LiteralEnum::Num(Some(n)) => Ok(n),
+            _ => Err("expected a number".to_owned()),
         }
     }
 }
@@ -69,8 +69,10 @@ impl PartialOrd for LiteralEnum {
 pub enum SeparatorEnum {
     LeftParenthesis,
     RightParenthesis,
-    LeftBracket,
-    RightBracket,
+    LeftCurlyBracket,
+    RightCurlyBracket,
+    LeftSquareBracket,
+    RightSquareBracket,
     Semicolon,
     NewLine,
     Comma,

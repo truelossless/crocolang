@@ -112,8 +112,10 @@ impl Lexer {
             // separators
             "(" => self.queue.push(Separator(LeftParenthesis)),
             ")" => self.queue.push(Separator(RightParenthesis)),
-            "{" => self.queue.push(Separator(LeftBracket)),
-            "}" => self.queue.push(Separator(RightBracket)),
+            "{" => self.queue.push(Separator(LeftCurlyBracket)),
+            "}" => self.queue.push(Separator(RightCurlyBracket)),
+            "[" => self.queue.push(Separator(LeftSquareBracket)),
+            "]" => self.queue.push(Separator(RightSquareBracket)),
             "," => self.queue.push(Separator(Comma)),
             "." => self.queue.push(Separator(Dot)),
             ":" => self.queue.push(Separator(Colon)),

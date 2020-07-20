@@ -15,7 +15,6 @@ impl Parser {
         let mut fn_args: Vec<Box<dyn AstNode>> = Vec::new();
 
         loop {
-            // TODO: avoid hello()) function calls
             if let Separator(RightParenthesis) = self.peek_token(iter) {
                 self.next_token(iter);
                 break;

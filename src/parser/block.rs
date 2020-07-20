@@ -27,7 +27,7 @@ impl Parser {
 
             match token {
                 // ending the block
-                Separator(RightBracket) => break,
+                Separator(RightCurlyBracket) => break,
 
                 // declaring a new number variable
                 Keyword(Let) => {
@@ -209,7 +209,7 @@ impl Parser {
 
                     self.expect_token(
                         iter,
-                        Separator(LeftBracket),
+                        Separator(LeftCurlyBracket),
                         "expected a left bracket after the struct name",
                     )?;
 
@@ -220,7 +220,7 @@ impl Parser {
 
                         // TODO: check if this introduces new bugs with namespaces
                         let field_name = match self.next_token(iter) {
-                            Separator(RightBracket) => break,
+                            Separator(RightCurlyBracket) => break,
                             Identifier(identifier) => identifier,
                             _ => {
                                 return Err(CrocoError::new(
@@ -345,7 +345,7 @@ impl Parser {
                         Keyword(Num) => return_type = Symbol::Primitive(LiteralEnum::Num(None)),
                         Keyword(Str) => return_type = Symbol::Primitive(LiteralEnum::Str(None)),
                         Keyword(Bool) => return_type = Symbol::Primitive(LiteralEnum::Bool(None)),
-                        Separator(LeftBracket) => (),
+                        Separator(LeftCurlyBracket) => (),
                         _ => {
                             return Err(CrocoError::new(
                                 &self.token_pos,
@@ -362,7 +362,7 @@ impl Parser {
                     if !return_type.is_void() {
                         self.expect_token(
                             iter,
-                            Separator(LeftBracket),
+                            Separator(LeftCurlyBracket),
                             &format!(
                                 "expected left bracket after {} function declaration",
                                 identifier.name
@@ -413,7 +413,7 @@ impl Parser {
 
                     self.expect_token(
                         iter,
-                        Separator(LeftBracket),
+                        Separator(LeftCurlyBracket),
                         "expected left bracket after if expression",
                     )?;
 
@@ -429,7 +429,7 @@ impl Parser {
 
                                 self.expect_token(
                                     iter,
-                                    Separator(LeftBracket),
+                                    Separator(LeftCurlyBracket),
                                     "expected left bracket after elif expression",
                                 )?;
 
@@ -441,7 +441,7 @@ impl Parser {
 
                                 self.expect_token(
                                     iter,
-                                    Separator(LeftBracket),
+                                    Separator(LeftCurlyBracket),
                                     "expected left bracket after else expression",
                                 )?;
 
@@ -467,7 +467,7 @@ impl Parser {
 
                     self.expect_token(
                         iter,
-                        Separator(LeftBracket),
+                        Separator(LeftCurlyBracket),
                         "expected a left bracket after while expression",
                     )?;
 

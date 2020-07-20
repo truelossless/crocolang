@@ -69,6 +69,7 @@ impl Parser {
 
         loop {
             // make sure that this token belongs to the expression
+            // println!("{:?}", self.peek_token(iter));
             match self.peek_token(iter) {
                 // the right parenthesis is the end of a function
                 Separator(RightParenthesis) => {
@@ -78,7 +79,11 @@ impl Parser {
                 }
 
                 // end of an expr
-                Separator(NewLine) | Separator(Comma) | Separator(LeftBracket) | EOF => break,
+                Separator(NewLine)
+                | Separator(Comma)
+                | Separator(LeftCurlyBracket)
+                | EOF
+                | Separator(RightSquareBracket) => break,
                 _ => (),
             }
 
@@ -96,6 +101,10 @@ impl Parser {
                 }
                 Literal(_) | Keyword(Num) | Keyword(Str) | Keyword(Bool) => {
                     output.push(self.get_node(expr_token)?)
+                }
+
+                Separator(LeftSquareBracket) => {
+                    output.push(self.parse_array(iter)?);
                 }
                 Operator(_) => {
                     // if we have an unary operator flag it accordingly
@@ -178,7 +187,7 @@ impl Parser {
                 _ => {
                     return Err(CrocoError::new(
                         &self.token_pos,
-                        "unexpected symbol in math expression".to_owned(),
+                        "unexpected token in math expression".to_owned(),
                     ))
                 }
             }

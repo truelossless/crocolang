@@ -69,7 +69,7 @@ pub fn init_default(
                 .map_err(|e| CrocoError::new(&code_pos, e))?
                 .clone();
 
-            for (_, field) in struct_decl_default.iter_mut() {
+            for field in struct_decl_default.values_mut() {
                 init_default(field, symtable, code_pos)?;
             }
 

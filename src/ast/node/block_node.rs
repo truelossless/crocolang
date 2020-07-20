@@ -47,7 +47,7 @@ impl AstNode for BlockNode {
         // early return from the block
         let mut value = NodeResult::Symbol(Symbol::Primitive(Void));
         // iterate over all nodes in the body
-        for node in self.body.iter_mut()
+        for node in &mut self.body
         // .chain(self.prepended.iter_mut())
         // .chain(self.appended.iter_mut())
         {

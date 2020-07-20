@@ -40,7 +40,10 @@ impl AstNode for IfNode {
                 .map_err(|_| {
                     CrocoError::new(code_pos, "expected a boolean for the condition".to_owned())
                 })?
-                .into_bool();
+                .into_bool()
+                .map_err(|_| {
+                    CrocoError::new(code_pos, "expected a boolean for the condition".to_owned())
+                })?;
 
             // if the condition is fullfilled visit the corresponding body and exit early
             if cond_ok {

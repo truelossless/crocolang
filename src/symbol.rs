@@ -59,11 +59,36 @@ impl Struct {
     }
 }
 
+#[derive(Clone)]
+pub struct Map {
+    pub contents: HashMap<Symbol, Symbol>,
+    pub key_type: Box<Symbol>,
+    pub value_type: Box<Symbol>,
+}
+
+impl fmt::Debug for Map {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Map<{:?}, {:?}>", self.key_type, self.value_type)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Array {
+    pub contents: Option<Vec<Symbol>>,
+    pub array_type: Box<Symbol>,
+}
+
 /// a symbol in the symbol table. Could be either a primitive, a function, or a struct.
 #[derive(Clone, Debug)]
 pub enum Symbol {
     // a primitive such as 3 or false
     Primitive(LiteralEnum),
+
+    // an array such as [1, 2, 3]
+    Array(Array),
+
+    // a key-value map such as { "hello" => 5, "bonjour" => 4 }
+    // Map(Map),
 
     // a pointer to a function such as let "a = b" where b is a FunctionDecl
     // Function(FunctionPointer)
@@ -93,6 +118,13 @@ impl Symbol {
         }
     }
 
+    pub fn into_array(self) -> Result<Array, String> {
+        match self {
+            Symbol::Array(a) => Ok(a),
+            _ => Err("expected an array".to_owned()),
+        }
+    }
+
     pub fn is_void(&self) -> bool {
         match self {
             Symbol::Primitive(LiteralEnum::Void) => true,
@@ -111,13 +143,32 @@ pub enum Decl {
     StructDecl(HashMap<String, Symbol>),
 }
 
-/// compare if two symbols are equals e.g they use the same struct
+/// compare if two symbols are of the same type
 pub fn symbol_eq(a: &Symbol, b: &Symbol) -> bool {
     let pair = (a, b);
     match pair {
         (Symbol::Primitive(a), Symbol::Primitive(b)) => literal_eq(a, b),
         (Symbol::Struct(a), Symbol::Struct(b)) => a.struct_type == b.struct_type,
+        (Symbol::Array(a), Symbol::Array(b)) => symbol_eq(&*a.array_type, &*b.array_type),
         _ => false,
+    }
+}
+
+// returns the type of a symbol
+pub fn get_symbol_type(symbol: &Symbol) -> Symbol {
+    match symbol {
+        Symbol::Primitive(LiteralEnum::Bool(_)) => Symbol::Primitive(LiteralEnum::Bool(None)),
+        Symbol::Primitive(LiteralEnum::Num(_)) => Symbol::Primitive(LiteralEnum::Num(None)),
+        Symbol::Primitive(LiteralEnum::Str(_)) => Symbol::Primitive(LiteralEnum::Str(None)),
+        Symbol::Primitive(LiteralEnum::Void) => Symbol::Primitive(LiteralEnum::Void),
+        Symbol::Array(arr) => Symbol::Array(Array {
+            contents: None,
+            array_type: arr.array_type.clone(),
+        }),
+        Symbol::Struct(s) => Symbol::Struct(Struct {
+            fields: None,
+            struct_type: s.struct_type.clone(),
+        }),
     }
 }
 
@@ -234,6 +285,7 @@ impl SymTable {
             .insert(name.to_owned(), symbol)
             .is_none()
         {
+            dbg!("inserted to glbalb scoep");
             Ok(())
         } else {
             Err(format!(
