@@ -154,13 +154,13 @@ $ time croco bench_name.croco
 
 |benchmark name     |  node    |python|croco|
 |-------------------|----------|------|-----|
-|rec fibonacci, n=30|     200ms| 400ms|13.5s|
-|loop, n=1000000    |     230ms| 236ms|376ms|
+|rec fibonacci, n=30|     200ms| 400ms|12s  |
+|loop, n=1000000    |     230ms| 236ms|850ms|
 
 We're getting there :D  
 Croco is fully interpreted, so it's normal that it's way slower than Node, which is basically a VM.  
 However, it should be closer to python performance, but it's clear that there's still a long way to go !
-Apparently Python doesn't do any tail call optimization for recursive functions, so it's weird that croco is THAT slow with fibonacci. Actually Python is jitted so that's probably why. 
+Apparently Python doesn't do any tail call optimization for recursive functions, so it's weird that croco is THAT slow with fibonacci. Actually Python is jitted so that's probably why.
 
 ### Where are the performance culprits ?
 

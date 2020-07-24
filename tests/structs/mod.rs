@@ -48,6 +48,10 @@ fn it_sets_correct_field_values() {
     assert!(interpreter
         .exec_file("tests/structs/it_sets_correct_field_values/set_field_value.croco")
         .is_ok());
+
+    assert!(interpreter
+        .exec_file("tests/structs/it_sets_correct_field_values/set_multiple_field_values.croco")
+        .is_ok());
 }
 
 #[test]

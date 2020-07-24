@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, AstNodeType, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, Symbol};
+use crate::symbol::{SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
 
 #[derive(Clone)]
@@ -29,15 +29,34 @@ impl AstNode for NotNode {
     }
 
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        match self.bottom.as_mut().unwrap().visit(symtable)? {
-            NodeResult::Symbol(Symbol::Primitive(Bool(Some(b)))) => {
-                Ok(NodeResult::Symbol(Symbol::Primitive(Bool(Some(!b)))))
-            }
-            _ => Err(CrocoError::new(
-                &self.code_pos,
-                "cannot invert something that isn't a boolean".to_owned(),
-            )),
-        }
+        let bool_symbol = self
+            .bottom
+            .as_mut()
+            .unwrap()
+            .visit(symtable)?
+            .into_symbol(&self.code_pos)?;
+
+        let condition = bool_symbol
+            .borrow()
+            .clone()
+            .into_primitive()
+            .map_err(|_| {
+                CrocoError::new(
+                    &self.code_pos,
+                    "cannot invert something that isn't a boolean".to_owned(),
+                )
+            })?
+            .into_bool()
+            .map_err(|_| {
+                CrocoError::new(
+                    &self.code_pos,
+                    "cannot invert something that isn't a boolean".to_owned(),
+                )
+            })?;
+
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+            Bool(Some(!condition)),
+        )))
     }
 
     fn get_type(&self) -> AstNodeType {

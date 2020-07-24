@@ -1,6 +1,6 @@
 use crate::ast::{utils::init_default, AstNode, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{symbol_eq, Struct, SymTable, Symbol};
+use crate::symbol::{symbol_eq, Struct, SymTable, SymbolContent};
 use crate::token::CodePos;
 use std::collections::HashMap;
 
@@ -45,11 +45,11 @@ impl AstNode for StructCreateNode {
         let struct_decl_len = struct_decl.len();
 
         // make sure all fields in struct decl are present
-        for mut field_decl in struct_decl.into_iter() {
+        for field_decl in struct_decl.into_iter() {
             let field_val = match self.fields.get_mut(&field_decl.0) {
                 // this field has not been declared, use its default value
                 None => {
-                    init_default(&mut field_decl.1, symtable, &self.code_pos)?;
+                    init_default(&mut *field_decl.1.borrow_mut(), symtable, &self.code_pos)?;
                     field_decl.1.clone()
                 }
 
@@ -57,7 +57,7 @@ impl AstNode for StructCreateNode {
                 Some(field) => {
                     let field_val = field.visit(symtable)?.into_symbol(&self.code_pos)?;
 
-                    if !symbol_eq(&field_decl.1, &field_val) {
+                    if !symbol_eq(&*field_decl.1.borrow(), &*field_val.borrow()) {
                         return Err(CrocoError::new(
                             &self.code_pos,
                             format!("field {} is not of the right type", field_decl.0),
@@ -83,6 +83,6 @@ impl AstNode for StructCreateNode {
             ));
         }
 
-        Ok(NodeResult::Symbol(Symbol::Struct(struct_symbol)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Struct(struct_symbol)))
     }
 }

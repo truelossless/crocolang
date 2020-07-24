@@ -9,7 +9,7 @@ mod utils;
 
 use crate::ast::*;
 use crate::error::CrocoError;
-use crate::symbol::Symbol;
+use crate::symbol::SymbolContent;
 use crate::token::{CodePos, Token};
 use std::rc::Rc;
 
@@ -57,13 +57,7 @@ impl Parser {
 #[derive(Clone, Debug)]
 pub struct TypedArg {
     pub arg_name: String,
-    pub arg_type: Symbol,
-}
-
-impl TypedArg {
-    pub fn new(arg_name: String, arg_type: Symbol) -> Self {
-        TypedArg { arg_name, arg_type }
-    }
+    pub arg_type: SymbolContent,
 }
 
 /// defines if a struct declaration can be present in an expression

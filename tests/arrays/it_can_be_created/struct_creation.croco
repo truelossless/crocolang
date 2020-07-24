@@ -1,0 +1,8 @@
+struct First {
+    a num
+}
+
+let first First
+let second First
+
+let c = [first, second]

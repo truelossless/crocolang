@@ -1,5 +1,5 @@
 use crate::builtin::*;
-use crate::symbol::{Symbol, Symbol::*};
+use crate::symbol::{Symbol, SymbolContent::*};
 use crate::token::LiteralEnum::*;
 
 use std::process::Command;
@@ -19,7 +19,7 @@ pub fn get_module() -> BuiltinModule {
 }
 
 /// executes a system command
-fn exec(mut args: Vec<Symbol>) -> Symbol {
+fn exec(mut args: Vec<Symbol>) -> SymbolContent {
     let command_str = get_arg_str(&mut args);
 
     let command = if cfg!(target_os = "windows") {

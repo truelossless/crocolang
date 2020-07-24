@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{get_symbol_type, symbol_eq, Array, SymTable, Symbol};
+use crate::symbol::{get_symbol_type, symbol_eq, Array, SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum};
 
 /// a node representing an array symbol
@@ -29,16 +29,16 @@ impl AstNode for ArrayCreateNode {
         // infer the array type from the first element
         let array_type = if visited.is_empty() {
             // we have no idea of the type since the array is empty
-            Symbol::Primitive(LiteralEnum::Void)
+            SymbolContent::Primitive(LiteralEnum::Void)
         } else {
             // the first element can be taken as the array type
-            get_symbol_type(&visited[0])
+            get_symbol_type(visited[0].clone())
         };
 
         // make sure all elements are of the same type
         for el in visited.iter().skip(1) {
 
-            if !symbol_eq(el, &array_type) {
+            if !symbol_eq(&*el.borrow(), &array_type) {
                 return Err(CrocoError::new(
                     &self.code_pos,
                     "array elements must be of the same type".to_owned()
@@ -47,9 +47,14 @@ impl AstNode for ArrayCreateNode {
 
         }
 
-        Ok(NodeResult::Symbol(Symbol::Array(Array {
+        let array = Array {
             contents: Some(visited),
             array_type: Box::new(array_type),
-        })))
+        };
+
+
+        Ok(NodeResult::construct_symbol(SymbolContent::Array(
+            array
+        )))
     }
 }

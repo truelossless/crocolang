@@ -1,23 +1,22 @@
 use crate::ast::{AstNode, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, Symbol};
+use crate::symbol::{symbol_eq, SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
-
 /// a node to assign a variable to a certain value
 #[derive(Clone)]
 pub struct AssignmentNode {
-    // variable to assign to
-    left: String,
+    // variable to assign to (a VarRefNode)
+    var: Box<dyn AstNode>,
     // expr assigned
-    right: Box<dyn AstNode>,
+    expr: Box<dyn AstNode>,
     code_pos: CodePos,
 }
 
 impl AssignmentNode {
-    pub fn new(var_name: String, expr: Box<dyn AstNode>, code_pos: CodePos) -> Self {
+    pub fn new(var: Box<dyn AstNode>, expr: Box<dyn AstNode>, code_pos: CodePos) -> Self {
         AssignmentNode {
-            left: var_name,
-            right: expr,
+            var,
+            expr,
             code_pos,
         }
     }
@@ -25,12 +24,26 @@ impl AssignmentNode {
 
 impl AstNode for AssignmentNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        let right_val = self.right.visit(symtable)?.into_symbol(&self.code_pos)?;
+        
+        // get a mutable reference to the variable / field to assign to
+        let var = self
+            .var
+            .visit(symtable)?
+            .into_symbol(&self.code_pos)?;
 
-        symtable
-            .modify_symbol(&self.left, right_val)
-            .map_err(|e| CrocoError::new(&self.code_pos, e))?;
+        let expr = self.expr.visit(symtable)?.into_symbol(&self.code_pos)?;
+        let expr_borrow = expr.borrow();
 
-        Ok(NodeResult::Symbol(Symbol::Primitive(Void)))
+        if !symbol_eq(&*var.borrow(), &*expr_borrow) {
+            return Err(CrocoError::new(
+                &self.code_pos,
+                "Cannot change the type of a variable".to_owned()
+            ));
+        }
+
+        // clone the contents of the expr 
+        *var.borrow_mut() = expr_borrow.clone();
+
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
     }
 }

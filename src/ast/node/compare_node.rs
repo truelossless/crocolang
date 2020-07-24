@@ -1,7 +1,7 @@
 use crate::ast::utils::get_value;
 use crate::ast::{AstNode, AstNodeType, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, Symbol};
+use crate::symbol::{SymTable, SymbolContent};
 use crate::token::{literal_eq, CodePos, LiteralEnum::*, OperatorEnum};
 
 #[derive(Clone)]
@@ -66,7 +66,9 @@ impl AstNode for CompareNode {
             _ => unreachable!(),
         };
 
-        Ok(NodeResult::Symbol(Symbol::Primitive(Bool(Some(value)))))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+            Bool(Some(value)),
+        )))
     }
     fn get_type(&self) -> AstNodeType {
         AstNodeType::BinaryNode

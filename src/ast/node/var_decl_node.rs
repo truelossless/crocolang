@@ -1,7 +1,10 @@
 use crate::ast::{utils::init_default, AstNode, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{symbol_eq, SymTable, Symbol};
+use crate::symbol::{symbol_eq, SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
+
+use std::rc::Rc;
+use std::cell::RefCell;
 
 /// a node to declare a new variable (declared variable are initialized by default)
 #[derive(Clone)]
@@ -11,7 +14,7 @@ pub struct VarDeclNode {
     // the variable Assignement (None for a default assignment)
     right: Option<Box<dyn AstNode>>,
     // the type of the variable
-    var_type: Symbol,
+    var_type: SymbolContent,
     code_pos: CodePos,
 }
 
@@ -19,7 +22,7 @@ impl VarDeclNode {
     pub fn new(
         var_name: String,
         expr: Option<Box<dyn AstNode>>,
-        var_type: Symbol,
+        var_type: SymbolContent,
         code_pos: CodePos,
     ) -> Self {
         VarDeclNode {
@@ -33,13 +36,16 @@ impl VarDeclNode {
 
 impl AstNode for VarDeclNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+
         let value = match &mut self.right {
             // there is a node
             Some(node) => {
+
                 let var_value = node.visit(symtable)?.into_symbol(&self.code_pos)?;
+                let var_value_borrow = var_value.borrow();
 
                 // type differs from annotation
-                if !self.var_type.is_void() && !symbol_eq(&var_value, &self.var_type) {
+                if !self.var_type.is_void() && !symbol_eq(&*var_value_borrow, &self.var_type) {
                     return Err(CrocoError::new(
                         &self.code_pos,
                         format!(
@@ -49,13 +55,14 @@ impl AstNode for VarDeclNode {
                 }
 
                 // no annotation at all
-                if var_value.is_void() && self.var_type.is_void() {
+                if var_value_borrow.is_void() && self.var_type.is_void() {
                     return Err(CrocoError::new(
                         &self.code_pos,
                         format!("trying to assign a void expression to {}", self.left),
                     ));
                 }
 
+                drop(var_value_borrow);
                 var_value
             }
 
@@ -69,7 +76,7 @@ impl AstNode for VarDeclNode {
                 }
 
                 init_default(&mut self.var_type, symtable, &self.code_pos)?;
-                self.var_type.clone()
+                Rc::new(RefCell::new(self.var_type.clone()))
             }
         };
 
@@ -77,6 +84,6 @@ impl AstNode for VarDeclNode {
             .insert_symbol(&self.left, value)
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
 
-        Ok(NodeResult::Symbol(Symbol::Primitive(Void)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
     }
 }

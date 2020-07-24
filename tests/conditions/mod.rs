@@ -7,14 +7,14 @@ fn it_matches_if_properly() {
     let mut interpreter = Interpreter::new();
 
     assert!(interpreter
-        .exec_file("tests/conditions/it_matches_properly/if.croco")
+        .exec_file("tests/conditions/it_matches_if_properly/if.croco")
         .is_ok());
 
     assert!(interpreter
-        .exec_file("tests/conditions/it_matches_properly/elif.croco")
+        .exec_file("tests/conditions/it_matches_if_properly/elif.croco")
         .is_ok());
 
     assert!(interpreter
-        .exec_file("tests/conditions/it_matches_properly/else.croco")
+        .exec_file("tests/conditions/it_matches_if_properly/else.croco")
         .is_ok());
 }

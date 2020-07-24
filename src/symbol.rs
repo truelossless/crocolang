@@ -2,8 +2,10 @@ use crate::ast::AstNode;
 use crate::builtin::{get_module, BuiltinCallback, BuiltinFunction, BuiltinVar};
 use crate::parser::TypedArg;
 use crate::token::{literal_eq, Identifier, LiteralEnum};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
+use std::rc::Rc;
 
 /// Either the function is a classic function or a built-in function
 #[derive(Clone)]
@@ -25,11 +27,11 @@ impl fmt::Debug for FunctionKind {
 pub struct FunctionDecl {
     pub args: Vec<TypedArg>,
     pub body: FunctionKind,
-    pub return_type: Symbol,
+    pub return_type: SymbolContent,
 }
 
 impl FunctionDecl {
-    pub fn new(args: Vec<TypedArg>, return_type: Symbol, body: FunctionKind) -> Self {
+    pub fn new(args: Vec<TypedArg>, return_type: SymbolContent, body: FunctionKind) -> Self {
         FunctionDecl {
             args,
             return_type,
@@ -62,8 +64,8 @@ impl Struct {
 #[derive(Clone)]
 pub struct Map {
     pub contents: HashMap<Symbol, Symbol>,
-    pub key_type: Box<Symbol>,
-    pub value_type: Box<Symbol>,
+    pub key_type: Box<SymbolContent>,
+    pub value_type: Box<SymbolContent>,
 }
 
 impl fmt::Debug for Map {
@@ -75,16 +77,23 @@ impl fmt::Debug for Map {
 #[derive(Clone, Debug)]
 pub struct Array {
     pub contents: Option<Vec<Symbol>>,
-    pub array_type: Box<Symbol>,
+    pub array_type: Box<SymbolContent>,
 }
 
-/// a symbol in the symbol table. Could be either a primitive, a function, or a struct.
+/// a symbol in the symbol table. It could be either a primitive, a function, a struct ...
+// I've tried multiple times to use references with lifetimes annotations but it's too hard in graph structures
+// I had to annotate all the nodes and structs with lifetimes and it didn't even work :S
+// this is why I'm using Rc as it eases the process a lot.
+// If you have an idea for a more elegant implementation I'm all ears !
+pub type Symbol = Rc<RefCell<SymbolContent>>;
+
 #[derive(Clone, Debug)]
-pub enum Symbol {
-    // a primitive such as 3 or false
+/// the symbol contents
+pub enum SymbolContent {
+    /// a primitive such as 3 or false
     Primitive(LiteralEnum),
 
-    // an array such as [1, 2, 3]
+    /// an array such as [1, 2, 3]
     Array(Array),
 
     // a key-value map such as { "hello" => 5, "bonjour" => 4 }
@@ -95,39 +104,46 @@ pub enum Symbol {
 
     // a function, local to this scope (will be useful for struct methods)
     // FunctionClosure(FunctionDecl)
-
-    // a symbol reference
-    // Ref(Rc<RefCell<Symbol>>)
+    /// a symbol reference  
+    Ref(Symbol),
 
     // a structure built from a StructDecl such as "let a = b {}"
     Struct(Struct),
 }
 
-impl Symbol {
+impl SymbolContent {
     pub fn into_primitive(self) -> Result<LiteralEnum, String> {
         match self {
-            Symbol::Primitive(p) => Ok(p),
+            SymbolContent::Primitive(p) => Ok(p),
             _ => Err("expected a primitive".to_owned()),
         }
     }
 
     pub fn into_struct(self) -> Result<Struct, String> {
         match self {
-            Symbol::Struct(s) => Ok(s),
+            SymbolContent::Struct(s) => Ok(s),
             _ => Err("expected a struct".to_owned()),
         }
     }
 
     pub fn into_array(self) -> Result<Array, String> {
         match self {
-            Symbol::Array(a) => Ok(a),
+            SymbolContent::Array(a) => Ok(a),
             _ => Err("expected an array".to_owned()),
+        }
+    }
+
+    /// dereferences a symbol
+    pub fn into_ref(self) -> Result<Symbol, String> {
+        match self {
+            SymbolContent::Ref(r) => Ok(r),
+            _ => Err("expected a reference".to_owned()),
         }
     }
 
     pub fn is_void(&self) -> bool {
         match self {
-            Symbol::Primitive(LiteralEnum::Void) => true,
+            SymbolContent::Primitive(LiteralEnum::Void) => true,
             _ => false,
         }
     }
@@ -144,31 +160,44 @@ pub enum Decl {
 }
 
 /// compare if two symbols are of the same type
-pub fn symbol_eq(a: &Symbol, b: &Symbol) -> bool {
-    let pair = (a, b);
-    match pair {
-        (Symbol::Primitive(a), Symbol::Primitive(b)) => literal_eq(a, b),
-        (Symbol::Struct(a), Symbol::Struct(b)) => a.struct_type == b.struct_type,
-        (Symbol::Array(a), Symbol::Array(b)) => symbol_eq(&*a.array_type, &*b.array_type),
+pub fn symbol_eq(a: &SymbolContent, b: &SymbolContent) -> bool {
+    match (a, b) {
+        (SymbolContent::Primitive(a), SymbolContent::Primitive(b)) => literal_eq(a, b),
+        (SymbolContent::Struct(a), SymbolContent::Struct(b)) => a.struct_type == b.struct_type,
+        (SymbolContent::Array(a), SymbolContent::Array(b)) => {
+            symbol_eq(&*a.array_type, &*b.array_type)
+        }
+        (SymbolContent::Ref(a), SymbolContent::Ref(b)) => {
+            symbol_eq(&*a.borrow(), &*b.borrow())
+        }
         _ => false,
     }
 }
 
 // returns the type of a symbol
-pub fn get_symbol_type(symbol: &Symbol) -> Symbol {
-    match symbol {
-        Symbol::Primitive(LiteralEnum::Bool(_)) => Symbol::Primitive(LiteralEnum::Bool(None)),
-        Symbol::Primitive(LiteralEnum::Num(_)) => Symbol::Primitive(LiteralEnum::Num(None)),
-        Symbol::Primitive(LiteralEnum::Str(_)) => Symbol::Primitive(LiteralEnum::Str(None)),
-        Symbol::Primitive(LiteralEnum::Void) => Symbol::Primitive(LiteralEnum::Void),
-        Symbol::Array(arr) => Symbol::Array(Array {
+pub fn get_symbol_type(symbol: Symbol) -> SymbolContent {
+    match &*symbol.borrow() {
+        SymbolContent::Primitive(LiteralEnum::Bool(_)) => {
+            SymbolContent::Primitive(LiteralEnum::Bool(None))
+        }
+        SymbolContent::Primitive(LiteralEnum::Num(_)) => {
+            SymbolContent::Primitive(LiteralEnum::Num(None))
+        }
+        SymbolContent::Primitive(LiteralEnum::Str(_)) => {
+            SymbolContent::Primitive(LiteralEnum::Str(None))
+        }
+        SymbolContent::Primitive(LiteralEnum::Void) => SymbolContent::Primitive(LiteralEnum::Void),
+        SymbolContent::Array(arr) => SymbolContent::Array(Array {
             contents: None,
             array_type: arr.array_type.clone(),
         }),
-        Symbol::Struct(s) => Symbol::Struct(Struct {
+        SymbolContent::Struct(s) => SymbolContent::Struct(Struct {
             fields: None,
             struct_type: s.struct_type.clone(),
         }),
+        SymbolContent::Ref(r) => {
+            SymbolContent::Ref(Rc::new(RefCell::new(get_symbol_type(r.clone()))))
+        }
     }
 }
 
@@ -191,29 +220,10 @@ impl SymTable {
     }
 
     /// return the desired symbol starting from the inner scope
-    pub fn get_mut_symbol(&mut self, var_name: &str) -> Result<&mut Symbol, String> {
-        for table in self.symbols.iter_mut().rev() {
-            if let Some(symbol) = table.get_mut(var_name) {
-                return Ok(symbol);
-            }
-        }
-
-        // the variable doesn't exist
-        Err(format!("variable {} has not been declared", var_name))
-    }
-
-    /// return the desired primitive starting from the inner scope
-    pub fn get_literal(&mut self, var_name: &str) -> Result<&mut LiteralEnum, String> {
-        for table in self.symbols.iter_mut().rev() {
-            match table.get_mut(var_name) {
-                Some(Symbol::Primitive(ref mut literal)) => return Ok(literal),
-                Some(_) => {
-                    return Err(format!(
-                        "trying to get {} as a variable but it's not",
-                        var_name
-                    ))
-                }
-                None => (),
+    pub fn get_symbol(&mut self, var_name: &str) -> Result<Symbol, String> {
+        for table in self.symbols.iter().rev() {
+            if let Some(symbol) = table.get(var_name) {
+                return Ok(symbol.clone());
             }
         }
 
@@ -285,7 +295,6 @@ impl SymTable {
             .insert(name.to_owned(), symbol)
             .is_none()
         {
-            dbg!("inserted to glbalb scoep");
             Ok(())
         } else {
             Err(format!(
@@ -299,8 +308,12 @@ impl SymTable {
     pub fn modify_symbol(&mut self, name: &str, symbol: Symbol) -> Result<(), String> {
         for table in self.symbols.iter_mut().rev() {
             if let Some(old_symbol) = table.get_mut(name) {
-                if symbol_eq(&old_symbol, &symbol) {
-                    *old_symbol = symbol;
+                
+                let old_symbol_borrow = &mut *old_symbol.borrow_mut();
+                let new_symbol_borrow = &*symbol.borrow();
+
+                if symbol_eq(old_symbol_borrow, new_symbol_borrow) {
+                    *old_symbol_borrow = new_symbol_borrow.clone();
                     return Ok(());
                 } else {
                     return Err(format!(
@@ -345,16 +358,19 @@ impl SymTable {
     pub fn register_builtin_var(&mut self, var: BuiltinVar, module_name: &str) {
         let namespaced_name =
             Identifier::new(var.name, module_name.to_owned()).get_namespaced_name();
-        self.insert_global_symbol(namespaced_name, var.value)
+        self.insert_global_symbol(namespaced_name, Rc::new(RefCell::new(var.value)))
             .unwrap();
     }
 
     pub fn register_builtin_function(&mut self, function: BuiltinFunction, module_name: &str) {
-        // for the builtin functions we don't care of the variable name
+        // for the builtin functions we don't care about the variable name
         let mut typed_args = Vec::new();
 
         for el in function.args.into_iter() {
-            typed_args.push(TypedArg::new(String::new(), el));
+            typed_args.push(TypedArg {
+                arg_name: String::new(),
+                arg_type: el,
+            });
         }
 
         let builtin = FunctionDecl::new(

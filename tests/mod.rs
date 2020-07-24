@@ -1,4 +1,5 @@
+mod arrays;
 mod conditions;
 mod functions;
 mod structs;
-mod variables;
+mod primitives;

@@ -1,8 +1,6 @@
 use crate::builtin::*;
-use crate::symbol::{Symbol, Symbol::*};
+use crate::symbol::{SymbolContent, SymbolContent::*};
 use crate::token::LiteralEnum::*;
-
-use reqwest;
 
 // module definition
 pub fn get_module() -> BuiltinModule {
@@ -19,7 +17,7 @@ pub fn get_module() -> BuiltinModule {
 }
 
 /// returns the contents of a page given an url
-fn get(mut args: Vec<Symbol>) -> Symbol {
+fn get(mut args: Vec<Symbol>) -> SymbolContent {
     let url = get_arg_str(&mut args);
 
     let req = reqwest::blocking::get(&url);

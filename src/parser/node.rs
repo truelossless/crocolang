@@ -3,8 +3,11 @@ use super::Parser;
 use crate::ast::node::*;
 use crate::ast::{AstNode, AstNodeType};
 use crate::error::CrocoError;
-use crate::symbol::Symbol::*;
+use crate::symbol::SymbolContent::*;
 use crate::token::{KeywordEnum::*, LiteralEnum, OperatorEnum::*, Token, Token::*};
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 impl Parser {
     /// util to build a node from a token
@@ -14,21 +17,24 @@ impl Parser {
         let code_pos = self.token_pos.clone();
 
         match token {
-            Identifier(identifier) => Ok(Box::new(VarCallNode::new(
+            Identifier(identifier) => Ok(Box::new(VarCopyNode::new(
                 identifier.name,
                 self.token_pos.clone(),
             ))),
-            Literal(literal) => Ok(Box::new(SymbolNode::new(Primitive(literal), code_pos))),
+            Literal(literal) => Ok(Box::new(SymbolNode::new(
+                Rc::new(RefCell::new(Primitive(literal))),
+                code_pos,
+            ))),
             Keyword(Num) => Ok(Box::new(SymbolNode::new(
-                Primitive(LiteralEnum::Num(None)),
+                Rc::new(RefCell::new(Primitive(LiteralEnum::Num(None)))),
                 code_pos,
             ))),
             Keyword(Str) => Ok(Box::new(SymbolNode::new(
-                Primitive(LiteralEnum::Str(None)),
+                Rc::new(RefCell::new(Primitive(LiteralEnum::Str(None)))),
                 code_pos,
             ))),
             Keyword(Bool) => Ok(Box::new(SymbolNode::new(
-                Primitive(LiteralEnum::Bool(None)),
+                Rc::new(RefCell::new(Primitive(LiteralEnum::Bool(None)))),
                 code_pos,
             ))),
             Operator(Plus) => Ok(Box::new(PlusNode::new(code_pos))),

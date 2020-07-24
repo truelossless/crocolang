@@ -22,6 +22,9 @@ pub use self::compare_node::CompareNode;
 mod divide_node;
 pub use self::divide_node::DivideNode;
 
+mod dot_field_node;
+pub use self::dot_field_node::DotFieldNode;
+
 mod continue_node;
 pub use self::continue_node::ContinueNode;
 
@@ -55,17 +58,11 @@ pub use self::power_node::PowerNode;
 mod return_node;
 pub use self::return_node::ReturnNode;
 
-mod struct_assignment_node;
-pub use self::struct_assignment_node::StructAssignmentNode;
-
 mod struct_create_node;
 pub use self::struct_create_node::StructCreateNode;
 
 mod struct_decl_node;
 pub use self::struct_decl_node::StructDeclNode;
-
-mod struct_field_node;
-pub use self::struct_field_node::StructFieldNode;
 
 mod symbol_node;
 pub use self::symbol_node::SymbolNode;
@@ -75,6 +72,9 @@ pub use self::unary_minus_node::UnaryMinusNode;
 
 mod var_decl_node;
 pub use self::var_decl_node::VarDeclNode;
+
+mod var_copy_node;
+pub use self::var_copy_node::VarCopyNode;
 
 mod var_call_node;
 pub use self::var_call_node::VarCallNode;

@@ -1,5 +1,5 @@
 use crate::builtin::*;
-use crate::symbol::{Symbol, Symbol::*};
+use crate::symbol::{SymbolContent, SymbolContent::*};
 use crate::token::LiteralEnum::*;
 
 use std::fs;
@@ -40,27 +40,27 @@ pub fn get_module() -> BuiltinModule {
 }
 
 /// create a directory at <path>, as well as all the needed parent directories
-fn create_dir(mut args: Vec<Symbol>) -> Symbol {
+fn create_dir(mut args: Vec<Symbol>) -> SymbolContent {
     let path = get_arg_str(&mut args);
     fs::create_dir_all(path).unwrap();
     Primitive(Void)
 }
 
 /// retuns true if <path> exists
-fn exists(mut args: Vec<Symbol>) -> Symbol {
+fn exists(mut args: Vec<Symbol>) -> SymbolContent {
     let path = get_arg_str(&mut args);
     Primitive(Bool(Some(Path::new(&path).exists())))
 }
 
 /// reads the content of the file at <path>
-fn read_file(mut args: Vec<Symbol>) -> Symbol {
+fn read_file(mut args: Vec<Symbol>) -> SymbolContent {
     let path = get_arg_str(&mut args);
     let contents = fs::read_to_string(path).unwrap_or_default();
     Primitive(Str(Some(contents)))
 }
 
 /// writes to <path> the <content> of a str
-fn write_file(mut args: Vec<Symbol>) -> Symbol {
+fn write_file(mut args: Vec<Symbol>) -> SymbolContent {
     let path = get_arg_str(&mut args);
     let content = get_arg_str(&mut args);
     fs::write(path, content).unwrap();

@@ -1,0 +1,12 @@
+struct First {
+    a num
+}
+
+struct Second {
+    first First
+}
+
+let second Second
+
+second.first.a = 12
+assert(second.first.a == 12)

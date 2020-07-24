@@ -3,11 +3,13 @@ use super::{ExprParsingType::*, Parser, TypedArg};
 use crate::ast::node::*;
 use crate::ast::{AstNode, BlockScope};
 use crate::error::CrocoError;
-use crate::symbol::{Struct, Symbol};
+use crate::symbol::{Struct, SymbolContent, Symbol};
 use crate::token::{
     CodePos, KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
 };
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 impl Parser {
     /// Parses a code block e.g for loop body, function body, etc.
@@ -39,7 +41,7 @@ impl Parser {
                         "expected a variable name after the let keyword",
                     )?;
 
-                    let mut assign_type: Symbol = Symbol::Primitive(LiteralEnum::Void);
+                    let mut assign_type: SymbolContent = SymbolContent::Primitive(LiteralEnum::Void);
 
                     match self.next_token(iter) {
                         // we're giving a value to our variable with type inference
@@ -48,11 +50,11 @@ impl Parser {
                         }
 
                         // we're giving a type annotation
-                        Keyword(Num) => assign_type = Symbol::Primitive(LiteralEnum::Num(None)),
-                        Keyword(Str) => assign_type = Symbol::Primitive(LiteralEnum::Str(None)),
-                        Keyword(Bool) => assign_type = Symbol::Primitive(LiteralEnum::Bool(None)),
+                        Keyword(Num) => assign_type = SymbolContent::Primitive(LiteralEnum::Num(None)),
+                        Keyword(Str) => assign_type = SymbolContent::Primitive(LiteralEnum::Str(None)),
+                        Keyword(Bool) => assign_type = SymbolContent::Primitive(LiteralEnum::Bool(None)),
                         Identifier(struct_type) => {
-                            assign_type = Symbol::Struct(Struct::new(struct_type.name))
+                            assign_type = SymbolContent::Struct(Struct::new(struct_type.name))
                         }
 
                         // newline: we're declaring a variable without value or type
@@ -98,105 +100,59 @@ impl Parser {
 
                 // assigning a new value to a variable / struct field, or calling a function
                 Identifier(identifier) => {
-                    match self.next_token(iter) {
-                        // it's a function call right after
-                        Separator(LeftParenthesis) => {
-                            block.add_child(self.parse_function_call(iter, identifier.name)?);
 
-                            self.expect_token(
-                                iter,
-                                Separator(NewLine),
-                                "expected a new line after function call",
-                            )?;
-                        }
+                    let lvalue_node = self.parse_identifier(iter, identifier.clone(), DenyStructDeclaration)?;
 
-                        // we're assigning to a struct field
-                        Separator(Dot) => {
-                            let mut fields: Vec<String> = Vec::new();
-
-                            // get the field(s)
-                            loop {
-                                fields.push(
-                                    self.expect_identifier(
-                                        iter,
-                                        "expected a field name after the dot",
-                                    )?
-                                    .name,
-                                );
-
-                                match self.peek_token(iter) {
-                                    Separator(Dot) => {
-                                        self.next_token(iter);
-                                    }
-                                    _ => break,
-                                }
-                            }
-
-                            // only assignment is supported for now
-                            self.expect_token(iter, Operator(Assign), "expected an equals sign")?;
-
-                            let expr = self.parse_expr(iter, AllowStructDeclaration)?;
-
-                            block.add_child(Box::new(StructAssignmentNode::new(
-                                identifier.name,
-                                fields,
-                                expr,
-                                self.token_pos.clone(),
-                            )));
-                        }
+                    if let Operator(op_token) = self.peek_token(iter) {
+                        
+                        self.next_token(iter);
 
                         // assigning to a variable
-                        Operator(op_token) => {
-                            match op_token  {
+                        match op_token  {
 
-                                Assign
-                                | PlusEquals
-                                | MinusEquals
-                                | MultiplicateEquals
-                                | DivideEquals
-                                | PowerEquals => {
+                            Assign
+                            | PlusEquals
+                            | MinusEquals
+                            | MultiplicateEquals
+                            | DivideEquals
+                            | PowerEquals => {
 
-                                    let out_node = self.parse_expr(iter, DenyStructDeclaration)?;
+                                let expr_node = self.parse_expr(iter, DenyStructDeclaration)?;
 
-                                    // add to the root function this statement
-                                    if op_token == Assign {
-                                        block.add_child(Box::new(AssignmentNode::new(identifier.name, out_node, self.token_pos.clone())));
-                                    } else {
-                                        let mut dyn_op_node: Box<dyn AstNode> = match op_token {
-                                            PlusEquals => Box::new(PlusNode::new(self.token_pos.clone())),
-                                            MinusEquals => Box::new(MinusNode::new(self.token_pos.clone())),
-                                            MultiplicateEquals => {
-                                                Box::new(MultiplicateNode::new(self.token_pos.clone()))
-                                            }
-                                            DivideEquals => Box::new(DivideNode::new(self.token_pos.clone())),
-                                            PowerEquals => Box::new(PowerNode::new(self.token_pos.clone())),
-                                            _ => unreachable!(),
-                                        };
-                                        let var_node = Box::new(VarCallNode::new(identifier.name.clone(), self.token_pos.clone()));
-                                        dyn_op_node.add_child(var_node);
-                                        dyn_op_node.add_child(out_node);
+                                // add to the root function this statement
+                                if op_token == Assign {
+                                    block.add_child(Box::new(AssignmentNode::new(lvalue_node, expr_node, self.token_pos.clone())));
+                                } else {
+                                    let mut dyn_op_node: Box<dyn AstNode> = match op_token {
+                                        PlusEquals => Box::new(PlusNode::new(self.token_pos.clone())),
+                                        MinusEquals => Box::new(MinusNode::new(self.token_pos.clone())),
+                                        MultiplicateEquals => {
+                                            Box::new(MultiplicateNode::new(self.token_pos.clone()))
+                                        }
+                                        DivideEquals => Box::new(DivideNode::new(self.token_pos.clone())),
+                                        PowerEquals => Box::new(PowerNode::new(self.token_pos.clone())),
+                                        _ => unreachable!(),
+                                    };
+                                    
+                                    let var_node = Box::new(VarCopyNode::new(identifier.name, self.token_pos.clone()));
+                                    dyn_op_node.add_child(var_node);
+                                    dyn_op_node.add_child(expr_node);
 
-                                        self.expect_token(iter, Separator(NewLine), "expected a new line after assignation")?;
+                                    self.expect_token(iter, Separator(NewLine), "expected a new line after assignation")?;
 
-                                        block.add_child(Box::new(AssignmentNode::new(identifier.name, dyn_op_node, self.token_pos.clone())));
-                                    }
-                                }
-
-                                _ => {
-                                    return Err(CrocoError::new(
-                                        &self.token_pos,
-                                        format!("expected an assignation sign or a function call after the identifier {}", identifier.name)
-                                    ))
+                                    block.add_child(Box::new(AssignmentNode::new(lvalue_node, dyn_op_node, self.token_pos.clone())));
                                 }
                             }
-                        }
 
-                        _ => {
-                            return Err(CrocoError::new(
-                                &self.token_pos,
-                                "unexpected token after identifier".to_owned(),
-                            ))
+                            _ => {
+                                return Err(CrocoError::new(
+                                    &self.token_pos,
+                                    format!("expected an assignation sign or a function call after the identifier {}", identifier.name)
+                                ))
+                            }
                         }
+                    } else {
+                        block.add_child(lvalue_node);
                     }
                 }
 
@@ -231,11 +187,11 @@ impl Parser {
                         };
 
                         let field_type = match self.next_token(iter) {
-                            Keyword(Num) => Symbol::Primitive(LiteralEnum::Num(None)),
-                            Keyword(Str) => Symbol::Primitive(LiteralEnum::Str(None)),
-                            Keyword(Bool) => Symbol::Primitive(LiteralEnum::Bool(None)),
+                            Keyword(Num) => SymbolContent::Primitive(LiteralEnum::Num(None)),
+                            Keyword(Str) => SymbolContent::Primitive(LiteralEnum::Str(None)),
+                            Keyword(Bool) => SymbolContent::Primitive(LiteralEnum::Bool(None)),
                             Identifier(struct_type) => {
-                                Symbol::Struct(Struct::new(struct_type.name))
+                                SymbolContent::Struct(Struct::new(struct_type.name))
                             }
                             _ => {
                                 return Err(CrocoError::new(
@@ -245,7 +201,7 @@ impl Parser {
                             }
                         };
 
-                        if fields.insert(field_name.name, field_type).is_some() {
+                        if fields.insert(field_name.name, Rc::new(RefCell::new(field_type))).is_some() {
                             return Err(CrocoError::new(
                                 &self.token_pos,
                                 "duplicate field in struct".to_owned(),
@@ -275,15 +231,15 @@ impl Parser {
 
                     let mut typed_args: Vec<TypedArg> = Vec::new();
 
-                    let mut first_arg_entered = false;
+                    let mut first_arg = false;
 
                     loop {
                         match self.peek_token(iter) {
-                            EOF | Separator(RightParenthesis) => {
+                            Separator(RightParenthesis) => {
                                 self.next_token(iter);
                                 break;
                             }
-                            Separator(Comma) if first_arg_entered => {
+                            Separator(Comma) if first_arg => {
                                 self.next_token(iter);
                             }
 
@@ -293,7 +249,7 @@ impl Parser {
                                     "no argument before comma".to_owned(),
                                 )),
 
-                            _ if !first_arg_entered => (),
+                            _ if !first_arg => (),
 
                             _ =>
                                 return Err(CrocoError::new(
@@ -304,7 +260,7 @@ impl Parser {
                                 ))
                         }
 
-                        first_arg_entered = true;
+                        first_arg = true;
 
                         self.discard_newlines(iter);
 
@@ -319,9 +275,9 @@ impl Parser {
 
                         // here this should be the argument type
                         let arg_type = match self.next_token(iter) {
-                            Keyword(Num) => Symbol::Primitive(LiteralEnum::Num(None)),
-                            Keyword(Str) => Symbol::Primitive(LiteralEnum::Str(None)),
-                            Keyword(Bool) => Symbol::Primitive(LiteralEnum::Bool(None)),
+                            Keyword(Num) => SymbolContent::Primitive(LiteralEnum::Num(None)),
+                            Keyword(Str) => SymbolContent::Primitive(LiteralEnum::Str(None)),
+                            Keyword(Bool) => SymbolContent::Primitive(LiteralEnum::Bool(None)),
                             _ => {
                                 return Err(CrocoError::new(
                                     &self.token_pos,
@@ -329,7 +285,10 @@ impl Parser {
                                 ))
                             }
                         };
-                        typed_args.push(TypedArg::new(arg_name.name, arg_type));
+                        typed_args.push(TypedArg{
+                            arg_name: arg_name.name,
+                            arg_type
+                        });
                     }
 
                     // Might allow weird parsing: does it matter ?
@@ -339,12 +298,12 @@ impl Parser {
                     self.discard_newlines(iter);
 
                     // if the return type isn't specified the function is Void
-                    let mut return_type = Symbol::Primitive(LiteralEnum::Void);
+                    let mut return_type = SymbolContent::Primitive(LiteralEnum::Void);
 
                     match self.next_token(iter) {
-                        Keyword(Num) => return_type = Symbol::Primitive(LiteralEnum::Num(None)),
-                        Keyword(Str) => return_type = Symbol::Primitive(LiteralEnum::Str(None)),
-                        Keyword(Bool) => return_type = Symbol::Primitive(LiteralEnum::Bool(None)),
+                        Keyword(Num) => return_type = SymbolContent::Primitive(LiteralEnum::Num(None)),
+                        Keyword(Str) => return_type = SymbolContent::Primitive(LiteralEnum::Str(None)),
+                        Keyword(Bool) => return_type = SymbolContent::Primitive(LiteralEnum::Bool(None)),
                         Separator(LeftCurlyBracket) => (),
                         _ => {
                             return Err(CrocoError::new(

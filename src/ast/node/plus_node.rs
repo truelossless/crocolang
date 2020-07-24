@@ -1,7 +1,7 @@
 use crate::ast::utils::get_value;
 use crate::ast::{AstNode, AstNodeType, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, Symbol};
+use crate::symbol::{SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
 
 /// a node used for addition and concatenation
@@ -32,8 +32,7 @@ impl AstNode for PlusNode {
 
         // different kinds of additions can happen (concatenation or number addition)
         // the PlusNode also works for concatenation.
-        let pair = (left_val, right_val);
-        let value = match pair {
+        let value = match (left_val, right_val) {
             (Num(Some(n1)), Num(Some(n2))) => Num(Some(n1 + n2)),
             (Str(Some(s1)), Str(Some(s2))) => Str(Some(format!("{}{}", s1, s2))),
             _ => {
@@ -43,7 +42,7 @@ impl AstNode for PlusNode {
                 ))
             }
         };
-        Ok(NodeResult::Symbol(Symbol::Primitive(value)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(value)))
     }
     fn add_child(&mut self, node: Box<dyn AstNode>) {
         if self.left.is_none() {

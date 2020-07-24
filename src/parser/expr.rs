@@ -3,10 +3,13 @@ use super::{ExprParsingType, Parser};
 use crate::ast::node::*;
 use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::symbol::Symbol;
+use crate::symbol::SymbolContent;
 use crate::token::{
     CodePos, KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
 };
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 impl Parser {
     /// Parses an expression using the shunting-yard algorithm.
@@ -212,7 +215,7 @@ impl Parser {
 
         if output.is_empty() {
             return Ok(Box::new(SymbolNode::new(
-                Symbol::Primitive(LiteralEnum::Void),
+                Rc::new(RefCell::new(SymbolContent::Primitive(LiteralEnum::Void))),
                 self.token_pos.clone(),
             )));
         }

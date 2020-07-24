@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, AstNodeType, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, Symbol};
+use crate::symbol::{SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
 
 #[derive(Clone)]
@@ -39,7 +39,7 @@ impl AstNode for AsNode {
             .unwrap()
             .visit(symtable)?
             .into_symbol(&self.code_pos)?;
-            
+
         let as_type = self
             .right
             .as_mut()
@@ -48,22 +48,21 @@ impl AstNode for AsNode {
             .into_symbol(&self.code_pos)?;
 
         // we can only cast primitive together
-        let val_primitive = val.into_primitive().map_err(|_| {
+        let val_primitive = val.borrow().clone().into_primitive().map_err(|_| {
             CrocoError::new(
                 &self.code_pos,
                 "can only cast primitives together".to_owned(),
             )
         })?;
 
-        let as_type_primitive = as_type.into_primitive().map_err(|_| {
+        let as_type_primitive = as_type.borrow().clone().into_primitive().map_err(|_| {
             CrocoError::new(
                 &self.code_pos,
                 "can only cast primitives together".to_owned(),
             )
         })?;
 
-        let pair = (val_primitive, as_type_primitive);
-        let casted = match pair {
+        let casted = match (val_primitive, as_type_primitive) {
             // useless cast
             (Bool(_), Bool(_)) | (Str(_), Str(_)) | (Num(_), Num(_)) => {
                 return Err(CrocoError::new(&self.code_pos, "redundant cast".to_owned()))
@@ -113,7 +112,9 @@ impl AstNode for AsNode {
             _ => unreachable!(),
         };
 
-        Ok(NodeResult::Symbol(Symbol::Primitive(casted)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+            casted,
+        )))
     }
 
     fn get_type(&self) -> AstNodeType {

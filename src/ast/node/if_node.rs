@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, Symbol};
+use crate::symbol::{SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
 
 /// a node representing an if / elif / else structure
@@ -33,9 +33,11 @@ impl AstNode for IfNode {
             let code_pos = &self.code_pos;
 
             // check if the boolean condition is fullfilled
-            let cond_ok = condition
-                .visit(symtable)?
-                .into_symbol(code_pos)?
+            let cond_symbol = condition.visit(symtable)?.into_symbol(code_pos)?;
+
+            let cond_ok = cond_symbol
+                .borrow()
+                .clone()
                 .into_primitive()
                 .map_err(|_| {
                     CrocoError::new(code_pos, "expected a boolean for the condition".to_owned())
@@ -53,7 +55,7 @@ impl AstNode for IfNode {
                     NodeResult::Return(_) | NodeResult::Break | NodeResult::Continue => {
                         return Ok(value)
                     }
-                    _ => return Ok(NodeResult::Symbol(Symbol::Primitive(Void))),
+                    _ => return Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void))),
                 }
             }
         }
@@ -63,6 +65,6 @@ impl AstNode for IfNode {
             self.bodies.last_mut().unwrap().visit(symtable)?;
         }
 
-        Ok(NodeResult::Symbol(Symbol::Primitive(Void)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
     }
 }

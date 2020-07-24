@@ -5,6 +5,9 @@ use crate::token::CodePos;
 
 use crate::error::CrocoError;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 #[derive(Clone)]
 pub struct FunctionCallNode {
     name: String,
@@ -48,11 +51,12 @@ impl AstNode for FunctionCallNode {
             ));
         }
         for (i, arg) in visited_args.iter().enumerate() {
-            if !symbol_eq(arg, &fn_decl.args[i].arg_type) {
+            if !symbol_eq(&*arg.borrow(), &fn_decl.args[i].arg_type) {
+
                 return Err(CrocoError::new(
                     &self.code_pos,
                     format!(
-                        "parameter {} type doesn't match {} function definition",
+                        "parameter {} doesn't match {} function definition",
                         i + 1,
                         self.name
                     ),
@@ -98,11 +102,11 @@ impl AstNode for FunctionCallNode {
             }
 
             FunctionKind::Builtin(builtin_call) => {
-                return_value = builtin_call(visited_args);
+                return_value = Rc::new(RefCell::new(builtin_call(visited_args)));
             }
         }
 
-        if !symbol_eq(&fn_decl.return_type, &return_value) {
+        if !symbol_eq(&fn_decl.return_type, &*return_value.borrow()) {
             return Err(CrocoError::new(
                 &self.code_pos,
                 format!("function {} returned a wrong type", self.name),

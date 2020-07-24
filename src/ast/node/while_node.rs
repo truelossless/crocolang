@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, Symbol};
+use crate::symbol::{SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
 
 /// a node representing a while statement
@@ -34,37 +34,48 @@ impl AstNode for WhileNode {
         }
     }
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        // loop while the condition is ok
-        while self
-            .left
-            .as_mut()
-            .unwrap()
-            .visit(symtable)?
-            .into_symbol(&self.code_pos)?
-            .into_primitive()
-            .map_err(|_| {
-                CrocoError::new(
-                    &self.code_pos,
-                    "expected a boolean for the condition".to_owned(),
-                )
-            })?
-            .into_bool()
-            .map_err(|_| {
-                CrocoError::new(
-                    &self.code_pos,
-                    "expected a boolean for the condition".to_owned(),
-                )
-            })?
-        {
+        loop {
+            // loop while the condition is ok
+            let cond_symbol = self
+                .left
+                .as_mut()
+                .unwrap()
+                .visit(symtable)?
+                .into_symbol(&self.code_pos)?;
+
+            let condition = cond_symbol
+                .borrow()
+                .clone()
+                .into_primitive()
+                .map_err(|_| {
+                    CrocoError::new(
+                        &self.code_pos,
+                        "expected a boolean for the condition".to_owned(),
+                    )
+                })?
+                .into_bool()
+                .map_err(|_| {
+                    CrocoError::new(
+                        &self.code_pos,
+                        "expected a boolean for the condition".to_owned(),
+                    )
+                })?;
+
+            if !condition {
+                break;
+            }
+
             let value = self.right.as_mut().unwrap().visit(symtable)?;
             match value {
                 // propagate the early-return
                 NodeResult::Return(_) => return Ok(value),
-                NodeResult::Break => return Ok(NodeResult::Symbol(Symbol::Primitive(Void))),
+                NodeResult::Break => {
+                    return Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
+                }
                 NodeResult::Symbol(_) | NodeResult::Continue => (),
             }
         }
 
-        Ok(NodeResult::Symbol(Symbol::Primitive(Void)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
     }
 }

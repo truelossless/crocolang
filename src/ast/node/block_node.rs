@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, BlockScope, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, Symbol};
+use crate::symbol::{SymTable, SymbolContent};
 use crate::token::LiteralEnum::*;
 
 /// node containing multiple instructions
@@ -45,7 +45,7 @@ impl AstNode for BlockNode {
         }
 
         // early return from the block
-        let mut value = NodeResult::Symbol(Symbol::Primitive(Void));
+        let mut value = NodeResult::construct_symbol(SymbolContent::Primitive(Void));
         // iterate over all nodes in the body
         for node in &mut self.body
         // .chain(self.prepended.iter_mut())
@@ -66,7 +66,7 @@ impl AstNode for BlockNode {
 
         // return void if there is no return value
         if let NodeResult::Symbol(_) = value {
-            value = NodeResult::Symbol(Symbol::Primitive(Void))
+            value = NodeResult::construct_symbol(SymbolContent::Primitive(Void))
         }
 
         // we're done with this scope, drop it

@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{Decl, SymTable, Symbol};
+use crate::symbol::{Decl, SymTable, Symbol, SymbolContent};
 use crate::token::{CodePos, LiteralEnum};
 use std::collections::HashMap;
 
@@ -36,6 +36,8 @@ impl AstNode for StructDeclNode {
                 )
             })?;
 
-        Ok(NodeResult::Symbol(Symbol::Primitive(LiteralEnum::Void)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+            LiteralEnum::Void,
+        )))
     }
 }

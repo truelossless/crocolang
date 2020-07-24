@@ -5,7 +5,7 @@ use crate::ast::{AstNode, BlockScope, NodeResult};
 use crate::error::CrocoError;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
-use crate::symbol::{SymTable, Symbol};
+use crate::symbol::{SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
 
 /// a node to import code from another module, at runtime.
@@ -62,14 +62,14 @@ impl AstNode for ImportNode {
             bottom.visit(symtable)?;
             self.bottom = Some(bottom);
 
-            Ok(NodeResult::Symbol(Symbol::Primitive(Void)))
+            Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
 
         // we have an absolute path e.g import "math"
         // we are looking for a builtin module with this name
         } else {
             // check if the module part of the std library
             if symtable.import_builtin_module(&self.name) {
-                Ok(NodeResult::Symbol(Symbol::Primitive(Void)))
+                Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
             } else {
                 Err(CrocoError::new(
                     &self.code_pos,

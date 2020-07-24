@@ -2,7 +2,7 @@ use crate::ast::node::BlockNode;
 use crate::ast::{AstNode, BlockScope, NodeResult};
 
 use crate::parser::TypedArg;
-use crate::symbol::{Decl, FunctionDecl, FunctionKind, SymTable, Symbol};
+use crate::symbol::{Decl, FunctionDecl, FunctionKind, SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
 
 use crate::error::CrocoError;
@@ -11,14 +11,14 @@ use crate::error::CrocoError;
 #[derive(Clone)]
 pub struct FunctionDeclNode {
     name: String,
-    return_type: Option<Symbol>,
+    return_type: Option<SymbolContent>,
     args: Option<Vec<TypedArg>>,
     body: Option<Box<dyn AstNode>>,
     code_pos: CodePos,
 }
 
 impl FunctionDeclNode {
-    pub fn new(name: String, return_type: Symbol, args: Vec<TypedArg>, code_pos: CodePos) -> Self {
+    pub fn new(name: String, return_type: SymbolContent, args: Vec<TypedArg>, code_pos: CodePos) -> Self {
         FunctionDeclNode {
             name,
             return_type: Some(return_type),
@@ -42,7 +42,7 @@ impl AstNode for FunctionDeclNode {
         symtable
             .register_decl(name, Decl::FunctionDecl(fn_decl))
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
-        Ok(NodeResult::Symbol(Symbol::Primitive(Void)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
     }
 
     fn add_child(&mut self, node: Box<dyn AstNode>) {

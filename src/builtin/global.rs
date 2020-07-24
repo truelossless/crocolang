@@ -1,5 +1,5 @@
 use crate::builtin::*;
-use crate::symbol::{Symbol, Symbol::*};
+use crate::symbol::{SymbolContent, SymbolContent::*};
 use crate::token::LiteralEnum::*;
 
 /// module definition
@@ -43,7 +43,7 @@ pub fn get_module() -> BuiltinModule {
 }
 
 /// Exits if the first argument is false
-fn assert(mut args: Vec<Symbol>) -> Symbol {
+fn assert(mut args: Vec<Symbol>) -> SymbolContent {
     let assertion = get_arg_bool(&mut args);
 
     if !assertion {
@@ -55,28 +55,28 @@ fn assert(mut args: Vec<Symbol>) -> Symbol {
 }
 
 /// Prints to stderr the first argument
-fn eprint(mut args: Vec<Symbol>) -> Symbol {
+fn eprint(mut args: Vec<Symbol>) -> SymbolContent {
     let err = get_arg_str(&mut args);
     eprint!("{}", err);
     Primitive(Void)
 }
 
 /// Prints to stderr the first argument, with a line feed
-fn eprintln(mut args: Vec<Symbol>) -> Symbol {
+fn eprintln(mut args: Vec<Symbol>) -> SymbolContent {
     let err = get_arg_str(&mut args);
     eprintln!("{}", err);
     Primitive(Void)
 }
 
 /// Prints to stdout the first argument
-fn print(mut args: Vec<Symbol>) -> Symbol {
+fn print(mut args: Vec<Symbol>) -> SymbolContent {
     let msg = get_arg_str(&mut args);
     print!("{}", msg);
     Primitive(Void)
 }
 
 /// Prints to stdout the first argument, with a line feed
-fn println(mut args: Vec<Symbol>) -> Symbol {
+fn println(mut args: Vec<Symbol>) -> SymbolContent {
     let msg = get_arg_str(&mut args);
     println!("{}", msg);
     Primitive(Void)
