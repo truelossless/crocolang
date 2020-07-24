@@ -31,7 +31,7 @@ impl Parser {
                 _ => {
                     return Err(CrocoError::new(
                         &self.token_pos,
-                        "unexpected token in {} array declaration".to_owned(),
+                        "unexpected token in array declaration".to_owned(),
                     ));
                 }
             }

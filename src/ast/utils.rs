@@ -1,6 +1,6 @@
 use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::symbol::{Struct, SymTable, SymbolContent};
+use crate::symbol::{Struct, SymTable, SymbolContent, Array};
 use crate::token::{CodePos, LiteralEnum, LiteralEnum::*};
 
 /// returns the LiteralEnum associated to a node
@@ -70,10 +70,20 @@ pub fn init_default(
             }
 
             SymbolContent::Struct(Struct {
-                struct_type: s.struct_type.clone(),
                 fields: Some(struct_decl_default),
+                struct_type: s.struct_type.clone(),
             })
         }
+
+        SymbolContent::Array(arr) => SymbolContent::Array(Array {
+            contents: Some(Vec::new()),
+            array_type: arr.array_type.clone()
+        }),
+
+        SymbolContent::Ref(_) => return Err(CrocoError::new(
+            &code_pos,
+            "dangling reference".to_owned()
+        )),
 
         // we cannot have a struct with a void primitive
         _ => unreachable!(),

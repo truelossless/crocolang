@@ -5,6 +5,7 @@ mod function_call;
 mod identifier;
 mod iter;
 mod node;
+mod var_type;
 mod utils;
 
 use crate::ast::*;

@@ -43,18 +43,20 @@ impl Parser {
 
                     let mut assign_type: SymbolContent = SymbolContent::Primitive(LiteralEnum::Void);
 
-                    match self.next_token(iter) {
+                    match self.peek_token(iter) {
                         // we're giving a value to our variable with type inference
                         Operator(Assign) => {
+                            self.next_token(iter);
                             out_node = Some(self.parse_expr(iter, AllowStructDeclaration)?);
                         }
 
                         // we're giving a type annotation
-                        Keyword(Num) => assign_type = SymbolContent::Primitive(LiteralEnum::Num(None)),
-                        Keyword(Str) => assign_type = SymbolContent::Primitive(LiteralEnum::Str(None)),
-                        Keyword(Bool) => assign_type = SymbolContent::Primitive(LiteralEnum::Bool(None)),
-                        Identifier(struct_type) => {
-                            assign_type = SymbolContent::Struct(Struct::new(struct_type.name))
+                        Keyword(Num) |
+                        Keyword(Str) |
+                        Keyword(Bool) |
+                        Identifier(_) |
+                        Separator(LeftSquareBracket) => {
+                            assign_type = self.parse_var_type(iter)?;
                         }
 
                         // newline: we're declaring a variable without value or type
@@ -278,6 +280,10 @@ impl Parser {
                             Keyword(Num) => SymbolContent::Primitive(LiteralEnum::Num(None)),
                             Keyword(Str) => SymbolContent::Primitive(LiteralEnum::Str(None)),
                             Keyword(Bool) => SymbolContent::Primitive(LiteralEnum::Bool(None)),
+                            Identifier(identifier) => SymbolContent::Struct(Struct {
+                                fields: None,
+                                struct_type: identifier.name
+                            }),
                             _ => {
                                 return Err(CrocoError::new(
                                     &self.token_pos,
