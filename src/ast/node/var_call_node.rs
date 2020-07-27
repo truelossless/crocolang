@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable};
+use crate::symbol::SymTable;
 use crate::token::CodePos;
 
 /// a node holding a variable reference
@@ -17,12 +17,10 @@ impl VarCallNode {
 }
 
 impl AstNode for VarCallNode {
-    
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         let symbol = symtable
             .get_symbol(&self.name)
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
-
 
         Ok(NodeResult::Symbol(symbol))
     }

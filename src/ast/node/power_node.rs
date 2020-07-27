@@ -40,7 +40,9 @@ impl AstNode for PowerNode {
                 &self.code_pos,
             )?),
         ));
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(value)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+            value,
+        )))
     }
     fn get_type(&self) -> AstNodeType {
         AstNodeType::BinaryNode

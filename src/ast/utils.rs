@@ -1,7 +1,8 @@
 use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::symbol::{Struct, SymTable, SymbolContent, Array};
+use crate::symbol::{Array, Struct, SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum, LiteralEnum::*};
+use std::{cell::RefCell, rc::Rc};
 
 /// returns the LiteralEnum associated to a node
 pub fn get_value(
@@ -65,25 +66,30 @@ pub fn init_default(
                 .map_err(|e| CrocoError::new(&code_pos, e))?
                 .clone();
 
-            for field in struct_decl_default.values_mut() {
-                init_default(&mut *field.borrow_mut(), symtable, code_pos)?;
+            for mut field in struct_decl_default.fields.values_mut() {
+                init_default(&mut field, symtable, code_pos)?;
             }
 
+            let rc_fields = struct_decl_default
+                .fields
+                .into_iter()
+                .map(|(k, x)| (k, Rc::new(RefCell::new(x))))
+                .collect();
+
             SymbolContent::Struct(Struct {
-                fields: Some(struct_decl_default),
+                fields: Some(rc_fields),
                 struct_type: s.struct_type.clone(),
             })
         }
 
         SymbolContent::Array(arr) => SymbolContent::Array(Array {
             contents: Some(Vec::new()),
-            array_type: arr.array_type.clone()
+            array_type: arr.array_type.clone(),
         }),
 
-        SymbolContent::Ref(_) => return Err(CrocoError::new(
-            &code_pos,
-            "dangling reference".to_owned()
-        )),
+        SymbolContent::Ref(_) => {
+            return Err(CrocoError::new(&code_pos, "dangling reference".to_owned()))
+        }
 
         // we cannot have a struct with a void primitive
         _ => unreachable!(),

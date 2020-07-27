@@ -38,4 +38,8 @@ fn it_is_indexable() {
     assert!(interpreter
         .exec_file("tests/arrays/it_is_indexable/out_of_bounds_err.croco")
         .is_err());
+
+    assert!(interpreter
+        .exec_file("tests/arrays/it_is_indexable/multi_dimensional.croco")
+        .is_ok());
 }

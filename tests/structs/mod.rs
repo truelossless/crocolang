@@ -62,3 +62,20 @@ fn it_does_not_change_field_type() {
         .exec_file("tests/structs/it_does_not_change_field_type/num_to_str_err.croco")
         .is_err());
 }
+
+#[test]
+fn it_calls_methods_correctly() {
+    let mut interpreter = Interpreter::new();
+
+    assert!(interpreter
+        .exec_file("tests/structs/it_calls_methods_correctly/basic_method.croco")
+        .is_ok());
+
+    assert!(interpreter
+        .exec_file("tests/structs/it_calls_methods_correctly/self_method.croco")
+        .is_ok());
+
+    assert!(interpreter
+        .exec_file("tests/structs/it_calls_methods_correctly/self_mut_method.croco")
+        .is_ok());
+}

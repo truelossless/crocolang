@@ -19,14 +19,14 @@ pub use self::break_node::BreakNode;
 mod compare_node;
 pub use self::compare_node::CompareNode;
 
+mod continue_node;
+pub use self::continue_node::ContinueNode;
+
 mod divide_node;
 pub use self::divide_node::DivideNode;
 
 mod dot_field_node;
 pub use self::dot_field_node::DotFieldNode;
-
-mod continue_node;
-pub use self::continue_node::ContinueNode;
 
 mod function_call_node;
 pub use self::function_call_node::FunctionCallNode;

@@ -25,7 +25,9 @@ impl AstNode for UnaryMinusNode {
             symtable,
             &self.code_pos,
         )?));
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(value)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+            value,
+        )))
     }
     fn add_child(&mut self, node: Box<dyn AstNode>) {
         if self.bottom.is_none() {

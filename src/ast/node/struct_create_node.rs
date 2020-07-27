@@ -2,7 +2,7 @@ use crate::ast::{utils::init_default, AstNode, NodeResult};
 use crate::error::CrocoError;
 use crate::symbol::{symbol_eq, Struct, SymTable, SymbolContent};
 use crate::token::CodePos;
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 /// a node holding a struct
 #[derive(Clone)]
@@ -42,22 +42,22 @@ impl AstNode for StructCreateNode {
             .map_err(|e| CrocoError::new(&self.code_pos, e))?
             .clone();
 
-        let struct_decl_len = struct_decl.len();
+        let struct_decl_len = struct_decl.fields.len();
 
         // make sure all fields in struct decl are present
-        for field_decl in struct_decl.into_iter() {
+        for mut field_decl in struct_decl.fields.into_iter() {
             let field_val = match self.fields.get_mut(&field_decl.0) {
                 // this field has not been declared, use its default value
                 None => {
-                    init_default(&mut *field_decl.1.borrow_mut(), symtable, &self.code_pos)?;
-                    field_decl.1.clone()
+                    init_default(&mut field_decl.1, symtable, &self.code_pos)?;
+                    Rc::new(RefCell::new(field_decl.1.clone()))
                 }
 
                 // the field is present, visit it
                 Some(field) => {
                     let field_val = field.visit(symtable)?.into_symbol(&self.code_pos)?;
 
-                    if !symbol_eq(&*field_decl.1.borrow(), &*field_val.borrow()) {
+                    if !symbol_eq(&field_decl.1, &*field_val.borrow()) {
                         return Err(CrocoError::new(
                             &self.code_pos,
                             format!("field {} is not of the right type", field_decl.0),
@@ -83,6 +83,8 @@ impl AstNode for StructCreateNode {
             ));
         }
 
-        Ok(NodeResult::construct_symbol(SymbolContent::Struct(struct_symbol)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Struct(
+            struct_symbol,
+        )))
     }
 }

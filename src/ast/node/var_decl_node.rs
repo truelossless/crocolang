@@ -3,8 +3,8 @@ use crate::error::CrocoError;
 use crate::symbol::{symbol_eq, SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
 
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 /// a node to declare a new variable (declared variable are initialized by default)
 #[derive(Clone)]
@@ -36,11 +36,9 @@ impl VarDeclNode {
 
 impl AstNode for VarDeclNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-
         let value = match &mut self.right {
             // there is a node
             Some(node) => {
-
                 let var_value = node.visit(symtable)?.into_symbol(&self.code_pos)?;
                 let var_value_borrow = var_value.borrow();
 

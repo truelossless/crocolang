@@ -52,8 +52,7 @@ impl AstNode for ArrayIndexNode {
             .into_symbol(&self.code_pos)
             .unwrap();
 
-        let array_borrow = array_ref
-            .borrow_mut();
+        let array_borrow = array_ref.borrow_mut();
 
         let array = match &*array_borrow {
             Array(arr) => arr,

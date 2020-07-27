@@ -60,21 +60,6 @@ println(fib(20) as str)
 6765
 ```
 
-String interpolation and functions
-```croco
-fn fancy_disp(n num) {
-    let fancy = "Your variable equals " + n as str
-    println(fancy + ". that's nice uh ?")
-}
-
-let bruh = (54^2 + 7) / (12.3+24*7) *0.6
-fancy_disp(bruh)
-```
-
-```
-Your variable equals 1.0129104. that's nice uh ?
-```
-
 Function return
 ```croco
 fn divide_by_6(n num) num {
@@ -85,6 +70,15 @@ println(divide_by_6(24) as str)
 ```
 ```
 4
+```
+
+Arrays
+```
+let arr = [[2, 1], [3, 4, 5]]
+println(arr[1][2])
+```
+```
+5
 ```
 
 ### Variable assignment
@@ -100,7 +94,7 @@ println(operator_precedence as str)
 268
 ```
 
-### Builtin functions
+### Built-in functions
 
 NOTE: right now namespaces are broken: use directly the function name without the module name.
 

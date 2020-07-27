@@ -42,7 +42,9 @@ impl AstNode for PlusNode {
                 ))
             }
         };
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(value)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+            value,
+        )))
     }
     fn add_child(&mut self, node: Box<dyn AstNode>) {
         if self.left.is_none() {

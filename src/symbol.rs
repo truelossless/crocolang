@@ -26,18 +26,8 @@ impl fmt::Debug for FunctionKind {
 #[derive(Clone, Debug)]
 pub struct FunctionDecl {
     pub args: Vec<TypedArg>,
-    pub body: FunctionKind,
+    pub body: Option<FunctionKind>,
     pub return_type: SymbolContent,
-}
-
-impl FunctionDecl {
-    pub fn new(args: Vec<TypedArg>, return_type: SymbolContent, body: FunctionKind) -> Self {
-        FunctionDecl {
-            args,
-            return_type,
-            body,
-        }
-    }
 }
 
 /// representation of a built struct
@@ -58,6 +48,18 @@ impl Struct {
             fields: None,
             struct_type,
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct StructDecl {
+    pub fields: HashMap<String, SymbolContent>,
+    pub methods: HashMap<String, FunctionDecl>,
+}
+
+impl fmt::Debug for StructDecl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "StructDecl, fields: {:?}", self.fields)
     }
 }
 
@@ -100,14 +102,15 @@ pub enum SymbolContent {
     // Map(Map),
 
     // a pointer to a function such as let "a = b" where b is a FunctionDecl
-    // Function(FunctionPointer)
+    // Function(FunctionPointer),
 
     // a function, local to this scope (will be useful for struct methods)
-    // FunctionClosure(FunctionDecl)
+    Function(Box<FunctionDecl>),
+
     /// a symbol reference  
     Ref(Symbol),
 
-    // a structure built from a StructDecl such as "let a = b {}"
+    // a structure built from a StructDecl such as "let a = B {}"
     Struct(Struct),
 }
 
@@ -134,6 +137,14 @@ impl SymbolContent {
     }
 
     /// dereferences a symbol
+    pub fn into_function(self) -> Result<Box<FunctionDecl>, String> {
+        match self {
+            SymbolContent::Function(r) => Ok(r),
+            _ => Err("expected a function declaration".to_owned()),
+        }
+    }
+
+    /// dereferences a symbol
     pub fn into_ref(self) -> Result<Symbol, String> {
         match self {
             SymbolContent::Ref(r) => Ok(r),
@@ -152,11 +163,11 @@ impl SymbolContent {
 /// a top-level declaration such as a function declaration or a struct declaration
 #[derive(Clone, Debug)]
 pub enum Decl {
-    // the blueprint of a function such as "fn a {}"
+    // the blueprint of a function such as "fn a { .. }"
     FunctionDecl(FunctionDecl),
 
-    // the blueprint of a struct such as "struct a {}"
-    StructDecl(HashMap<String, Symbol>),
+    // the blueprint of a struct such as "struct A { .. }"
+    StructDecl(StructDecl),
 }
 
 /// compare if two symbols are of the same type
@@ -167,9 +178,7 @@ pub fn symbol_eq(a: &SymbolContent, b: &SymbolContent) -> bool {
         (SymbolContent::Array(a), SymbolContent::Array(b)) => {
             symbol_eq(&*a.array_type, &*b.array_type)
         }
-        (SymbolContent::Ref(a), SymbolContent::Ref(b)) => {
-            symbol_eq(&*a.borrow(), &*b.borrow())
-        }
+        (SymbolContent::Ref(a), SymbolContent::Ref(b)) => symbol_eq(&*a.borrow(), &*b.borrow()),
         _ => false,
     }
 }
@@ -198,6 +207,11 @@ pub fn get_symbol_type(symbol: Symbol) -> SymbolContent {
         SymbolContent::Ref(r) => {
             SymbolContent::Ref(Rc::new(RefCell::new(get_symbol_type(r.clone()))))
         }
+        SymbolContent::Function(func) => SymbolContent::Function(Box::new(FunctionDecl {
+            args: func.args.clone(),
+            body: None,
+            return_type: func.return_type.clone(),
+        })),
     }
 }
 
@@ -249,12 +263,9 @@ impl SymTable {
     }
 
     /// return the desired struct declaration starting from the inner scope
-    pub fn get_struct_decl(
-        &mut self,
-        struct_type: &str,
-    ) -> Result<&mut HashMap<String, Symbol>, String> {
-        match self.top_level.get_mut(struct_type) {
-            Some(Decl::StructDecl(ref mut struct_decl)) => return Ok(struct_decl),
+    pub fn get_struct_decl(&mut self, struct_type: &str) -> Result<&StructDecl, String> {
+        match self.top_level.get(struct_type) {
+            Some(Decl::StructDecl(ref struct_decl)) => return Ok(struct_decl),
             Some(_) => {
                 return Err(format!(
                     "trying to get {} as a struct but it's not",
@@ -308,7 +319,6 @@ impl SymTable {
     pub fn modify_symbol(&mut self, name: &str, symbol: Symbol) -> Result<(), String> {
         for table in self.symbols.iter_mut().rev() {
             if let Some(old_symbol) = table.get_mut(name) {
-                
                 let old_symbol_borrow = &mut *old_symbol.borrow_mut();
                 let new_symbol_borrow = &*symbol.borrow();
 
@@ -373,11 +383,11 @@ impl SymTable {
             });
         }
 
-        let builtin = FunctionDecl::new(
-            typed_args,
-            function.return_type,
-            FunctionKind::Builtin(function.pointer),
-        );
+        let builtin = FunctionDecl {
+            args: typed_args,
+            return_type: function.return_type,
+            body: Some(FunctionKind::Builtin(function.pointer)),
+        };
 
         let namespaced_name =
             Identifier::new(function.name, module_name.to_owned()).get_namespaced_name();

@@ -3,9 +3,9 @@
 Here is the spec of Croco, an interpreted language. The implementation percentage is shown for each point discussed.  
 Croco is designed to be a fun, fast, and easy to use programming language.
 
-## Variables [50%]
+## Variables [70%]
 
-### Primitives [70%]
+### Primitives [90%]
 
 - `num` represents a number (integer or floating point, with positive or negative values).  
 Its default value is `0`.
@@ -73,7 +73,7 @@ assert(false as num == 0)
 assert(true as num == 1)
 ```
 
-### Arrays [30%]
+### Arrays [50%]
 
 Arrays don't have a fixed length.  
 All array elements must be of the same type.  
@@ -81,10 +81,35 @@ You can use the array indexing syntax to get the value of a field.
 
 ```croco
 let arr = [5, 3, 2, 8.8]
+
+// empty array of an array of strings 
+let arr2 [[str]]
+
 println(arr[0])
 ```
+```
+5
+```
 
-### Structs [60%]
+### Maps [0%]
+
+Maps are associative dictionnaries.  
+All map keys and values must be of the same type.  
+You can use the array indexing syntax to get the value of a field.
+
+```croco
+let map = [
+    "hello": 10
+    "goodbye": 100
+]
+
+println(arr["hello"])
+```
+```
+10
+```
+
+### Structs [80%]
 
 Structs must be defined with the `struct` before they are created.  
 There is no anonymous objects.  
@@ -161,7 +186,7 @@ skipping 5
 7
 ```
 
-## Functions [60%]
+## Functions [80%]
 
 Functions are declared with the `fn` keyword. When they return a value the type should be annotated. A value is returned with the `return` keyword. You can exit early a function without any return value with the `return` keyword as well.
 
@@ -183,7 +208,7 @@ greet()
 let books_sold_today = books_sold()
 ```
 
-### Methods [0%]
+### Methods [80%]
 Structs can also have functions.
 ```croco
 struct Character {
@@ -202,7 +227,7 @@ let bobby = Character {
 bobby.hi()
 ```
 
-## Control flow [20%]
+## Control flow [60%]
 
 `if`, `elif` and `else` can be used for conditionnal matching.  
 
@@ -220,8 +245,7 @@ if croco_state == "bad" {
 
 ## Imports [40%]
 
-You can import other files by specifying their path with the `import` keyword.  
-You have to specify the name of the file before using the functions / variables declared there.
+You can import other files by specifying their path with the `import` keyword.
 
 math.croco
 ```croco
@@ -236,31 +260,11 @@ println(pi)
 
 you can also use built-in librairies. In this case, you don't specify a path but a name.  
 When importing built-in librairies, you must use the library name before calling any variable or function.
+NOTE: this is broken right now
 
 ```croco
 import "math"
 println(math.e)
-```
-
-### Conditional imports
-
-imports are resolved at runtime so you can lazily load them.  
-imports can go out of scope, like regular variables.  
-NOTE: This is going to be removed soon as it can lead to bad practices !
-
-```croco
-
-let should_use_ext = true
-
-if should_use_ext {
-    import "./ext"
-    ext.hello()
-}
-
-if true {
-    import "math"
-}
-// you cannot use math here because it went out of scope
 ```
 
 ### Known issues
@@ -338,7 +342,11 @@ test "basic assert" {
 
 ### Running tests
 
-    croco test main.croco
+In your main directory,
+
+```
+croco test
+```
 
 ## Comments
 The only valid comments are started with `//`

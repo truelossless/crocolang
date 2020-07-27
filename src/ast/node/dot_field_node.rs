@@ -1,8 +1,8 @@
 use crate::ast::{AstNode, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
-use crate::token::CodePos;
-/// a node holding a field of a struct
+use crate::symbol::{SymTable, SymbolContent};
+use crate::token::{CodePos, LiteralEnum};
+/// a node to access symbol fields
 #[derive(Clone)]
 pub struct DotFieldNode {
     field_name: String,
@@ -21,7 +21,6 @@ impl DotFieldNode {
 }
 
 impl AstNode for DotFieldNode {
-
     fn add_child(&mut self, node: Box<dyn AstNode>) {
         if self.bottom.is_none() {
             self.bottom = Some(node);
@@ -31,31 +30,65 @@ impl AstNode for DotFieldNode {
     }
 
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        // LETS DO THIS FUNCTONAL STYLE !!! (just to try)
-        // TODO: match so we can clone only the relevant field
-        let field = self
+        let mut symbol = self
             .bottom
             .as_mut()
             .unwrap()
             .visit(symtable)?
-            .into_symbol(&self.code_pos)?
-            .borrow()
-            .clone()
-            .into_struct()
-            .map_err(|_| {
-                CrocoError::new(
-                    &self.code_pos,
-                    "expected a struct before the dot".to_owned(),
-                )
-            })?
-            .fields
-            .as_mut()
-            .unwrap()
-            .remove(&self.field_name)
-            .ok_or_else(|| {
-                CrocoError::new(&self.code_pos, format!("no field with the name {}", self.field_name))
-            })?;
+            .into_symbol(&self.code_pos)?;
 
-        Ok(NodeResult::Symbol(field))
+        // auto deref if we have a Ref
+        loop {
+            let reference;
+
+            if let SymbolContent::Ref(r) = &*symbol.borrow() {
+                reference = r.clone();
+            } else {
+                break;
+            }
+
+            symbol = reference;
+        }
+
+        let value = match &*symbol.borrow() {
+            // access a struct field
+            SymbolContent::Struct(s) => s
+                .fields
+                .as_ref()
+                .unwrap()
+                .get(&self.field_name)
+                .ok_or_else(|| {
+                    CrocoError::new(
+                        &self.code_pos,
+                        format!("no field with the name {}", self.field_name),
+                    )
+                })?
+                .clone(),
+
+            // str fields
+            SymbolContent::Primitive(LiteralEnum::Str(Some(_s))) => {
+                todo!();
+            }
+
+            // num fields
+            SymbolContent::Primitive(LiteralEnum::Num(Some(_n))) => {
+                todo!();
+            }
+
+            // bool fields
+            SymbolContent::Primitive(LiteralEnum::Bool(Some(_b))) => {
+                todo!();
+            }
+
+            // array fields
+            SymbolContent::Array(_arr) => {
+                todo!();
+            }
+
+            // we should never have a reference / empty primitive
+            _ => unreachable!(),
+        };
+
+        Ok(NodeResult::Symbol(value))
     }
 }

@@ -24,12 +24,8 @@ impl AssignmentNode {
 
 impl AstNode for AssignmentNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        
         // get a mutable reference to the variable / field to assign to
-        let var = self
-            .var
-            .visit(symtable)?
-            .into_symbol(&self.code_pos)?;
+        let var = self.var.visit(symtable)?.into_symbol(&self.code_pos)?;
 
         let expr = self.expr.visit(symtable)?.into_symbol(&self.code_pos)?;
         let expr_borrow = expr.borrow();
@@ -37,11 +33,11 @@ impl AstNode for AssignmentNode {
         if !symbol_eq(&*var.borrow(), &*expr_borrow) {
             return Err(CrocoError::new(
                 &self.code_pos,
-                "Cannot change the type of a variable".to_owned()
+                "Cannot change the type of a variable".to_owned(),
             ));
         }
 
-        // clone the contents of the expr 
+        // clone the contents of the expr
         *var.borrow_mut() = expr_borrow.clone();
 
         Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))

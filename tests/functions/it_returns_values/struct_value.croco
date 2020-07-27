@@ -1,0 +1,13 @@
+struct Wow {
+    a str
+    b str
+}
+
+fn a() Wow {
+    return Wow {
+        a: "quite"
+        b: "incredible"
+    }
+}
+
+assert(a().b == "incredible")

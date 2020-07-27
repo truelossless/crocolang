@@ -39,4 +39,9 @@ fn it_returns_values() {
     assert!(interpreter
         .exec_file("tests/functions/it_returns_values/void_value.croco")
         .is_ok());
+
+    // struct value
+    assert!(interpreter
+        .exec_file("tests/functions/it_returns_values/struct_value.croco")
+        .is_ok());
 }

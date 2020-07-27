@@ -1,8 +1,5 @@
-use crate::ast::node::BlockNode;
-use crate::ast::{AstNode, BlockScope, NodeResult};
-
-use crate::parser::TypedArg;
-use crate::symbol::{Decl, FunctionDecl, FunctionKind, SymTable, SymbolContent};
+use crate::ast::{AstNode, NodeResult};
+use crate::symbol::{Decl, FunctionDecl, SymTable, SymbolContent};
 use crate::token::{CodePos, LiteralEnum::*};
 
 use crate::error::CrocoError;
@@ -11,19 +8,15 @@ use crate::error::CrocoError;
 #[derive(Clone)]
 pub struct FunctionDeclNode {
     name: String,
-    return_type: Option<SymbolContent>,
-    args: Option<Vec<TypedArg>>,
-    body: Option<Box<dyn AstNode>>,
+    fn_decl: Option<FunctionDecl>,
     code_pos: CodePos,
 }
 
 impl FunctionDeclNode {
-    pub fn new(name: String, return_type: SymbolContent, args: Vec<TypedArg>, code_pos: CodePos) -> Self {
+    pub fn new(name: String, fn_decl: FunctionDecl, code_pos: CodePos) -> Self {
         FunctionDeclNode {
             name,
-            return_type: Some(return_type),
-            args: Some(args),
-            body: Some(Box::new(BlockNode::new(BlockScope::New))),
+            fn_decl: Some(fn_decl),
             code_pos,
         }
     }
@@ -32,20 +25,11 @@ impl FunctionDeclNode {
 impl AstNode for FunctionDeclNode {
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
         // once the function is declared we can move out its content since this node is not going to be used again
-        let body = std::mem::replace(&mut self.body, None).unwrap();
-        let args = std::mem::replace(&mut self.args, None).unwrap();
-        let name = std::mem::replace(&mut self.name, String::new());
-        let return_type = std::mem::replace(&mut self.return_type, None).unwrap();
-
-        let fn_decl = FunctionDecl::new(args, return_type, FunctionKind::Regular(body));
+        let fn_decl = std::mem::replace(&mut self.fn_decl, None).unwrap();
 
         symtable
-            .register_decl(name, Decl::FunctionDecl(fn_decl))
+            .register_decl(self.name.clone(), Decl::FunctionDecl(fn_decl))
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
         Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
-    }
-
-    fn add_child(&mut self, node: Box<dyn AstNode>) {
-        self.body = Some(node);
     }
 }

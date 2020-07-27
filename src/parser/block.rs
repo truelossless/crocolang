@@ -1,15 +1,13 @@
-use super::{ExprParsingType::*, Parser, TypedArg};
+use super::{ExprParsingType::*, Parser};
 
 use crate::ast::node::*;
 use crate::ast::{AstNode, BlockScope};
 use crate::error::CrocoError;
-use crate::symbol::{Struct, SymbolContent, Symbol};
+use crate::symbol::{FunctionDecl, SymbolContent};
 use crate::token::{
     CodePos, KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
 };
 use std::collections::HashMap;
-use std::rc::Rc;
-use std::cell::RefCell;
 
 impl Parser {
     /// Parses a code block e.g for loop body, function body, etc.
@@ -18,6 +16,7 @@ impl Parser {
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         scope: BlockScope,
+        is_top_level: bool,
     ) -> Result<Box<dyn AstNode>, CrocoError> {
         let mut block = BlockNode::new(scope);
         // loop until we have no token remaining
@@ -41,7 +40,8 @@ impl Parser {
                         "expected a variable name after the let keyword",
                     )?;
 
-                    let mut assign_type: SymbolContent = SymbolContent::Primitive(LiteralEnum::Void);
+                    let mut assign_type: SymbolContent =
+                        SymbolContent::Primitive(LiteralEnum::Void);
 
                     match self.peek_token(iter) {
                         // we're giving a value to our variable with type inference
@@ -51,11 +51,11 @@ impl Parser {
                         }
 
                         // we're giving a type annotation
-                        Keyword(Num) |
-                        Keyword(Str) |
-                        Keyword(Bool) |
-                        Identifier(_) |
-                        Separator(LeftSquareBracket) => {
+                        Keyword(Num)
+                        | Keyword(Str)
+                        | Keyword(Bool)
+                        | Identifier(_)
+                        | Separator(LeftSquareBracket) => {
                             assign_type = self.parse_var_type(iter)?;
                         }
 
@@ -102,11 +102,10 @@ impl Parser {
 
                 // assigning a new value to a variable / struct field, or calling a function
                 Identifier(identifier) => {
-
-                    let lvalue_node = self.parse_identifier(iter, identifier.clone(), DenyStructDeclaration)?;
+                    let lvalue_node =
+                        self.parse_identifier(iter, identifier.clone(), DenyStructDeclaration)?;
 
                     if let Operator(op_token) = self.peek_token(iter) {
-                        
                         self.next_token(iter);
 
                         // assigning to a variable
@@ -135,7 +134,7 @@ impl Parser {
                                         PowerEquals => Box::new(PowerNode::new(self.token_pos.clone())),
                                         _ => unreachable!(),
                                     };
-                                    
+
                                     let var_node = Box::new(VarCopyNode::new(identifier.name, self.token_pos.clone()));
                                     dyn_op_node.add_child(var_node);
                                     dyn_op_node.add_child(expr_node);
@@ -160,6 +159,13 @@ impl Parser {
 
                 // declaring a struct
                 Keyword(Struct) => {
+                    if !is_top_level {
+                        return Err(CrocoError::new(
+                            &self.token_pos,
+                            "structs can only be declared at top level".to_owned(),
+                        ));
+                    }
+
                     let identifier = self.expect_identifier(
                         iter,
                         "expected the struct name after struct declaration",
@@ -171,190 +177,87 @@ impl Parser {
                         "expected a left bracket after the struct name",
                     )?;
 
-                    let mut fields: HashMap<String, Symbol> = HashMap::new();
+                    let mut fields: HashMap<String, SymbolContent> = HashMap::new();
+                    let mut methods: HashMap<String, FunctionDecl> = HashMap::new();
 
                     loop {
                         self.discard_newlines(iter);
 
-                        // TODO: check if this introduces new bugs with namespaces
-                        let field_name = match self.next_token(iter) {
+                        match self.next_token(iter) {
+                            // struct method
+                            Keyword(Function) => {
+                                let (method, method_name) = self.parse_function_decl(iter)?;
+
+                                // check if the method name isn't already a field name
+                                if methods.contains_key(&method_name) {
+                                    return Err(CrocoError::new(
+                                        &self.token_pos,
+                                        format!("method {} is already defined as a field in this struct", method_name),
+                                    ));
+                                }
+
+                                if methods.insert(method_name.clone(), method).is_some() {
+                                    return Err(CrocoError::new(
+                                        &self.token_pos,
+                                        format!("duplicate field {} in struct", method_name),
+                                    ));
+                                }
+                            }
+
+                            // struct field
+                            Identifier(field_name) => {
+                                // check if the field name isn't already a method name
+                                if methods.contains_key(&field_name.name) {
+                                    return Err(CrocoError::new(
+                                        &self.token_pos,
+                                        format!("field {} is already defined as a method in this struct", field_name.name),
+                                    ));
+                                }
+
+                                let field_type = self.parse_var_type(iter)?;
+
+                                if fields.insert(field_name.name.clone(), field_type).is_some() {
+                                    return Err(CrocoError::new(
+                                        &self.token_pos,
+                                        format!("duplicate field {} in struct", field_name.name),
+                                    ));
+                                }
+                            }
+
                             Separator(RightCurlyBracket) => break,
-                            Identifier(identifier) => identifier,
+
                             _ => {
                                 return Err(CrocoError::new(
                                     &self.token_pos,
-                                    "expected a field name".to_owned(),
+                                    "expected a field or a method name".to_owned(),
                                 ))
                             }
-                        };
-
-                        let field_type = match self.next_token(iter) {
-                            Keyword(Num) => SymbolContent::Primitive(LiteralEnum::Num(None)),
-                            Keyword(Str) => SymbolContent::Primitive(LiteralEnum::Str(None)),
-                            Keyword(Bool) => SymbolContent::Primitive(LiteralEnum::Bool(None)),
-                            Identifier(struct_type) => {
-                                SymbolContent::Struct(Struct::new(struct_type.name))
-                            }
-                            _ => {
-                                return Err(CrocoError::new(
-                                    &self.token_pos,
-                                    "expected a field type".to_owned(),
-                                ))
-                            }
-                        };
-
-                        if fields.insert(field_name.name, Rc::new(RefCell::new(field_type))).is_some() {
-                            return Err(CrocoError::new(
-                                &self.token_pos,
-                                "duplicate field in struct".to_owned(),
-                            ));
                         }
                     }
 
                     block.add_child(Box::new(StructDeclNode::new(
                         identifier.name,
                         fields,
+                        methods,
                         self.token_pos.clone(),
                     )));
                 }
 
                 // declaring a function
                 Keyword(Function) => {
-                    let identifier = self.expect_identifier(
-                        iter,
-                        "expected the function name after function declaration",
-                    )?;
-
-                    self.expect_token(
-                        iter,
-                        Separator(LeftParenthesis),
-                        "expected a left parenthensis after the function name",
-                    )?;
-
-                    let mut typed_args: Vec<TypedArg> = Vec::new();
-
-                    let mut first_arg = false;
-
-                    loop {
-                        match self.peek_token(iter) {
-                            Separator(RightParenthesis) => {
-                                self.next_token(iter);
-                                break;
-                            }
-                            Separator(Comma) if first_arg => {
-                                self.next_token(iter);
-                            }
-
-                            Separator(Comma) =>
-                                return Err(CrocoError::new(
-                                    &self.token_pos,
-                                    "no argument before comma".to_owned(),
-                                )),
-
-                            _ if !first_arg => (),
-
-                            _ =>
-                                return Err(CrocoError::new(
-                                    &self.token_pos,
-                                    format!(
-                                    "expected a comma or a right parenthesis in {} function declaration",
-                                    identifier.name),
-                                ))
-                        }
-
-                        first_arg = true;
-
-                        self.discard_newlines(iter);
-
-                        // we're expecting an argument variable name here
-                        let arg_name = self.expect_identifier(
-                            iter,
-                            &format!(
-                                "expected an argument name in {} function declaration",
-                                identifier.name
-                            ),
-                        )?;
-
-                        // here this should be the argument type
-                        let arg_type = match self.next_token(iter) {
-                            Keyword(Num) => SymbolContent::Primitive(LiteralEnum::Num(None)),
-                            Keyword(Str) => SymbolContent::Primitive(LiteralEnum::Str(None)),
-                            Keyword(Bool) => SymbolContent::Primitive(LiteralEnum::Bool(None)),
-                            Identifier(identifier) => SymbolContent::Struct(Struct {
-                                fields: None,
-                                struct_type: identifier.name
-                            }),
-                            _ => {
-                                return Err(CrocoError::new(
-                                    &self.token_pos,
-                                    format!("expected an argument type for {}", arg_name.name),
-                                ))
-                            }
-                        };
-                        typed_args.push(TypedArg{
-                            arg_name: arg_name.name,
-                            arg_type
-                        });
-                    }
-
-                    // Might allow weird parsing: does it matter ?
-                    // fn bla()
-                    // Void
-                    // { ...
-                    self.discard_newlines(iter);
-
-                    // if the return type isn't specified the function is Void
-                    let mut return_type = SymbolContent::Primitive(LiteralEnum::Void);
-
-                    match self.next_token(iter) {
-                        Keyword(Num) => return_type = SymbolContent::Primitive(LiteralEnum::Num(None)),
-                        Keyword(Str) => return_type = SymbolContent::Primitive(LiteralEnum::Str(None)),
-                        Keyword(Bool) => return_type = SymbolContent::Primitive(LiteralEnum::Bool(None)),
-                        Separator(LeftCurlyBracket) => (),
-                        _ => {
-                            return Err(CrocoError::new(
-                                &self.token_pos,
-                                format!(
-                                    "expected left bracket after {} function declaration",
-                                    identifier.name
-                                ),
-                            ))
-                        }
-                    }
-
-                    self.discard_newlines(iter);
-
-                    if !return_type.is_void() {
-                        self.expect_token(
-                            iter,
-                            Separator(LeftCurlyBracket),
-                            &format!(
-                                "expected left bracket after {} function declaration",
-                                identifier.name
-                            ),
-                        )?;
-                    }
-
-                    // we can't declare a function with a dot in its name
-                    if identifier.name.contains('.') {
+                    if !is_top_level {
                         return Err(CrocoError::new(
                             &self.token_pos,
-                            "a function cannot have a dot in its name".to_owned(),
+                            "functions can only be declared at top level".to_owned(),
                         ));
                     }
 
-                    // get the namespaced name of the function
-                    let fn_name = identifier.get_namespaced_name();
+                    let (fn_decl, fn_name) = self.parse_function_decl(iter)?;
 
-                    let mut func_decl = FunctionDeclNode::new(
-                        fn_name,
-                        return_type,
-                        typed_args,
-                        self.token_pos.clone(),
-                    );
-                    func_decl.add_child(self.parse_block(iter, BlockScope::New)?);
+                    let fn_decl_node =
+                        FunctionDeclNode::new(fn_name, fn_decl, self.token_pos.clone());
 
-                    block.add_child(Box::new(func_decl));
+                    block.add_child(Box::new(fn_decl_node));
                 }
 
                 // returning a value
@@ -382,7 +285,7 @@ impl Parser {
                         "expected left bracket after if expression",
                     )?;
 
-                    bodies.push(self.parse_block(iter, BlockScope::New)?);
+                    bodies.push(self.parse_block(iter, BlockScope::New, false)?);
 
                     // handle the elif conditions
                     loop {
@@ -398,7 +301,7 @@ impl Parser {
                                     "expected left bracket after elif expression",
                                 )?;
 
-                                bodies.push(self.parse_block(iter, BlockScope::New)?);
+                                bodies.push(self.parse_block(iter, BlockScope::New, false)?);
                             }
 
                             Keyword(Else) => {
@@ -410,7 +313,7 @@ impl Parser {
                                     "expected left bracket after else expression",
                                 )?;
 
-                                bodies.push(self.parse_block(iter, BlockScope::New)?);
+                                bodies.push(self.parse_block(iter, BlockScope::New, false)?);
 
                                 break;
                             }
@@ -436,7 +339,7 @@ impl Parser {
                         "expected a left bracket after while expression",
                     )?;
 
-                    let body = self.parse_block(iter, BlockScope::New)?;
+                    let body = self.parse_block(iter, BlockScope::New, false)?;
                     block.add_child(Box::new(WhileNode::new(cond, body, self.token_pos.clone())))
                 }
 
@@ -446,8 +349,15 @@ impl Parser {
                 // continue from a loop
                 Keyword(Continue) => block.add_child(Box::new(ContinueNode::new())),
 
-                // dynamically importing a package
+                // importing a package
                 Keyword(Import) => {
+                    if !is_top_level {
+                        return Err(CrocoError::new(
+                            &self.token_pos,
+                            "imports can only be declared at top level".to_owned(),
+                        ));
+                    }
+
                     let import_name =
                         self.expect_str(iter, "expected a str after the import keyword")?;
                     let import_node =

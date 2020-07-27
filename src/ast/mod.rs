@@ -1,21 +1,20 @@
 pub mod node;
 mod utils;
 
-use std::rc::Rc;
-use std::cell::RefCell;
 use dyn_clone::DynClone;
+use std::cell::RefCell;
+use std::rc::Rc;
 
-use crate::symbol::{SymTable, SymbolContent, Symbol};
-use crate::token::CodePos;
 use crate::error::CrocoError;
+use crate::symbol::{SymTable, Symbol, SymbolContent};
+use crate::token::CodePos;
 
 // TODO: remove distinctions between left and right and store all node children in a Vec ?
-/// a trait used to build node trait objects 
+/// a trait used to build node trait objects
 pub trait AstNode: DynClone {
-    
     /// recursively visit the node and its children and returns its value
     fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError>;
-    
+
     /// add a child before the existing children
     fn prepend_child(&mut self, _node: Box<dyn AstNode>) {
         unimplemented!();
@@ -57,17 +56,10 @@ pub enum NodeResult {
 }
 
 impl NodeResult {
-
     /// convenience function to build a Symbol
     pub fn construct_symbol(symbol_content: SymbolContent) -> NodeResult {
-
-        NodeResult::Symbol(
-            Rc::new(RefCell::new(
-                symbol_content
-            ))
-        )
-
-    } 
+        NodeResult::Symbol(Rc::new(RefCell::new(symbol_content)))
+    }
 
     pub fn into_symbol(self, pos: &CodePos) -> Result<Symbol, CrocoError> {
         match self {

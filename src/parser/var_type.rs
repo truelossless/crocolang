@@ -3,8 +3,7 @@ use super::Parser;
 use crate::error::CrocoError;
 use crate::symbol::{Array, Struct, SymbolContent};
 use crate::token::{
-    CodePos, KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token,
-    Token::*,
+    CodePos, KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
 };
 
 use std::cell::RefCell;

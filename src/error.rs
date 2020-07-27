@@ -1,8 +1,8 @@
+use crate::token::CodePos;
+use std::fmt;
+use std::fs::File;
 use std::io::{self, BufRead};
 use unicode_segmentation::UnicodeSegmentation;
-use std::fs::File;
-use std::fmt;
-use crate::token::CodePos;
 
 #[derive(Debug, PartialEq)]
 pub enum CrocoErrorKind {

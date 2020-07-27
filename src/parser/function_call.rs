@@ -52,44 +52,10 @@ impl Parser {
             fn_args.push(self.parse_expr(iter, AllowStructDeclaration)?)
         }
 
-        // match self.peek_token(iter) {
-        //     Separator(RightParenthesis) => {
-        //         self.next_token(iter);
-        //     }
-        //     Separator(Comma) => {
-        //         return Err(CrocoError::new(
-        //             &self.token_pos,
-        //             "don't put a comma before the first argument".to_owned(),
-        //         ));
-        //     }
-        //     _ => fn_args.push(self.parse_expr(iter, AllowStructDeclaration)?),
-        // }
-
-        // // the function may have more arguments
-        // if !fn_args.is_empty() {
-        //     loop {
-        //         match self.peek_token(iter) {
-        //             Separator(Comma) => (),
-        //             Separator(RightParenthesis) => {
-        //                 self.next_token(iter);
-        //                 break;
-        //             }
-        //             _ => {
-        //                 return Err(CrocoError::new(
-        //                     &self.token_pos,
-        //                     format!("unexpected token in {} function call", identifier_name),
-        //                 ));
-        //             }
-        //         }
-
-        //         fn_args.push(self.parse_expr(iter, AllowStructDeclaration)?);
-        //         self.discard_newlines(iter);
-        //     }
-        // }
-
         Ok(Box::new(FunctionCallNode::new(
             identifier_name,
             fn_args,
+            None,
             self.token_pos.clone(),
         )))
     }

@@ -2,11 +2,12 @@ mod array;
 mod block;
 mod expr;
 mod function_call;
+mod function_decl;
 mod identifier;
 mod iter;
 mod node;
-mod var_type;
 mod utils;
+mod var_type;
 
 use crate::ast::*;
 use crate::error::CrocoError;
@@ -50,7 +51,7 @@ impl Parser {
     ) -> Result<Box<dyn AstNode>, CrocoError> {
         // iterator which returns a movable and peekable token iterator
         let mut iter = tokens.into_iter().peekable();
-        let root = self.parse_block(&mut iter, self.scope.clone())?;
+        let root = self.parse_block(&mut iter, self.scope.clone(), true)?;
         Ok(root)
     }
 }

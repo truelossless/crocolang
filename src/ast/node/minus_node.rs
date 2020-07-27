@@ -27,7 +27,9 @@ impl AstNode for MinusNode {
             get_number_value(&mut self.left, symtable, &self.code_pos)?
                 - get_number_value(&mut self.right, symtable, &self.code_pos)?,
         ));
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(value)))
+        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+            value,
+        )))
     }
     fn add_child(&mut self, node: Box<dyn AstNode>) {
         if self.left.is_none() {

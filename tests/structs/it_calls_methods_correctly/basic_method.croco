@@ -1,0 +1,10 @@
+struct A {
+
+    fn hello() str {
+        return "hello"
+    }
+}
+
+let a A
+
+assert(a.hello() == "hello")

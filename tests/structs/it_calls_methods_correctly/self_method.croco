@@ -1,0 +1,14 @@
+struct Hello {
+
+    hello_txt str
+
+    fn hello() str {
+        return self.hello_txt
+    }
+}
+
+let a = Hello {
+    hello_txt: "hello world"
+}
+
+assert(a.hello() == "hello world")

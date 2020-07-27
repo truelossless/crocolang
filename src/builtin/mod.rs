@@ -15,7 +15,7 @@ pub mod math;
 // the os module
 pub mod os;
 
-use crate::symbol::{Struct, SymbolContent, Symbol};
+use crate::symbol::{Struct, Symbol, SymbolContent};
 
 /// callback to a built-in function
 pub type BuiltinCallback = fn(Vec<Symbol>) -> SymbolContent;
@@ -59,15 +59,33 @@ pub fn get_module(name: &str) -> Option<BuiltinModule> {
 
 // utils to easily get args
 pub fn get_arg_str(args: &mut Vec<Symbol>) -> String {
-    args.remove(0).borrow().clone().into_primitive().unwrap().into_str().unwrap()
+    args.remove(0)
+        .borrow()
+        .clone()
+        .into_primitive()
+        .unwrap()
+        .into_str()
+        .unwrap()
 }
 
 pub fn _get_arg_num(args: &mut Vec<Symbol>) -> f32 {
-    args.remove(0).borrow().clone().into_primitive().unwrap().into_num().unwrap()
+    args.remove(0)
+        .borrow()
+        .clone()
+        .into_primitive()
+        .unwrap()
+        .into_num()
+        .unwrap()
 }
 
 pub fn get_arg_bool(args: &mut Vec<Symbol>) -> bool {
-    args.remove(0).borrow().clone().into_primitive().unwrap().into_bool().unwrap()
+    args.remove(0)
+        .borrow()
+        .clone()
+        .into_primitive()
+        .unwrap()
+        .into_bool()
+        .unwrap()
 }
 
 pub fn _get_arg_struct(args: &mut Vec<Symbol>) -> Struct {

@@ -37,14 +37,12 @@ impl AstNode for ArrayCreateNode {
 
         // make sure all elements are of the same type
         for el in visited.iter().skip(1) {
-
             if !symbol_eq(&*el.borrow(), &array_type) {
                 return Err(CrocoError::new(
                     &self.code_pos,
-                    "array elements must be of the same type".to_owned()
+                    "array elements must be of the same type".to_owned(),
                 ));
             }
-
         }
 
         let array = Array {
@@ -52,9 +50,6 @@ impl AstNode for ArrayCreateNode {
             array_type: Box::new(array_type),
         };
 
-
-        Ok(NodeResult::construct_symbol(SymbolContent::Array(
-            array
-        )))
+        Ok(NodeResult::construct_symbol(SymbolContent::Array(array)))
     }
 }
