@@ -123,7 +123,6 @@ impl AstNode for FunctionCallNode {
         }
 
         // ensure that the arguments provided and the arguments in the function call match
-
         if visited_args.len() != fn_decl.args.len() {
             return Err(CrocoError::new(
                 &self.code_pos,

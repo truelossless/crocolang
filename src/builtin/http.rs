@@ -20,17 +20,13 @@ pub fn get_module() -> BuiltinModule {
 fn get(mut args: Vec<Symbol>) -> SymbolContent {
     let url = get_arg_str(&mut args);
 
-    let req = reqwest::blocking::get(&url);
+    let res = ureq::get(&url).call().into_string();
 
     // return an empty string if we have an error
     // TODO: implement errors
-    if req.is_err() {
-        return Primitive(Str(Some(String::new())));
-    }
-    let res = req.unwrap();
-
-    match res.text() {
-        Ok(text) => Primitive(Str(Some(text))),
-        Err(_) => Primitive(Str(Some(String::new()))),
+    if let Ok(text) = res {
+        Primitive(Str(Some(text)))
+    } else {
+        Primitive(Str(Some(String::new())))
     }
 }
