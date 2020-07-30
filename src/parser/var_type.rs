@@ -23,7 +23,7 @@ impl Parser {
             Keyword(Bool) => Ok(SymbolContent::Primitive(LiteralEnum::Bool(None))),
 
             // ref
-            Operator(Ampersand) => Ok(SymbolContent::Ref(Rc::new(RefCell::new(
+            Operator(BitwiseAnd) => Ok(SymbolContent::Ref(Rc::new(RefCell::new(
                 self.parse_var_type(iter)?,
             )))),
 

@@ -92,7 +92,8 @@ pub enum OperatorEnum {
     // binary operators
     Or,
     And,
-    Ampersand, // BitwiseAnd and ref operator
+    AddressOf,
+    BitwiseAnd,
     BitwiseOr,
     Equals,
     NotEquals,

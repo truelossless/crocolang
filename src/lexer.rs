@@ -243,7 +243,7 @@ impl Lexer {
             }
 
             "&" => {
-                let mut ret = Operator(Ampersand);
+                let mut ret = Operator(BitwiseAnd);
 
                 if let Some(x) = iter.peek() {
                     if x == &"&" {

@@ -55,6 +55,7 @@ impl Parser {
                         | Keyword(Str)
                         | Keyword(Bool)
                         | Identifier(_)
+                        | Operator(BitwiseAnd)
                         | Separator(LeftSquareBracket) => {
                             assign_type = self.parse_var_type(iter)?;
                         }
@@ -118,7 +119,7 @@ impl Parser {
                             | DivideEquals
                             | PowerEquals => {
 
-                                let expr_node = self.parse_expr(iter, DenyStructDeclaration)?;
+                                let expr_node = self.parse_expr(iter, AllowStructDeclaration)?;
 
                                 // add to the root function this statement
                                 if op_token == Assign {

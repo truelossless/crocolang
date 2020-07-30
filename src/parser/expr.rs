@@ -40,6 +40,7 @@ impl Parser {
                 Operator(As) => 7,
                 Operator(UnaryMinus) => 8,
                 Operator(Power) => 9,
+                Operator(AddressOf) => 10,
                 _ => unreachable!(),
             }
         };
@@ -115,6 +116,9 @@ impl Parser {
                     match expr_token {
                         Operator(Minus) if is_unary => {
                             expr_token = Operator(UnaryMinus);
+                        }
+                        Operator(BitwiseAnd) if is_unary => {
+                            expr_token = Operator(AddressOf);
                         }
                         Operator(Bang) if !is_unary => {
                             return Err(CrocoError::new(

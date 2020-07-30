@@ -79,5 +79,8 @@ pub use self::var_copy_node::VarCopyNode;
 mod var_call_node;
 pub use self::var_call_node::VarCallNode;
 
+mod ref_node;
+pub use self::ref_node::RefNode;
+
 mod while_node;
 pub use self::while_node::WhileNode;

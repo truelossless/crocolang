@@ -131,7 +131,29 @@ println(char.name)
 println(char.is_alive) // will default to false
 ```
 
+### References [50%]
 
+References point to another object.  
+When calling a struct field or method, dereferencing is automatically performed.  
+Else, you can dereference a reference using the * operator. NOTE: not yet implemented  
+You can't declare dangling references.
+
+
+```croco
+let txt = "lorem ipsum"
+
+// let ref &str 
+// ref = &txt
+// this won't work
+
+let ref = &txt
+*ref = "lorum ipsem"
+
+println(txt)
+```
+```
+lorum ipsem
+```
 
 ## Lööps [20%]
 
@@ -385,3 +407,4 @@ Higher value means higher priority.
 |`as`             |7         |
 |`- (unary)`      |8         |
 |`^`              |9         |
+|`&` (address of) |10        |
