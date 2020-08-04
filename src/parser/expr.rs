@@ -40,7 +40,6 @@ impl Parser {
                 Operator(As) => 7,
                 Operator(UnaryMinus) => 8,
                 Operator(Power) => 9,
-                Operator(AddressOf) => 10,
                 _ => unreachable!(),
             }
         };
@@ -72,15 +71,12 @@ impl Parser {
         let mut is_unary = true;
 
         loop {
+            let mut expr_token = self.peek_token(iter);
             // make sure that this token belongs to the expression
             // println!("{:?}", self.peek_token(iter));
-            match self.peek_token(iter) {
+            match expr_token {
                 // the right parenthesis is the end of a function
-                Separator(RightParenthesis) => {
-                    if parenthesis_opened == 0 {
-                        break;
-                    }
-                }
+                Separator(RightParenthesis) if parenthesis_opened == 0 => break,
 
                 // end of an expr
                 Separator(NewLine)
@@ -91,34 +87,37 @@ impl Parser {
                 _ => (),
             }
 
-            // now that we know that the token is right, we can consume it
-            let mut expr_token = self.next_token(iter);
-
-            let is_next_token_unary = match expr_token {
+            let mut is_next_token_unary = match expr_token {
                 Operator(_) | Separator(LeftParenthesis) => true,
                 _ => false,
             };
 
             match expr_token {
-                Identifier(identifier) => {
-                    output.push(self.parse_identifier(iter, identifier, parse_type)?);
+                Identifier(_) => {
+                    output.push(self.parse_identifier(iter, parse_type)?.0);
                 }
+
+                Operator(BitwiseAnd) | Operator(Multiplicate) if is_unary => {
+                    output.push(self.parse_identifier(iter, parse_type)?.0);
+                    is_next_token_unary = false;
+                }
+
                 Literal(_) | Keyword(Num) | Keyword(Str) | Keyword(Bool) => {
+                    self.next_token(iter);
                     output.push(self.get_node(expr_token)?)
                 }
 
                 Separator(LeftSquareBracket) => {
+                    self.next_token(iter);
                     output.push(self.parse_array(iter)?);
                 }
                 Operator(_) => {
+                    self.next_token(iter);
                     // if we have an unary operator flag it accordingly
                     // https://github.com/MacTee/Shunting-Yard-Algorithm/blob/master/ShuntingYard/InfixToPostfixConverter.cs
                     match expr_token {
                         Operator(Minus) if is_unary => {
                             expr_token = Operator(UnaryMinus);
-                        }
-                        Operator(BitwiseAnd) if is_unary => {
-                            expr_token = Operator(AddressOf);
                         }
                         Operator(Bang) if !is_unary => {
                             return Err(CrocoError::new(
@@ -162,10 +161,12 @@ impl Parser {
                     stack.push(expr_token);
                 }
                 Separator(LeftParenthesis) => {
+                    self.next_token(iter);
                     stack.push(expr_token);
                     parenthesis_opened += 1;
                 }
                 Separator(RightParenthesis) => {
+                    self.next_token(iter);
                     parenthesis_opened -= 1;
 
                     while let Some(top) = stack.last() {

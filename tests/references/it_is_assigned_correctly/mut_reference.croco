@@ -1,0 +1,6 @@
+let hello = "hello"
+let ref = &hello
+*ref = "hmmm"
+
+
+assert(hello == "hmmm")

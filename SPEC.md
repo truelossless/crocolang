@@ -396,15 +396,16 @@ bool unreadableStringGivingJavaVietnamFlashbacks = false
 ### Operator precedence
 Higher value means higher priority.
 
-|operator         |precedence|
-|-----------------|----------|
-|`\|\|`           |1         |
-|`&&`             |2         |
-|`==` `!=`        |3         |
-|`>` `>=` `<` `<=`|4         |
-|`+` `-`          |5         |
-|`*` `/`          |6         |
-|`as`             |7         |
-|`- (unary)`      |8         |
-|`^`              |9         |
-|`&` (address of) |10        |
+|operator             |precedence|
+|---------------------|----------|
+|`\|\|`               |1         |
+|`&&`                 |2         |
+|`==` `!=`            |3         |
+|`>` `>=` `<` `<=`    |4         |
+|`+` `-`              |5         |
+|`*` `/`              |6         |
+|`as`                 |7         |
+|`-`(unary)           |8         |
+|`^`                  |9         |
+|`&` (ref) `*` (deref)|10        |
+|`.` `[]`             |11        |

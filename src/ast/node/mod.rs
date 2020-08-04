@@ -22,6 +22,9 @@ pub use self::compare_node::CompareNode;
 mod continue_node;
 pub use self::continue_node::ContinueNode;
 
+mod deref_node;
+pub use self::deref_node::DerefNode;
+
 mod divide_node;
 pub use self::divide_node::DivideNode;
 

@@ -33,7 +33,7 @@ impl AstNode for AssignmentNode {
         if !symbol_eq(&*var.borrow(), &*expr_borrow) {
             return Err(CrocoError::new(
                 &self.code_pos,
-                "Cannot change the type of a variable".to_owned(),
+                "cannot change the type of a variable".to_owned(),
             ));
         }
 

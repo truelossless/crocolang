@@ -6,29 +6,61 @@ use crate::ast::node::*;
 use crate::ast::AstNode;
 use crate::error::CrocoError;
 use crate::parser::ExprParsingType::*;
-use crate::token::{CodePos, Identifier, SeparatorEnum::*, Token, Token::*};
+use crate::token::{CodePos, OperatorEnum::*, SeparatorEnum::*, Token, Token::*};
 
 /// Parses an identifier in the right AstNode given the next tokens as the context
 /// e.g tokens like identifier[0].name
 impl Parser {
-    // TODO: differenciate lvalues and rvalues
     pub fn parse_identifier(
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
-        identifier: Identifier,
         parse_type: ExprParsingType,
-    ) -> Result<Box<dyn AstNode>, CrocoError> {
+        // also returns if it's lvalue compatible, with a bool
+    ) -> Result<(Box<dyn AstNode>, bool), CrocoError> {
+        // nodes to chain to
         let mut chain_nodes: Vec<Box<dyn AstNode>> = Vec::new();
+
+        // refs / derefs happens after that
+        let mut chain_ref_nodes: Vec<Box<dyn AstNode>> = Vec::new();
+
+        // wether or not the expression is assignable
+        let mut lvalue_compatible = true;
+
+        // ref / deref as many times as needed
+        loop {
+            match self.peek_token(iter) {
+                // ref
+                Operator(BitwiseAnd) => {
+                    chain_ref_nodes.push(Box::new(RefNode::new(self.token_pos.clone())))
+                }
+
+                // deref
+                Operator(Multiplicate) => {
+                    chain_ref_nodes.push(Box::new(DerefNode::new(self.token_pos.clone())))
+                }
+
+                _ => break,
+            }
+
+            self.next_token(iter);
+        }
+
+        let identifier = self.expect_identifier(
+            iter,
+            "expected an identifier after the dereference operator",
+        )?;
 
         match self.peek_token(iter) {
             // function call
             Separator(LeftParenthesis) => {
+                lvalue_compatible = false;
                 self.next_token(iter);
                 chain_nodes.push(self.parse_function_call(iter, identifier.name)?);
             }
 
             // struct instanciation
             Separator(LeftCurlyBracket) if parse_type == AllowStructDeclaration => {
+                lvalue_compatible = false;
                 self.next_token(iter);
                 self.discard_newlines(iter);
 
@@ -60,11 +92,14 @@ impl Parser {
                     ));
                 }
 
-                return Ok(Box::new(StructCreateNode::new(
-                    identifier.name,
-                    fields,
-                    self.token_pos.clone(),
-                )));
+                return Ok((
+                    Box::new(StructCreateNode::new(
+                        identifier.name,
+                        fields,
+                        self.token_pos.clone(),
+                    )),
+                    lvalue_compatible,
+                ));
             }
 
             // anything else
@@ -88,6 +123,7 @@ impl Parser {
 
                     // check if it's a method
                     if let Separator(LeftParenthesis) = self.peek_token(iter) {
+                        lvalue_compatible = false;
                         self.next_token(iter);
                         chain_nodes.push(self.parse_function_call(iter, field.name.clone())?);
                     } else {
@@ -120,11 +156,11 @@ impl Parser {
         // solve the chain
         let mut out_node = chain_nodes.remove(0);
 
-        for mut node in chain_nodes.into_iter() {
+        for mut node in chain_nodes.into_iter().chain(chain_ref_nodes.into_iter().rev()) {
             node.add_child(out_node);
             out_node = node;
         }
 
-        Ok(out_node)
+        Ok((out_node, lvalue_compatible))
     }
 }

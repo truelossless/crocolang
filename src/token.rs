@@ -92,7 +92,6 @@ pub enum OperatorEnum {
     // binary operators
     Or,
     And,
-    AddressOf,
     BitwiseAnd,
     BitwiseOr,
     Equals,
@@ -112,8 +111,6 @@ pub enum OperatorEnum {
 
     // unary operators
     Bang,
-    // this is never constructed by the lexer but is needed
-    // in the shunting yard algorithm later.
     UnaryMinus,
 }
 

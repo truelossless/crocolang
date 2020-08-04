@@ -18,7 +18,6 @@ use std::rc::Rc;
 pub struct Parser {
     scope: BlockScope,
     token_pos: CodePos,
-    next_token_pos: CodePos,
     current_token: Token,
     next_token: Token,
 }
@@ -33,7 +32,6 @@ impl Parser {
 
         Parser {
             scope: BlockScope::New,
-            next_token_pos: token_pos.clone(),
             token_pos,
             current_token: Token::Discard,
             next_token: Token::Discard,

@@ -21,17 +21,22 @@ impl Parser {
         let mut block = BlockNode::new(scope);
         // loop until we have no token remaining
         loop {
-            let token = self.next_token(iter);
+
+            let token = self.peek_token(iter);
             if let EOF = token {
                 break;
             }
 
             match token {
                 // ending the block
-                Separator(RightCurlyBracket) => break,
+                Separator(RightCurlyBracket) => {
+                    self.next_token(iter);
+                    break;
+                }
 
                 // declaring a new number variable
                 Keyword(Let) => {
+                    self.next_token(iter);
                     let mut out_node: Option<Box<dyn AstNode>> = None;
 
                     // we're expecting a variable name
@@ -102,9 +107,9 @@ impl Parser {
                 }
 
                 // assigning a new value to a variable / struct field, or calling a function
-                Identifier(identifier) => {
-                    let lvalue_node =
-                        self.parse_identifier(iter, identifier.clone(), DenyStructDeclaration)?;
+                Identifier(_) | Operator(Multiplicate) => {
+                    let (lvalue_node, lvalue_compatible) =
+                        self.parse_identifier(iter, AllowStructDeclaration)?;
 
                     if let Operator(op_token) = self.peek_token(iter) {
                         self.next_token(iter);
@@ -118,6 +123,13 @@ impl Parser {
                             | MultiplicateEquals
                             | DivideEquals
                             | PowerEquals => {
+
+                                if !lvalue_compatible {
+                                    return Err(CrocoError::new(
+                                        &self.token_pos,
+                                        "can't assign to this expression".to_owned(),
+                                    ));
+                                }
 
                                 let expr_node = self.parse_expr(iter, AllowStructDeclaration)?;
 
@@ -136,8 +148,7 @@ impl Parser {
                                         _ => unreachable!(),
                                     };
 
-                                    let var_node = Box::new(VarCopyNode::new(identifier.name, self.token_pos.clone()));
-                                    dyn_op_node.add_child(var_node);
+                                    dyn_op_node.add_child(lvalue_node.clone());
                                     dyn_op_node.add_child(expr_node);
 
                                     self.expect_token(iter, Separator(NewLine), "expected a new line after assignation")?;
@@ -149,7 +160,7 @@ impl Parser {
                             _ => {
                                 return Err(CrocoError::new(
                                     &self.token_pos,
-                                    format!("expected an assignation sign or a function call after the identifier {}", identifier.name)
+                                    "expected an assignation sign or a function call after the identifier".to_owned()
                                 ))
                             }
                         }
@@ -160,6 +171,8 @@ impl Parser {
 
                 // declaring a struct
                 Keyword(Struct) => {
+                    self.next_token(iter);
+
                     if !is_top_level {
                         return Err(CrocoError::new(
                             &self.token_pos,
@@ -246,6 +259,8 @@ impl Parser {
 
                 // declaring a function
                 Keyword(Function) => {
+                    self.next_token(iter);
+
                     if !is_top_level {
                         return Err(CrocoError::new(
                             &self.token_pos,
@@ -263,6 +278,8 @@ impl Parser {
 
                 // returning a value
                 Keyword(Return) => {
+                    self.next_token(iter);
+
                     let return_node = self.parse_expr(iter, AllowStructDeclaration)?;
                     // TODO: correct CodePos
                     block.add_child(Box::new(ReturnNode::new(
@@ -273,6 +290,8 @@ impl Parser {
 
                 // if block
                 Keyword(If) => {
+                    self.next_token(iter);
+
                     // we can have multiple conditions in an if  elif construct, we use an array to keep track of all of them
                     let mut conditions: Vec<Box<dyn AstNode>> = Vec::new();
                     // same for the statements inside the if / elif / else
@@ -332,6 +351,8 @@ impl Parser {
 
                 // while loop
                 Keyword(While) => {
+                    self.next_token(iter);
+
                     let cond = self.parse_expr(iter, DenyStructDeclaration)?;
 
                     self.expect_token(
@@ -345,13 +366,20 @@ impl Parser {
                 }
 
                 // break from a loop
-                Keyword(Break) => block.add_child(Box::new(BreakNode::new())),
-
+                Keyword(Break) => {
+                    self.next_token(iter);
+                    block.add_child(Box::new(BreakNode::new()))
+                }
                 // continue from a loop
-                Keyword(Continue) => block.add_child(Box::new(ContinueNode::new())),
-
+                Keyword(Continue) => {
+                    self.next_token(iter);
+                    block.add_child(Box::new(ContinueNode::new()));
+                }
                 // importing a package
                 Keyword(Import) => {
+
+                    self.next_token(iter);
+
                     if !is_top_level {
                         return Err(CrocoError::new(
                             &self.token_pos,
@@ -366,7 +394,9 @@ impl Parser {
                     block.add_child(import_node);
                 }
 
-                Separator(NewLine) => continue,
+                Separator(NewLine) => {
+                    self.next_token(iter);
+                },
                 // TODO: impl line numbers / rows
                 el => {
                     return Err(CrocoError::new(

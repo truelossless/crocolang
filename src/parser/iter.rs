@@ -23,7 +23,6 @@ impl Parser {
         // we have peeked the field so we can reuse the old values
         } else {
             self.current_token = std::mem::replace(&mut self.next_token, Token::Discard);
-            self.token_pos = self.next_token_pos.clone();
         }
 
         self.next_token = Token::Discard;
@@ -40,7 +39,7 @@ impl Parser {
             match iter.next() {
                 Some((peek, code_pos)) => {
                     self.next_token = peek;
-                    self.next_token_pos = code_pos;
+                    self.token_pos = code_pos;
                 }
                 None => {
                     self.next_token = Token::EOF;

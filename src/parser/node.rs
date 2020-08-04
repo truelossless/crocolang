@@ -39,7 +39,6 @@ impl Parser {
             ))),
             Operator(Plus) => Ok(Box::new(PlusNode::new(code_pos))),
             Operator(Minus) => Ok(Box::new(MinusNode::new(code_pos))),
-            Operator(AddressOf) => Ok(Box::new(RefNode::new(code_pos))),
             Operator(UnaryMinus) => Ok(Box::new(UnaryMinusNode::new(code_pos))),
             Operator(Multiplicate) => Ok(Box::new(MultiplicateNode::new(code_pos))),
             Operator(Divide) => Ok(Box::new(DivideNode::new(code_pos))),
