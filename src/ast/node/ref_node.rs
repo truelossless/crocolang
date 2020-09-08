@@ -1,7 +1,7 @@
-use crate::ast::{AstNode, AstNodeType, NodeResult};
+use crate::ast::{AstNode, AstNodeType, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, SymbolContent};
-use crate::token::CodePos;
+use crate::symbol::SymTable;
+use crate::{crocoi::{ISymbol, symbol::SymbolContent}, token::CodePos};
 
 /// a node creating a reference to a symbol
 #[derive(Clone)]
@@ -20,7 +20,7 @@ impl RefNode {
 }
 
 impl AstNode for RefNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let symbol = self
             .symbol
             .as_mut()
@@ -28,7 +28,7 @@ impl AstNode for RefNode {
             .visit(symtable)?
             .into_symbol(&self.code_pos)?;
 
-        Ok(NodeResult::construct_symbol(SymbolContent::Ref(symbol)))
+        Ok(INodeResult::construct_symbol(SymbolContent::Ref(symbol)))
     }
     fn add_child(&mut self, node: Box<dyn AstNode>) {
         if self.symbol.is_none() {

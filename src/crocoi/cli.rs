@@ -1,4 +1,4 @@
-use croco::interpreter::Interpreter;
+use croco::Crocoi;
 use gumdrop::Options;
 
 #[derive(Options)]
@@ -32,7 +32,7 @@ pub fn main() {
         &opts.input[0]
     };
 
-    let mut croco = Interpreter::new();
+    let mut croco = Crocoi::new();
 
     if let Err(e) = croco.exec_file(file_path) {
         println!("{}", e);

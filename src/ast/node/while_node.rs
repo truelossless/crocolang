@@ -1,7 +1,7 @@
-use crate::ast::{AstNode, NodeResult};
+use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, SymbolContent};
-use crate::token::{CodePos, LiteralEnum::*};
+use crate::symbol::SymTable;
+use crate::{crocoi::{symbol::SymbolContent, ISymbol}, token::{CodePos, LiteralEnum::*}};
 
 /// a node representing a while statement
 #[derive(Clone)]
@@ -33,7 +33,7 @@ impl AstNode for WhileNode {
             unreachable!()
         }
     }
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         loop {
             // loop while the condition is ok
             let cond_symbol = self
@@ -48,17 +48,11 @@ impl AstNode for WhileNode {
                 .clone()
                 .into_primitive()
                 .map_err(|_| {
-                    CrocoError::new(
-                        &self.code_pos,
-                        "expected a boolean for the condition".to_owned(),
-                    )
+                    CrocoError::new(&self.code_pos, "expected a boolean for the condition")
                 })?
                 .into_bool()
                 .map_err(|_| {
-                    CrocoError::new(
-                        &self.code_pos,
-                        "expected a boolean for the condition".to_owned(),
-                    )
+                    CrocoError::new(&self.code_pos, "expected a boolean for the condition")
                 })?;
 
             if !condition {
@@ -68,14 +62,18 @@ impl AstNode for WhileNode {
             let value = self.right.as_mut().unwrap().visit(symtable)?;
             match value {
                 // propagate the early-return
-                NodeResult::Return(_) => return Ok(value),
-                NodeResult::Break => {
-                    return Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
+                INodeResult::Return(_) => return Ok(value),
+                INodeResult::Break => {
+                    return Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
+                        Void,
+                    )))
                 }
-                NodeResult::Symbol(_) | NodeResult::Continue => (),
+                INodeResult::Symbol(_) | INodeResult::Continue => (),
             }
         }
 
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
+        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
+            Void,
+        )))
     }
 }

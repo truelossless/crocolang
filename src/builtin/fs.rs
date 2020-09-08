@@ -1,5 +1,6 @@
 use crate::builtin::*;
-use crate::symbol::{SymbolContent, SymbolContent::*};
+use crate::crocoi::{ISymbol, symbol::{SymbolContent, SymbolContent::*}};
+use crate::symbol_type::SymbolType;
 use crate::token::LiteralEnum::*;
 
 use std::fs;
@@ -10,26 +11,26 @@ pub fn get_module() -> BuiltinModule {
     let functions = vec![
         BuiltinFunction {
             name: "create_dir".to_owned(),
-            args: vec![Primitive(Str(None))],
-            return_type: Primitive(Void),
+            args: vec![SymbolType::Str],
+            return_type: SymbolType::Void,
             pointer: create_dir,
         },
         BuiltinFunction {
             name: "exists".to_owned(),
-            args: vec![Primitive(Str(None))],
-            return_type: Primitive(Bool(None)),
+            args: vec![SymbolType::Str],
+            return_type: SymbolType::Bool,
             pointer: exists,
         },
         BuiltinFunction {
             name: "read_file".to_owned(),
-            args: vec![Primitive(Str(None))],
-            return_type: Primitive(Str(None)),
+            args: vec![SymbolType::Str],
+            return_type: SymbolType::Str,
             pointer: read_file,
         },
         BuiltinFunction {
             name: "write_file".to_owned(),
-            args: vec![Primitive(Str(None)), Primitive(Str(None))],
-            return_type: Primitive(Void),
+            args: vec![SymbolType::Str, SymbolType::Str],
+            return_type: SymbolType::Void,
             pointer: write_file,
         },
     ];
@@ -40,27 +41,27 @@ pub fn get_module() -> BuiltinModule {
 }
 
 /// create a directory at <path>, as well as all the needed parent directories
-fn create_dir(mut args: Vec<Symbol>) -> SymbolContent {
+fn create_dir(mut args: Vec<ISymbol>) -> SymbolContent {
     let path = get_arg_str(&mut args);
     fs::create_dir_all(path).unwrap();
     Primitive(Void)
 }
 
 /// retuns true if <path> exists
-fn exists(mut args: Vec<Symbol>) -> SymbolContent {
+fn exists(mut args: Vec<ISymbol>) -> SymbolContent {
     let path = get_arg_str(&mut args);
-    Primitive(Bool(Some(Path::new(&path).exists())))
+    Primitive(Bool(Path::new(&path).exists()))
 }
 
 /// reads the content of the file at <path>
-fn read_file(mut args: Vec<Symbol>) -> SymbolContent {
+fn read_file(mut args: Vec<ISymbol>) -> SymbolContent {
     let path = get_arg_str(&mut args);
     let contents = fs::read_to_string(path).unwrap_or_default();
-    Primitive(Str(Some(contents)))
+    Primitive(Str(contents))
 }
 
 /// writes to <path> the <content> of a str
-fn write_file(mut args: Vec<Symbol>) -> SymbolContent {
+fn write_file(mut args: Vec<ISymbol>) -> SymbolContent {
     let path = get_arg_str(&mut args);
     let content = get_arg_str(&mut args);
     fs::write(path, content).unwrap();

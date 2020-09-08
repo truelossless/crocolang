@@ -1,7 +1,10 @@
-use crate::ast::{AstNode, AstNodeType, NodeResult};
+use crate::ast::{AstNode, AstNodeType};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, SymbolContent};
-use crate::token::{CodePos, LiteralEnum::*};
+use crate::symbol::SymTable;
+use crate::{
+    symbol_type::SymbolType,
+    token::{CodePos, LiteralEnum::*}, crocoi::{ISymbol, INodeResult, symbol::SymbolContent},
+};
 
 #[derive(Clone)]
 /// a node used to cast primitives
@@ -32,7 +35,7 @@ impl AstNode for AsNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let val = self
             .left
             .as_mut()
@@ -40,79 +43,77 @@ impl AstNode for AsNode {
             .visit(symtable)?
             .into_symbol(&self.code_pos)?;
 
+        // TODO: don't clone and take a ref
         let as_type = self
             .right
             .as_mut()
             .unwrap()
             .visit(symtable)?
-            .into_symbol(&self.code_pos)?;
+            .into_symbol(&self.code_pos)?
+            .borrow()
+            .clone()
+            .into_croco_type()
+            .map_err(|e| CrocoError::new(&self.code_pos, e))?;
 
         // we can only cast primitive together
-        let val_primitive = val.borrow().clone().into_primitive().map_err(|_| {
-            CrocoError::new(
-                &self.code_pos,
-                "can only cast primitives together".to_owned(),
-            )
-        })?;
+        let val_primitive =
+            val.borrow().clone().into_primitive().map_err(|_| {
+                CrocoError::new(&self.code_pos, "can only cast primitives together")
+            })?;
 
-        let as_type_primitive = as_type.borrow().clone().into_primitive().map_err(|_| {
-            CrocoError::new(
-                &self.code_pos,
-                "can only cast primitives together".to_owned(),
-            )
-        })?;
-
-        let casted = match (val_primitive, as_type_primitive) {
+        let casted = match (val_primitive, as_type) {
             // useless cast
-            (Bool(_), Bool(_)) | (Str(_), Str(_)) | (Num(_), Num(_)) => {
-                return Err(CrocoError::new(&self.code_pos, "redundant cast".to_owned()))
+            (Bool(_), SymbolType::Bool) | (Str(_), SymbolType::Str) | (Num(_), SymbolType::Num) => {
+                return Err(CrocoError::new(&self.code_pos, "redundant cast"))
             }
 
-            (Bool(Some(b)), Num(_)) => {
+            (Bool(b), SymbolType::Bool) => {
                 if b {
-                    Num(Some(1.))
+                    Num(1.)
                 } else {
-                    Num(Some(0.))
+                    Num(0.)
                 }
             }
-            (Bool(Some(b)), Str(_)) => {
+            (Bool(b), SymbolType::Str) => {
                 if b {
-                    Str(Some("true".to_owned()))
+                    Str("true".to_owned())
                 } else {
-                    Str(Some("false".to_owned()))
+                    Str("false".to_owned())
                 }
             }
 
-            (Num(Some(n)), Bool(_)) => {
+            (Num(n), SymbolType::Bool) => {
                 if n == 0. {
-                    Bool(Some(false))
+                    Bool(false)
                 } else {
-                    Bool(Some(true))
+                    Bool(true)
                 }
             }
-            (Num(Some(n)), Str(_)) => Str(Some(n.to_string())),
+            (Num(n), SymbolType::Str) => Str(n.to_string()),
 
-            (Str(Some(s)), Num(_)) => {
+            (Str(s), SymbolType::Num) => {
                 let n = s.parse().map_err(|_| {
-                    CrocoError::new(
-                        &self.code_pos,
-                        "could not parse the str into a num".to_owned(),
-                    )
+                    CrocoError::new(&self.code_pos, "could not parse the str into a num")
                 })?;
-                Num(Some(n))
+                Num(n)
             }
-            (Str(Some(s)), Bool(_)) => {
-                if s == "true" {
-                    Bool(Some(true))
+            (Str(s), SymbolType::Bool) => {
+                if !s.is_empty() {
+                    Bool(true)
                 } else {
-                    Bool(Some(false))
+                    Bool(false)
                 }
             }
 
-            _ => unreachable!(),
+            _ => {
+                return Err(CrocoError::new(
+                    &self.code_pos,
+                    "only primitives can be casted together",
+                ))
+            }
         };
 
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
             casted,
         )))
     }

@@ -1,8 +1,7 @@
-use crate::ast::utils::get_value;
-use crate::ast::{AstNode, AstNodeType, NodeResult};
+use crate::ast::{AstNode, AstNodeType, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, SymbolContent};
-use crate::token::{literal_eq, CodePos, LiteralEnum::*, OperatorEnum};
+use crate::symbol::SymTable;
+use crate::{crocoi::{utils::get_value, ISymbol, symbol::SymbolContent}, token::{literal_eq, CodePos, LiteralEnum::*, OperatorEnum}};
 
 #[derive(Clone)]
 /// A node used to compare two values, returns a boolean
@@ -35,14 +34,14 @@ impl AstNode for CompareNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let left_val = get_value(&mut self.left, symtable, &self.code_pos)?;
         let right_val = get_value(&mut self.right, symtable, &self.code_pos)?;
 
         if !literal_eq(&left_val, &right_val) {
             return Err(CrocoError::new(
                 &self.code_pos,
-                "cannot compare different types".to_owned(),
+                "cannot compare different types",
             ));
         }
 
@@ -50,10 +49,7 @@ impl AstNode for CompareNode {
             || self.compare_kind == OperatorEnum::NotEquals)
             && !left_val.is_num()
         {
-            return Err(CrocoError::new(
-                &self.code_pos,
-                "can compare only numbers".to_owned(),
-            ));
+            return Err(CrocoError::new(&self.code_pos, "can compare only numbers"));
         }
 
         let value = match self.compare_kind {
@@ -66,8 +62,8 @@ impl AstNode for CompareNode {
             _ => unreachable!(),
         };
 
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
-            Bool(Some(value)),
+        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
+            Bool(value),
         )))
     }
     fn get_type(&self) -> AstNodeType {

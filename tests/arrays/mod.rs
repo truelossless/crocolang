@@ -1,9 +1,9 @@
 // Array tests
 
-use croco::interpreter::Interpreter;
+use croco::Crocoi;
 #[test]
 fn it_can_be_created() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/arrays/it_can_be_created/basic_creation.croco")
@@ -16,7 +16,7 @@ fn it_can_be_created() {
 
 #[test]
 fn it_does_not_change_type() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/arrays/it_does_not_change_type/num_and_str_err.croco")
@@ -29,7 +29,7 @@ fn it_does_not_change_type() {
 
 #[test]
 fn it_is_indexable() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/arrays/it_is_indexable/basic_index.croco")

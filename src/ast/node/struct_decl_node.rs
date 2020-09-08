@@ -1,14 +1,17 @@
-use crate::ast::{AstNode, NodeResult};
+use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{Decl, FunctionDecl, StructDecl, SymTable, SymbolContent};
-use crate::token::{CodePos, LiteralEnum};
-use std::collections::HashMap;
+use crate::symbol::{Decl, FunctionDecl, StructDecl, SymTable};
+use crate::{
+    symbol_type::SymbolType,
+    token::{CodePos, LiteralEnum}, crocoi::{symbol::SymbolContent, ISymbol},
+};
+use std::collections::{BTreeMap, HashMap};
 
 /// a node that contains the declaration of a struct
 #[derive(Clone)]
 pub struct StructDeclNode {
     name: String,
-    fields: Option<HashMap<String, SymbolContent>>,
+    fields: Option<BTreeMap<String, SymbolType>>,
     methods: Option<HashMap<String, FunctionDecl>>,
     code_pos: CodePos,
 }
@@ -16,7 +19,7 @@ pub struct StructDeclNode {
 impl StructDeclNode {
     pub fn new(
         name: String,
-        fields: HashMap<String, SymbolContent>,
+        fields: BTreeMap<String, SymbolType>,
         methods: HashMap<String, FunctionDecl>,
         code_pos: CodePos,
     ) -> Self {
@@ -30,8 +33,9 @@ impl StructDeclNode {
 }
 
 impl AstNode for StructDeclNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // this node is not going to be called again, we can replace
+
         let struct_decl = StructDecl {
             fields: std::mem::replace(&mut self.fields, None).unwrap(),
             methods: std::mem::replace(&mut self.methods, None).unwrap(),
@@ -39,9 +43,9 @@ impl AstNode for StructDeclNode {
 
         symtable
             .register_decl(self.name.clone(), Decl::StructDecl(struct_decl))
-            .map_err(|e| CrocoError::new(&self.code_pos, e))?;
+            .map_err(|e| CrocoError::new(&self.code_pos, &e))?;
 
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
             LiteralEnum::Void,
         )))
     }

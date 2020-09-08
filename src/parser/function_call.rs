@@ -29,7 +29,7 @@ impl Parser {
                 Separator(Comma) => {
                     return Err(CrocoError::new(
                         &self.token_pos,
-                        "no argument before comma".to_owned(),
+                        "no argument before comma",
                     ))
                 }
 
@@ -38,7 +38,7 @@ impl Parser {
                 _ => {
                     return Err(CrocoError::new(
                         &self.token_pos,
-                        format!(
+                        &format!(
                             "expected a comma or a right parenthesis in {} function call",
                             identifier_name
                         ),

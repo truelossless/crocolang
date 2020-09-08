@@ -3,11 +3,12 @@ use super::{ExprParsingType::*, Parser};
 use crate::ast::node::*;
 use crate::ast::{AstNode, BlockScope};
 use crate::error::CrocoError;
-use crate::symbol::{FunctionDecl, SymbolContent};
-use crate::token::{
-    CodePos, KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
+use crate::symbol::FunctionDecl;
+use crate::{
+    symbol_type::SymbolType,
+    token::{CodePos, KeywordEnum::*, OperatorEnum::*, SeparatorEnum::*, Token, Token::*},
 };
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 impl Parser {
     /// Parses a code block e.g for loop body, function body, etc.
@@ -21,7 +22,6 @@ impl Parser {
         let mut block = BlockNode::new(scope);
         // loop until we have no token remaining
         loop {
-
             let token = self.peek_token(iter);
             if let EOF = token {
                 break;
@@ -45,8 +45,7 @@ impl Parser {
                         "expected a variable name after the let keyword",
                     )?;
 
-                    let mut assign_type: SymbolContent =
-                        SymbolContent::Primitive(LiteralEnum::Void);
+                    let mut assign_type = SymbolType::Void;
 
                     match self.peek_token(iter) {
                         // we're giving a value to our variable with type inference
@@ -70,19 +69,19 @@ impl Parser {
                         Separator(NewLine) | EOF => {
                             return Err(CrocoError::new(
                                 &self.token_pos,
-                                format!("cannot infer the variable type of {}", identifier.name),
+                                &format!("cannot infer the variable type of {}", identifier.name),
                             ))
                         }
                         _ => {
                             return Err(CrocoError::new(
                                 &self.token_pos,
-                                format!("expected an equals sign after {}", identifier.name),
+                                &format!("expected an equals sign after {}", identifier.name),
                             ))
                         }
                     }
 
                     // if we had a type annotation we need to check again for the variable value
-                    if !assign_type.is_void() {
+                    if assign_type.is_void() {
                         match self.next_token(iter) {
                             Operator(Assign) => {
                                 out_node = Some(self.parse_expr(iter, AllowStructDeclaration)?);
@@ -91,7 +90,7 @@ impl Parser {
                             _ => {
                                 return Err(CrocoError::new(
                                     &self.token_pos,
-                                    format!("expected an equals sign after {}", identifier.name),
+                                    &format!("expected an equals sign after {}", identifier.name),
                                 ))
                             }
                         }
@@ -127,7 +126,7 @@ impl Parser {
                                 if !lvalue_compatible {
                                     return Err(CrocoError::new(
                                         &self.token_pos,
-                                        "can't assign to this expression".to_owned(),
+                                        "can't assign to this expression",
                                     ));
                                 }
 
@@ -160,7 +159,7 @@ impl Parser {
                             _ => {
                                 return Err(CrocoError::new(
                                     &self.token_pos,
-                                    "expected an assignation sign or a function call after the identifier".to_owned()
+                                    "expected an assignation sign or a function call after the identifier"
                                 ))
                             }
                         }
@@ -176,7 +175,7 @@ impl Parser {
                     if !is_top_level {
                         return Err(CrocoError::new(
                             &self.token_pos,
-                            "structs can only be declared at top level".to_owned(),
+                            "structs can only be declared at top level",
                         ));
                     }
 
@@ -191,7 +190,7 @@ impl Parser {
                         "expected a left bracket after the struct name",
                     )?;
 
-                    let mut fields: HashMap<String, SymbolContent> = HashMap::new();
+                    let mut fields: BTreeMap<String, SymbolType> = BTreeMap::new();
                     let mut methods: HashMap<String, FunctionDecl> = HashMap::new();
 
                     loop {
@@ -206,14 +205,14 @@ impl Parser {
                                 if methods.contains_key(&method_name) {
                                     return Err(CrocoError::new(
                                         &self.token_pos,
-                                        format!("method {} is already defined as a field in this struct", method_name),
+                                        &format!("method {} is already defined as a field in this struct", method_name),
                                     ));
                                 }
 
                                 if methods.insert(method_name.clone(), method).is_some() {
                                     return Err(CrocoError::new(
                                         &self.token_pos,
-                                        format!("duplicate field {} in struct", method_name),
+                                        &format!("duplicate field {} in struct", method_name),
                                     ));
                                 }
                             }
@@ -224,7 +223,7 @@ impl Parser {
                                 if methods.contains_key(&field_name.name) {
                                     return Err(CrocoError::new(
                                         &self.token_pos,
-                                        format!("field {} is already defined as a method in this struct", field_name.name),
+                                        &format!("field {} is already defined as a method in this struct", field_name.name),
                                     ));
                                 }
 
@@ -233,7 +232,7 @@ impl Parser {
                                 if fields.insert(field_name.name.clone(), field_type).is_some() {
                                     return Err(CrocoError::new(
                                         &self.token_pos,
-                                        format!("duplicate field {} in struct", field_name.name),
+                                        &format!("duplicate field {} in struct", field_name.name),
                                     ));
                                 }
                             }
@@ -243,7 +242,7 @@ impl Parser {
                             _ => {
                                 return Err(CrocoError::new(
                                     &self.token_pos,
-                                    "expected a field or a method name".to_owned(),
+                                    "expected a field or a method name",
                                 ))
                             }
                         }
@@ -264,7 +263,7 @@ impl Parser {
                     if !is_top_level {
                         return Err(CrocoError::new(
                             &self.token_pos,
-                            "functions can only be declared at top level".to_owned(),
+                            "functions can only be declared at top level",
                         ));
                     }
 
@@ -377,13 +376,12 @@ impl Parser {
                 }
                 // importing a package
                 Keyword(Import) => {
-
                     self.next_token(iter);
 
                     if !is_top_level {
                         return Err(CrocoError::new(
                             &self.token_pos,
-                            "imports can only be declared at top level".to_owned(),
+                            "imports can only be declared at top level",
                         ));
                     }
 
@@ -396,12 +394,12 @@ impl Parser {
 
                 Separator(NewLine) => {
                     self.next_token(iter);
-                },
+                }
                 // TODO: impl line numbers / rows
                 el => {
                     return Err(CrocoError::new(
                         &self.token_pos,
-                        format!("unexpected token: {:?}", el),
+                        &format!("unexpected token: {:?}", el),
                     ))
                 }
             }

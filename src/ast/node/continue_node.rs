@@ -1,6 +1,6 @@
-use crate::ast::{AstNode, NodeResult};
+use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
+use crate::{crocoi::ISymbol, symbol::SymTable};
 
 /// a node representing a continue statement
 #[derive(Clone)]
@@ -13,7 +13,7 @@ impl ContinueNode {
 }
 
 impl AstNode for ContinueNode {
-    fn visit(&mut self, _symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        Ok(NodeResult::Continue)
+    fn visit(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+        Ok(INodeResult::Continue)
     }
 }

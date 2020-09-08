@@ -1,10 +1,15 @@
-use crate::ast::{utils::init_default, AstNode, NodeResult};
+use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{symbol_eq, SymTable, SymbolContent};
-use crate::token::{CodePos, LiteralEnum::*};
+use crate::symbol::{get_symbol_type, SymTable};
+use crate::{
+    crocol::{Codegen, LNodeResult, LSymbol, utils::get_llvm_type, self},
+    symbol_type::{type_eq, SymbolType},
+    token::{CodePos, LiteralEnum::*}, crocoi::{utils::init_default, ISymbol, symbol::SymbolContent},
+};
 
+use inkwell::{types::BasicTypeEnum, values::BasicValueEnum};
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::{convert::TryInto, rc::Rc};
 
 /// a node to declare a new variable (declared variable are initialized by default)
 #[derive(Clone)]
@@ -14,7 +19,7 @@ pub struct VarDeclNode {
     // the variable Assignement (None for a default assignment)
     right: Option<Box<dyn AstNode>>,
     // the type of the variable
-    var_type: SymbolContent,
+    var_type: SymbolType,
     code_pos: CodePos,
 }
 
@@ -22,7 +27,7 @@ impl VarDeclNode {
     pub fn new(
         var_name: String,
         expr: Option<Box<dyn AstNode>>,
-        var_type: SymbolContent,
+        var_type: SymbolType,
         code_pos: CodePos,
     ) -> Self {
         VarDeclNode {
@@ -35,7 +40,7 @@ impl VarDeclNode {
 }
 
 impl AstNode for VarDeclNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let value = match &mut self.right {
             // there is a node
             Some(node) => {
@@ -43,10 +48,12 @@ impl AstNode for VarDeclNode {
                 let var_value_borrow = var_value.borrow();
 
                 // type differs from annotation
-                if !self.var_type.is_void() && !symbol_eq(&*var_value_borrow, &self.var_type) {
+                if !self.var_type.is_void()
+                    && !type_eq(&get_symbol_type(&*var_value_borrow), &self.var_type)
+                {
                     return Err(CrocoError::new(
                         &self.code_pos,
-                        format!(
+                        &format!(
                         "variable {} has been explicitely given a type but is declared with another one",
                         &self.left),
                     ));
@@ -56,7 +63,7 @@ impl AstNode for VarDeclNode {
                 if var_value_borrow.is_void() && self.var_type.is_void() {
                     return Err(CrocoError::new(
                         &self.code_pos,
-                        format!("trying to assign a void expression to {}", self.left),
+                        &format!("trying to assign a void expression to {}", self.left),
                     ));
                 }
 
@@ -69,12 +76,15 @@ impl AstNode for VarDeclNode {
                 if self.var_type.is_void() {
                     return Err(CrocoError::new(
                         &self.code_pos,
-                        format!("cannot infer the type of the variable {}", self.left),
+                        &format!("cannot infer the type of the variable {}", self.left),
                     ));
                 }
 
-                init_default(&mut self.var_type, symtable, &self.code_pos)?;
-                Rc::new(RefCell::new(self.var_type.clone()))
+                Rc::new(RefCell::new(init_default(
+                    &mut self.var_type,
+                    symtable,
+                    &self.code_pos,
+                )?))
             }
         };
 
@@ -82,6 +92,51 @@ impl AstNode for VarDeclNode {
             .insert_symbol(&self.left, value)
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
 
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
+        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
+            Void,
+        )))
+    }
+
+    fn crocol<'ctx>(
+        &mut self,
+        codegen: &'ctx mut Codegen<'ctx>,
+    ) -> Result<LNodeResult<'ctx>, CrocoError> {
+        let ty: BasicTypeEnum = get_llvm_type(&self.var_type, codegen).try_into().unwrap();
+        let alloca = codegen.builder.build_alloca(ty, &self.left);
+
+        let symbol = LSymbol {
+            pointer: alloca,
+            symbol_type: self.var_type.clone(),
+        };
+
+        match self.right {
+            Some(node) => {
+                let right_val: BasicValueEnum =
+                    node.crocol(codegen)?.into_symbol().try_into().unwrap();
+                codegen.builder.build_store(alloca, right_val);
+            }
+
+            None => {
+                // the checker should ensure that the type is valid
+                // we can just default assign
+                crocol::utils::init_default(&symbol, codegen);
+            }
+        }
+
+        codegen.symtable.insert_symbol(&self.left, symbol).unwrap();
+
+        Ok(LNodeResult::Void)
+    }
+
+    fn prepend_child(&mut self, _node: Box<dyn AstNode>) {
+        unimplemented!();
+    }
+
+    fn add_child(&mut self, _node: Box<dyn AstNode>) {
+        unimplemented!();
+    }
+
+    fn get_type(&self) -> crate::ast::AstNodeType {
+        unimplemented!();
     }
 }

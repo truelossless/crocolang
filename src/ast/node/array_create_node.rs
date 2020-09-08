@@ -1,7 +1,11 @@
-use crate::ast::{AstNode, NodeResult};
+use crate::ast::{AstNode};
 use crate::error::CrocoError;
-use crate::symbol::{get_symbol_type, symbol_eq, Array, SymTable, SymbolContent};
-use crate::token::{CodePos, LiteralEnum};
+use crate::symbol::{get_symbol_type, SymTable};
+use crate::{
+    symbol_type::{type_eq, SymbolType},
+    token::CodePos, crocoi::{INodeResult, ISymbol},
+};
+use crate::crocoi::symbol::{SymbolContent, Array};
 
 /// a node representing an array symbol
 /// checks at runtime if the type constraint is respected
@@ -18,7 +22,7 @@ impl ArrayCreateNode {
 }
 
 impl AstNode for ArrayCreateNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // visit all array elements
         let mut visited = Vec::new();
 
@@ -29,18 +33,20 @@ impl AstNode for ArrayCreateNode {
         // infer the array type from the first element
         let array_type = if visited.is_empty() {
             // we have no idea of the type since the array is empty
-            SymbolContent::Primitive(LiteralEnum::Void)
+            SymbolType::Void
         } else {
             // the first element can be taken as the array type
-            get_symbol_type(visited[0].clone())
+            get_symbol_type(&*visited[0].borrow())
         };
 
         // make sure all elements are of the same type
         for el in visited.iter().skip(1) {
-            if !symbol_eq(&*el.borrow(), &array_type) {
+            let el_type = get_symbol_type(&*el.borrow());
+
+            if !type_eq(&el_type, &array_type) {
                 return Err(CrocoError::new(
                     &self.code_pos,
-                    "array elements must be of the same type".to_owned(),
+                    "array elements must be of the same type",
                 ));
             }
         }
@@ -50,6 +56,25 @@ impl AstNode for ArrayCreateNode {
             array_type: Box::new(array_type),
         };
 
-        Ok(NodeResult::construct_symbol(SymbolContent::Array(array)))
+        Ok(INodeResult::construct_symbol(SymbolContent::Array(array)))
+    }
+
+    fn crocol<'ctx>(
+        &mut self,
+        codegen: &'ctx mut crate::crocol::Codegen<'ctx>,
+    ) -> Result<crate::crocol::LNodeResult<'ctx>, CrocoError> {
+        unimplemented!();
+    }
+
+    fn prepend_child(&mut self, _node: Box<dyn AstNode>) {
+        unimplemented!();
+    }
+
+    fn add_child(&mut self, _node: Box<dyn AstNode>) {
+        unimplemented!();
+    }
+
+    fn get_type(&self) -> crate::ast::AstNodeType {
+        unimplemented!();
     }
 }

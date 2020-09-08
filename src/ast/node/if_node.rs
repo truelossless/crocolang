@@ -1,7 +1,7 @@
-use crate::ast::{AstNode, NodeResult};
+use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, SymbolContent};
-use crate::token::{CodePos, LiteralEnum::*};
+use crate::symbol::SymTable;
+use crate::{crocoi::{symbol::SymbolContent, ISymbol}, token::{CodePos, LiteralEnum::*}};
 
 /// a node representing an if / elif / else structure
 #[derive(Clone)]
@@ -28,7 +28,7 @@ impl IfNode {
 }
 
 impl AstNode for IfNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         for (condition, body) in self.conditions.iter_mut().zip(self.bodies.iter_mut()) {
             let code_pos = &self.code_pos;
 
@@ -39,23 +39,23 @@ impl AstNode for IfNode {
                 .borrow()
                 .clone()
                 .into_primitive()
-                .map_err(|_| {
-                    CrocoError::new(code_pos, "expected a boolean for the condition".to_owned())
-                })?
+                .map_err(|_| CrocoError::new(code_pos, "expected a boolean for the condition"))?
                 .into_bool()
-                .map_err(|_| {
-                    CrocoError::new(code_pos, "expected a boolean for the condition".to_owned())
-                })?;
+                .map_err(|_| CrocoError::new(code_pos, "expected a boolean for the condition"))?;
 
             // if the condition is fullfilled visit the corresponding body and exit early
             if cond_ok {
                 let value = body.visit(symtable)?;
                 match value {
                     // propagate the early-return
-                    NodeResult::Return(_) | NodeResult::Break | NodeResult::Continue => {
+                    INodeResult::Return(_) | INodeResult::Break | INodeResult::Continue => {
                         return Ok(value)
                     }
-                    _ => return Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void))),
+                    _ => {
+                        return Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
+                            Void,
+                        )))
+                    }
                 }
             }
         }
@@ -65,6 +65,8 @@ impl AstNode for IfNode {
             self.bodies.last_mut().unwrap().visit(symtable)?;
         }
 
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(Void)))
+        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
+            Void,
+        )))
     }
 }

@@ -1,5 +1,5 @@
 use crate::builtin::*;
-use crate::symbol::{Symbol, SymbolContent::*};
+use crate::crocoi::symbol::{ISymbol, SymbolContent::*};
 use crate::token::LiteralEnum::*;
 
 use std::process::Command;
@@ -8,8 +8,8 @@ use std::process::Command;
 pub fn get_module() -> BuiltinModule {
     let functions = vec![BuiltinFunction {
         name: "exec".to_owned(),
-        args: vec![Primitive(Str(None))],
-        return_type: Primitive(Str(None)),
+        args: vec![SymbolType::Str],
+        return_type: SymbolType::Str,
         pointer: exec,
     }];
 
@@ -19,7 +19,7 @@ pub fn get_module() -> BuiltinModule {
 }
 
 /// executes a system command
-fn exec(mut args: Vec<Symbol>) -> SymbolContent {
+fn exec(mut args: Vec<ISymbol>) -> SymbolContent {
     let command_str = get_arg_str(&mut args);
 
     let command = if cfg!(target_os = "windows") {
@@ -34,8 +34,8 @@ fn exec(mut args: Vec<Symbol>) -> SymbolContent {
     // !str is either ok(str) or err
     if let Ok(output) = command {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Primitive(Str(Some(stdout.into_owned())))
+        Primitive(Str(stdout.into_owned()))
     } else {
-        Primitive(Str(Some(String::new())))
+        Primitive(Str(String::new()))
     }
 }

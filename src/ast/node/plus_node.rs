@@ -1,8 +1,7 @@
-use crate::ast::utils::get_value;
-use crate::ast::{AstNode, AstNodeType, NodeResult};
+use crate::ast::{AstNode, AstNodeType, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, SymbolContent};
-use crate::token::{CodePos, LiteralEnum::*};
+use crate::symbol::SymTable;
+use crate::{crocoi::{utils::get_value, ISymbol, symbol::SymbolContent}, token::{CodePos, LiteralEnum::*}};
 
 /// a node used for addition and concatenation
 #[derive(Clone)]
@@ -22,27 +21,25 @@ impl PlusNode {
     }
 }
 
-// TODO: remove implicit cast and introduce as keyword
-// TODO: put all math nodes together ?
 /// node handling additions and concatenations
 impl AstNode for PlusNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let left_val = get_value(&mut self.left, symtable, &self.code_pos)?;
         let right_val = get_value(&mut self.right, symtable, &self.code_pos)?;
 
         // different kinds of additions can happen (concatenation or number addition)
         // the PlusNode also works for concatenation.
         let value = match (left_val, right_val) {
-            (Num(Some(n1)), Num(Some(n2))) => Num(Some(n1 + n2)),
-            (Str(Some(s1)), Str(Some(s2))) => Str(Some(format!("{}{}", s1, s2))),
+            (Num(n1), Num(n2)) => Num(n1 + n2),
+            (Str(s1), Str(s2)) => Str(format!("{}{}", s1, s2)),
             _ => {
                 return Err(CrocoError::new(
                     &self.code_pos,
-                    "cannot add these two types together".to_owned(),
+                    "cannot add these two types together",
                 ))
             }
         };
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
             value,
         )))
     }

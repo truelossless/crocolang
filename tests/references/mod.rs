@@ -1,10 +1,10 @@
 // References tests
 
-use croco::interpreter::Interpreter;
+use croco::Crocoi;
 
 #[test]
 fn it_assigns_correctly() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/references/it_is_assigned_correctly/basic_reference.croco")

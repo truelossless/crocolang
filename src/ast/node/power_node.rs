@@ -1,8 +1,7 @@
-use crate::ast::utils::get_number_value;
-use crate::ast::{AstNode, AstNodeType, NodeResult};
+use crate::ast::{AstNode, AstNodeType, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, SymbolContent};
-use crate::token::{CodePos, LiteralEnum::*};
+use crate::symbol::SymTable;
+use crate::{crocoi::{utils::get_number_value, ISymbol, symbol::SymbolContent}, token::{CodePos, LiteralEnum::*}};
 
 #[derive(Clone)]
 pub struct PowerNode {
@@ -32,15 +31,10 @@ impl AstNode for PowerNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        let value = Num(Some(
-            get_number_value(&mut self.left, symtable, &self.code_pos)?.powf(get_number_value(
-                &mut self.right,
-                symtable,
-                &self.code_pos,
-            )?),
-        ));
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+        let value = Num(get_number_value(&mut self.left, symtable, &self.code_pos)?
+            .powf(get_number_value(&mut self.right, symtable, &self.code_pos)?));
+        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
             value,
         )))
     }

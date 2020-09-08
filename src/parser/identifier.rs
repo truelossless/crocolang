@@ -88,7 +88,7 @@ impl Parser {
                 if !chain_nodes.is_empty() {
                     return Err(CrocoError::new(
                         &self.token_pos,
-                        "can't chain on struct creation".to_owned(),
+                        "can't chain on struct creation",
                     ));
                 }
 
@@ -156,7 +156,10 @@ impl Parser {
         // solve the chain
         let mut out_node = chain_nodes.remove(0);
 
-        for mut node in chain_nodes.into_iter().chain(chain_ref_nodes.into_iter().rev()) {
+        for mut node in chain_nodes
+            .into_iter()
+            .chain(chain_ref_nodes.into_iter().rev())
+        {
             node.add_child(out_node);
             out_node = node;
         }

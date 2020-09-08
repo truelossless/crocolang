@@ -1,7 +1,11 @@
-use crate::ast::{AstNode, BlockScope, NodeResult};
+use crate::ast::{AstNode, BlockScope};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, SymbolContent};
-use crate::token::LiteralEnum::*;
+use crate::symbol::SymTable;
+use crate::{
+    crocoi::{symbol::SymbolContent, INodeResult, ISymbol},
+    crocol::{Codegen, LNodeResult},
+    token::LiteralEnum::*,
+};
 
 /// node containing multiple instructions
 /// creates a new scope, or not
@@ -37,7 +41,7 @@ impl AstNode for BlockNode {
         self.body.push(node);
     }
 
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // push a new scope if needed
         match self.scope {
             BlockScope::New => symtable.add_scope(),
@@ -45,7 +49,7 @@ impl AstNode for BlockNode {
         }
 
         // early return from the block
-        let mut value = NodeResult::construct_symbol(SymbolContent::Primitive(Void));
+        let mut value = INodeResult::construct_symbol(SymbolContent::Primitive(Void));
         // iterate over all nodes in the body
         for node in &mut self.body
         // .chain(self.prepended.iter_mut())
@@ -55,7 +59,7 @@ impl AstNode for BlockNode {
 
             match value {
                 // propagate the early-returns until something catches it
-                NodeResult::Return(_) | NodeResult::Break | NodeResult::Continue => break,
+                INodeResult::Return(_) | INodeResult::Break | INodeResult::Continue => break,
                 _ => (),
             }
         }
@@ -65,8 +69,8 @@ impl AstNode for BlockNode {
         // self.appended.clear();
 
         // return void if there is no return value
-        if let NodeResult::Symbol(_) = value {
-            value = NodeResult::construct_symbol(SymbolContent::Primitive(Void))
+        if let INodeResult::Symbol(_) = value {
+            value = INodeResult::construct_symbol(SymbolContent::Primitive(Void))
         }
 
         // we're done with this scope, drop it
@@ -76,5 +80,18 @@ impl AstNode for BlockNode {
         }
 
         Ok(value)
+    }
+
+    fn crocol<'ctx>(
+        &mut self,
+        codegen: &'ctx mut Codegen,
+    ) -> Result<LNodeResult<'ctx>, CrocoError> {
+        if let BlockScope::New = self.scope {
+            codegen
+                .context
+                .append_basic_block(codegen.current_fn, "entry");
+        }
+
+        Ok(LNodeResult::Void)
     }
 }

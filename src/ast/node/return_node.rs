@@ -1,7 +1,7 @@
-use crate::ast::{AstNode, NodeResult};
+use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
 use crate::symbol::SymTable;
-use crate::token::CodePos;
+use crate::{crocoi::ISymbol, token::CodePos};
 
 /// A node returning a value from a block
 #[derive(Clone)]
@@ -17,8 +17,8 @@ impl ReturnNode {
 }
 
 impl AstNode for ReturnNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        Ok(NodeResult::Return(
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+        Ok(INodeResult::Return(
             self.bottom.visit(symtable)?.into_symbol(&self.code_pos)?,
         ))
     }

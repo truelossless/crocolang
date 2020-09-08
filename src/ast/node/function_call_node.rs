@@ -1,9 +1,13 @@
 use crate::ast::node::*;
-use crate::ast::{AstNode, NodeResult};
-use crate::symbol::{get_symbol_type, symbol_eq, FunctionKind, SymTable, Symbol, SymbolContent};
+use crate::ast::{AstNode, INodeResult};
+use crate::symbol::{get_symbol_type, FunctionKind, SymTable};
 use crate::token::{CodePos, LiteralEnum};
 
-use crate::error::CrocoError;
+use crate::{
+    crocoi::{self, symbol::SymbolContent, ISymbol},
+    error::CrocoError,
+    symbol_type::type_eq,
+};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -42,7 +46,7 @@ impl AstNode for FunctionCallNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // resolve the function arguments
         let mut visited_args = Vec::new();
         for arg in &mut self.args {
@@ -85,24 +89,24 @@ impl AstNode for FunctionCallNode {
                         .ok_or_else(|| {
                             CrocoError::new(
                                 &self.code_pos,
-                                format!("no method called {}", self.fn_name),
+                                &format!("no method called {}", self.fn_name),
                             )
                         })?
                         .clone()
                 }
 
                 // str methods
-                SymbolContent::Primitive(LiteralEnum::Str(Some(_s))) => {
+                SymbolContent::Primitive(LiteralEnum::Str(_s)) => {
                     todo!();
                 }
 
                 // num methods
-                SymbolContent::Primitive(LiteralEnum::Num(Some(_n))) => {
+                SymbolContent::Primitive(LiteralEnum::Num(_n)) => {
                     todo!();
                 }
 
                 // bool methods
-                SymbolContent::Primitive(LiteralEnum::Bool(Some(_b))) => {
+                SymbolContent::Primitive(LiteralEnum::Bool(_b)) => {
                     todo!();
                 }
 
@@ -126,7 +130,7 @@ impl AstNode for FunctionCallNode {
         if visited_args.len() != fn_decl.args.len() {
             return Err(CrocoError::new(
                 &self.code_pos,
-                format!(
+                &format!(
                 "mismatched number of arguments in function call\n expected {} parameters but got {}",
                 fn_decl.args.len(),
                 visited_args.len()
@@ -135,23 +139,27 @@ impl AstNode for FunctionCallNode {
         }
 
         for (i, arg) in visited_args.iter().enumerate() {
-            if !symbol_eq(&*arg.borrow(), &fn_decl.args[i].arg_type) {
+            if !type_eq(&get_symbol_type(&*arg.borrow()), &fn_decl.args[i].arg_type) {
                 return Err(CrocoError::new(
                     &self.code_pos,
-                    format!("parameter {} doesn't match function definition", i + 1,),
+                    &format!("parameter {} doesn't match function definition", i + 1,),
                 ));
             }
         }
 
-        let return_value: Symbol;
+        let return_value: ISymbol;
 
         match fn_decl.body.unwrap() {
             FunctionKind::Regular(mut block_node) => {
                 // get the block node of the function
 
                 // inject the function arguments
+                // TODO: deep clone
                 for (i, arg) in visited_args.into_iter().enumerate() {
-                    let resolved_literal = Box::new(SymbolNode::new(arg, self.code_pos.clone()));
+                    let resolved_literal = Box::new(crocoi::node::SymbolNode::new(
+                        arg.borrow().clone(),
+                        self.code_pos.clone(),
+                    ));
 
                     block_node.prepend_child(Box::new(VarDeclNode::new(
                         fn_decl.args[i].arg_name.clone(),
@@ -164,31 +172,31 @@ impl AstNode for FunctionCallNode {
                 if let Some(self_symbol) = self_arg {
                     block_node.prepend_child(Box::new(VarDeclNode::new(
                         "self".to_owned(),
-                        Some(Box::new(SymbolNode::new(
-                            self_symbol.clone(),
+                        Some(Box::new(crocoi::node::SymbolNode::new(
+                            self_symbol.borrow().clone(),
                             self.code_pos.clone(),
                         ))),
-                        get_symbol_type(self_symbol),
+                        get_symbol_type(&*self_symbol.borrow()),
                         self.code_pos.clone(),
                     )));
                 }
 
                 return_value = match block_node.visit(symtable)? {
-                    NodeResult::Return(ret) => ret,
-                    NodeResult::Break => {
+                    INodeResult::Return(ret) => ret,
+                    INodeResult::Break => {
                         return Err(CrocoError::new(
                             &self.code_pos,
-                            "cannot exit a function with a break".to_owned(),
+                            "cannot exit a function with a break",
                         ))
                     }
-                    NodeResult::Continue => {
+                    INodeResult::Continue => {
                         return Err(CrocoError::new(
                             &self.code_pos,
-                            "cannot use continue in a function".to_owned(),
+                            "cannot use continue in a function",
                         ))
                     }
                     // this must be void if it's returned by a block node
-                    NodeResult::Symbol(s) => s,
+                    INodeResult::Symbol(s) => s,
                 }
             }
 
@@ -197,13 +205,16 @@ impl AstNode for FunctionCallNode {
             }
         }
 
-        if !symbol_eq(&fn_decl.return_type, &*return_value.borrow()) {
+        if !type_eq(
+            &fn_decl.return_type,
+            &get_symbol_type(&*return_value.borrow()),
+        ) {
             return Err(CrocoError::new(
                 &self.code_pos,
-                "function returned a wrong type".to_owned(),
+                "function returned a wrong type",
             ));
         }
 
-        Ok(NodeResult::Symbol(return_value))
+        Ok(INodeResult::Symbol(return_value))
     }
 }

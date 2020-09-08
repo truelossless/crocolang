@@ -1,3 +1,12 @@
+pub mod symbol;
+use symbol::import_builtin_module;
+
+pub use self::symbol::INodeResult;
+pub use self::symbol::ISymbol;
+
+pub mod node;
+pub mod utils;
+
 use crate::error::{CrocoError, CrocoErrorKind};
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -5,13 +14,13 @@ use crate::symbol::SymTable;
 use crate::token::CodePos;
 use std::{fs, rc::Rc};
 
-pub struct Interpreter {
+pub struct Crocoi {
     file_path: String,
 }
 
-impl Interpreter {
+impl Crocoi {
     pub fn new() -> Self {
-        Interpreter {
+        Crocoi {
             file_path: String::new(),
         }
     }
@@ -24,7 +33,7 @@ impl Interpreter {
                     line: 0,
                     word: 0,
                 },
-                format!("file not found: {}", file_path),
+                &format!("file not found: {}", file_path),
             );
             err.set_kind(CrocoErrorKind::IO);
             err
@@ -60,7 +69,7 @@ impl Interpreter {
 
         // import the builtin library
         let mut symtable = SymTable::new();
-        symtable.import_builtin_module("global");
+        import_builtin_module(&mut symtable, "global");
 
         // println!("symbol tables: {:?}", self.symtable);
         if let Err(mut e) = tree.visit(&mut symtable) {
@@ -74,8 +83,8 @@ impl Interpreter {
     }
 }
 
-impl Default for Interpreter {
+impl Default for Crocoi {
     fn default() -> Self {
-        Interpreter::new()
+        Crocoi::new()
     }
 }

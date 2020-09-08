@@ -9,7 +9,7 @@ impl Parser {
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         token: Token,
-        error_msg: &str,
+        error_msg: &'static str,
     ) -> Result<(), CrocoError> {
         // The EOF token is behaving like a newline in expect
         let mut next_token = self.next_token(iter);
@@ -20,7 +20,7 @@ impl Parser {
         if next_token == token {
             Ok(())
         } else {
-            Err(CrocoError::new(&self.token_pos, error_msg.to_owned()))
+            Err(CrocoError::new(&self.token_pos, error_msg))
         }
     }
 
@@ -28,11 +28,11 @@ impl Parser {
     pub fn expect_identifier(
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
-        error_msg: &str,
+        error_msg: &'static str,
     ) -> Result<Identifier, CrocoError> {
         match self.next_token(iter) {
             Identifier(identifier) => Ok(identifier),
-            _ => Err(CrocoError::new(&self.token_pos, error_msg.to_owned())),
+            _ => Err(CrocoError::new(&self.token_pos, error_msg)),
         }
     }
 
@@ -40,11 +40,11 @@ impl Parser {
     pub fn expect_str(
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
-        error_msg: &str,
+        error_msg: &'static str,
     ) -> Result<String, CrocoError> {
         match self.next_token(iter) {
-            Literal(LiteralEnum::Str(Some(s))) => Ok(s),
-            _ => Err(CrocoError::new(&self.token_pos, error_msg.to_owned())),
+            Literal(LiteralEnum::Str(s)) => Ok(s),
+            _ => Err(CrocoError::new(&self.token_pos, error_msg)),
         }
     }
 

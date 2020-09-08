@@ -19,6 +19,9 @@ pub use self::break_node::BreakNode;
 mod compare_node;
 pub use self::compare_node::CompareNode;
 
+mod constant_node;
+pub use self::constant_node::ConstantNode;
+
 mod continue_node;
 pub use self::continue_node::ContinueNode;
 
@@ -67,8 +70,8 @@ pub use self::struct_create_node::StructCreateNode;
 mod struct_decl_node;
 pub use self::struct_decl_node::StructDeclNode;
 
-mod symbol_node;
-pub use self::symbol_node::SymbolNode;
+mod type_node;
+pub use self::type_node::TypeNode;
 
 mod unary_minus_node;
 pub use self::unary_minus_node::UnaryMinusNode;

@@ -1,7 +1,7 @@
-use crate::ast::{AstNode, NodeResult};
+use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
 use crate::symbol::SymTable;
-use crate::token::CodePos;
+use crate::{crocoi::ISymbol, token::CodePos};
 
 /// a node holding a variable reference
 #[derive(Clone)]
@@ -17,11 +17,11 @@ impl VarCallNode {
 }
 
 impl AstNode for VarCallNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let symbol = symtable
             .get_symbol(&self.name)
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
 
-        Ok(NodeResult::Symbol(symbol))
+        Ok(INodeResult::Symbol(symbol))
     }
 }

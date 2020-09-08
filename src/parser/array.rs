@@ -31,13 +31,13 @@ impl Parser {
                 _ => {
                     return Err(CrocoError::new(
                         &self.token_pos,
-                        "unexpected token in array declaration".to_owned(),
+                        "unexpected token in array declaration",
                     ));
                 }
             }
         }
 
-        // we can't construct directly a SymbolNode for arrays, since their types must be dynamically checked at runtime.
+        // we can't construct directly a ConstantNode for arrays, since their types must be dynamically checked at runtime.
         // e.g disallow ["hi !", a] where a is a number
         // the parser can't know it's invalid
         Ok(Box::new(ArrayCreateNode::new(

@@ -1,7 +1,7 @@
-use crate::ast::{AstNode, NodeResult};
+use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
 use crate::symbol::SymTable;
-use crate::token::CodePos;
+use crate::{crocoi::ISymbol, token::CodePos};
 
 /// a node returning a copy of a variable value
 #[derive(Clone)]
@@ -17,7 +17,7 @@ impl VarCopyNode {
 }
 
 impl AstNode for VarCopyNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // TODO: deep clone: here we're only cloning the base symbol but all attributes still points to the same variable
         let value = symtable
             .get_symbol(&self.name)
@@ -25,6 +25,6 @@ impl AstNode for VarCopyNode {
             .borrow()
             .clone();
 
-        Ok(NodeResult::construct_symbol(value))
+        Ok(INodeResult::construct_symbol(value))
     }
 }

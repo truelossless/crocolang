@@ -1,10 +1,10 @@
 // If tests
 
-use croco::interpreter::Interpreter;
+use croco::Crocoi;
 
 #[test]
 fn it_matches_if_properly() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/conditions/it_matches_if_properly/if.croco")

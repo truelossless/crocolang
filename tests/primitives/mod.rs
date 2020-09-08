@@ -1,10 +1,10 @@
 // Primitive tests
 
-use croco::interpreter::Interpreter;
+use croco::Crocoi;
 
 #[test]
 fn it_assigns_correct_values() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     // num assignment
     assert!(interpreter
@@ -33,7 +33,7 @@ fn it_assigns_correct_values() {
 
 #[test]
 fn it_shadows_correctly() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/primitives/it_shadows_correctly/shadow_err.croco")
@@ -46,7 +46,7 @@ fn it_shadows_correctly() {
 
 #[test]
 fn it_does_not_change_type() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/primitives/it_does_not_change_type/str_to_num_err.croco")
@@ -59,7 +59,7 @@ fn it_does_not_change_type() {
 
 #[test]
 fn it_calculates_correctly() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/primitives/it_calculates_correctly/priority.croco")

@@ -1,9 +1,9 @@
 // Function tests
 
-use croco::interpreter::Interpreter;
+use croco::Crocoi;
 #[test]
 fn it_is_called() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     // function call
     assert!(interpreter
@@ -18,7 +18,7 @@ fn it_is_called() {
 
 #[test]
 fn it_returns_values() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     // num value
     assert!(interpreter

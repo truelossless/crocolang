@@ -65,7 +65,7 @@ impl Lexer {
         // tokenize
         match el {
             // number literal
-            _ if num != None => self.queue.push(Literal(LiteralEnum::Num(num))),
+            _ if num != None => self.queue.push(Literal(LiteralEnum::Num(num.unwrap()))),
 
             // string literal
             "\"" => {
@@ -97,17 +97,17 @@ impl Lexer {
                                 line: self.line_index,
                                 word: self.word_index,
                             },
-                            "unclosed quotes".to_owned(),
+                            "unclosed quotes",
                         ));
                     }
                 }
                 self.queue
-                    .push(Literal(LiteralEnum::Str(Some(words_in_quotes.join("")))));
+                    .push(Literal(LiteralEnum::Str(words_in_quotes.join(""))));
             }
 
             // boolean literal
-            "true" => self.queue.push(Literal(LiteralEnum::Bool(Some(true)))),
-            "false" => self.queue.push(Literal(LiteralEnum::Bool(Some(false)))),
+            "true" => self.queue.push(Literal(LiteralEnum::Bool(true))),
+            "false" => self.queue.push(Literal(LiteralEnum::Bool(false))),
 
             // separators
             "(" => self.queue.push(Separator(LeftParenthesis)),
@@ -301,8 +301,7 @@ impl Lexer {
             "import" => self.queue.push(Keyword(Import)),
 
             // ignore whitespaces
-            " " => (),
-            "\t" => (),
+            _ if el.trim().is_empty() => (),
 
             // identifiers
             _ if char::is_alphabetic(el.chars().next().unwrap()) => {
@@ -327,21 +326,23 @@ impl Lexer {
 
             // error out on other characters
             _ => {
+                dbg!(el.len());
+
                 return Err(CrocoError::new(
                     &CodePos {
                         file: self.file.clone(),
                         line: self.line_index,
                         word: self.word_index,
                     },
-                    format!("unknown character: \"{}\"", el),
-                ))
+                    &format!("unknown character: \"{}\"", el),
+                ));
             }
         };
 
         Ok(true)
     }
 
-    /// returns an array of tokens
+    // returns an array of tokens
     pub fn process(&mut self, code: &str) -> Result<Vec<(Token, CodePos)>, CrocoError> {
         let mut iter = code.split_word_bounds().peekable();
 

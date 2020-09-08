@@ -2,9 +2,9 @@ use std::{cmp::Ordering, rc::Rc};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralEnum {
-    Bool(Option<bool>),
-    Num(Option<f32>),
-    Str(Option<String>),
+    Bool(bool),
+    Num(f32),
+    Str(String),
     Void,
 }
 
@@ -29,22 +29,22 @@ impl LiteralEnum {
 
     pub fn into_bool(self) -> Result<bool, String> {
         match self {
-            LiteralEnum::Bool(Some(b)) => Ok(b),
+            LiteralEnum::Bool(b) => Ok(b),
             _ => Err("expected a boolean".to_owned()),
         }
     }
 
-    pub fn into_str(self) -> Result<String, String> {
+    pub fn into_str(self) -> Result<String, &'static str> {
         match self {
-            LiteralEnum::Str(Some(t)) => Ok(t),
-            _ => Err("expected a string".to_owned()),
+            LiteralEnum::Str(t) => Ok(t),
+            _ => Err("expected a string"),
         }
     }
 
-    pub fn into_num(self) -> Result<f32, String> {
+    pub fn into_num(self) -> Result<f32, &'static str> {
         match self {
-            LiteralEnum::Num(Some(n)) => Ok(n),
-            _ => Err("expected a number".to_owned()),
+            LiteralEnum::Num(n) => Ok(n),
+            _ => Err("expected a number"),
         }
     }
 }

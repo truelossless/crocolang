@@ -6,26 +6,41 @@ use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug, PartialEq)]
 pub enum CrocoErrorKind {
+    // global
     Unknown,
-    IO,      // when a file failed to open
-    Syntax,  // trown by the lexer
-    Parse,   // thrown by the parser
+    IO,     // when a file failed to open
+    Syntax, // thrown by the lexer
+    Parse,  // thrown by the parser
+
+    // crocoi-specific
     Runtime, // thrown by the interpreter
+
+    // crocol-specific
+    CompileTarget, // thrown when no compilation is possible on this target
+    Malloc,        // thown when the OS has no default allocator
 }
 
 /// errors thrown by croco
 pub struct CrocoError {
     kind: CrocoErrorKind,
-    pos: CodePos,
-    message: String,
+    pos: Option<CodePos>,
+    message: &'static str,
 }
 
 impl CrocoError {
-    pub fn new(pos: &CodePos, message: String) -> Self {
+    pub fn new(pos: &CodePos, message: &'static str) -> Self {
         CrocoError {
             kind: CrocoErrorKind::Unknown,
-            pos: pos.clone(),
+            pos: Some(pos.clone()),
             message,
+        }
+    }
+
+    pub fn from_type(message: &'static str, error_type: CrocoErrorKind) -> Self {
+        CrocoError {
+            message,
+            kind: error_type,
+            pos: None,
         }
     }
 
@@ -44,27 +59,30 @@ impl fmt::Display for CrocoError {
             CrocoErrorKind::Parse => "Parse error",
             CrocoErrorKind::Runtime => "Runtime error",
             CrocoErrorKind::IO => "File error",
+            CrocoErrorKind::CompileTarget => "Compile error",
+            CrocoErrorKind::Malloc => "Allocation error",
             CrocoErrorKind::Unknown => unreachable!(),
         };
 
-        // for a file error just print a minimal message
-        // if there is no file path then the code was provided as a string that we haven't anymore
-        if CrocoErrorKind::IO == self.kind || self.pos.file.is_empty() {
-            return write!(f, "\n{}: {}", error_kind, self.message,);
+        // for some errors just print a minimal message
+        if self.pos.is_none() {
+            return write!(f, "\n{}: {}", error_kind, self.message);
         }
 
+        let pos = self.pos.as_ref().unwrap();
+
         // get the line involved
-        let mut lines = io::BufReader::new(File::open(&*self.pos.file).unwrap()).lines();
+        let mut lines = io::BufReader::new(File::open(&*pos.file).unwrap()).lines();
         let mut indicator = String::new();
 
         // we know that the line is present so just unwrap
         // we also have to unwrap the u32 -> usize conversion
-        let mut errored_line = lines.nth(self.pos.line as usize).unwrap().unwrap();
+        let mut errored_line = lines.nth(pos.line as usize).unwrap().unwrap();
         // newline are wrapped at the end of the line in our lexer
         errored_line += "\n";
         let errored_word = errored_line
             .split_word_bound_indices()
-            .nth((self.pos.word) as usize)
+            .nth((pos.word) as usize)
             .unwrap();
 
         let lower_bound = errored_word.0;
@@ -96,8 +114,8 @@ impl fmt::Display for CrocoError {
             indicator,
             error_kind,
             self.message,
-            self.pos.file,
-            self.pos.line + 1,  // lines start at 1
+            pos.file,
+            pos.line + 1,       // lines start at 1
             errored_word.0 + 1  // cols start at 1
         )
     }

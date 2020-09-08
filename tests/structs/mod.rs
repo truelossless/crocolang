@@ -1,10 +1,10 @@
 // Struct tests
 
-use croco::interpreter::Interpreter;
+use croco::Crocoi;
 
 #[test]
 fn it_is_declared_correctly() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/structs/it_is_declared_correctly/declaration.croco")
@@ -17,7 +17,7 @@ fn it_is_declared_correctly() {
 
 #[test]
 fn it_is_instanciated_correctly() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/structs/it_is_instanciated_correctly/instanciation.croco")
@@ -30,7 +30,7 @@ fn it_is_instanciated_correctly() {
 
 #[test]
 fn it_returns_correct_field_values() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/structs/it_returns_correct_field_values/field_value.croco")
@@ -43,7 +43,7 @@ fn it_returns_correct_field_values() {
 
 #[test]
 fn it_sets_correct_field_values() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/structs/it_sets_correct_field_values/set_field_value.croco")
@@ -56,7 +56,7 @@ fn it_sets_correct_field_values() {
 
 #[test]
 fn it_does_not_change_field_type() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/structs/it_does_not_change_field_type/num_to_str_err.croco")
@@ -65,7 +65,7 @@ fn it_does_not_change_field_type() {
 
 #[test]
 fn it_calls_methods_correctly() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Crocoi::new();
 
     assert!(interpreter
         .exec_file("tests/structs/it_calls_methods_correctly/basic_method.croco")

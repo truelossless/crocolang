@@ -1,7 +1,10 @@
-use crate::ast::{AstNode, NodeResult};
+use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, SymbolContent};
-use crate::token::{CodePos, LiteralEnum};
+use crate::symbol::SymTable;
+use crate::{
+    crocoi::{symbol::SymbolContent, ISymbol},
+    token::{CodePos, LiteralEnum},
+};
 /// a node to access symbol fields
 #[derive(Clone)]
 pub struct DotFieldNode {
@@ -29,7 +32,7 @@ impl AstNode for DotFieldNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let mut symbol = self
             .bottom
             .as_mut()
@@ -60,23 +63,23 @@ impl AstNode for DotFieldNode {
                 .ok_or_else(|| {
                     CrocoError::new(
                         &self.code_pos,
-                        format!("no field with the name {}", self.field_name),
+                        &format!("no field with the name {}", self.field_name),
                     )
                 })?
                 .clone(),
 
             // str fields
-            SymbolContent::Primitive(LiteralEnum::Str(Some(_s))) => {
+            SymbolContent::Primitive(LiteralEnum::Str(_s)) => {
                 todo!();
             }
 
             // num fields
-            SymbolContent::Primitive(LiteralEnum::Num(Some(_n))) => {
+            SymbolContent::Primitive(LiteralEnum::Num(_n)) => {
                 todo!();
             }
 
             // bool fields
-            SymbolContent::Primitive(LiteralEnum::Bool(Some(_b))) => {
+            SymbolContent::Primitive(LiteralEnum::Bool(_b)) => {
                 todo!();
             }
 
@@ -89,6 +92,6 @@ impl AstNode for DotFieldNode {
             _ => unreachable!(),
         };
 
-        Ok(NodeResult::Symbol(value))
+        Ok(INodeResult::Symbol(value))
     }
 }

@@ -3,11 +3,10 @@ use super::Parser;
 use crate::ast::node::*;
 use crate::ast::{AstNode, AstNodeType};
 use crate::error::CrocoError;
-use crate::symbol::SymbolContent::*;
-use crate::token::{KeywordEnum::*, LiteralEnum, OperatorEnum::*, Token, Token::*};
-
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::{
+    symbol_type::SymbolType,
+    token::{KeywordEnum::*, OperatorEnum::*, Token, Token::*},
+};
 
 impl Parser {
     /// util to build a node from a token
@@ -21,22 +20,11 @@ impl Parser {
                 identifier.name,
                 self.token_pos.clone(),
             ))),
-            Literal(literal) => Ok(Box::new(SymbolNode::new(
-                Rc::new(RefCell::new(Primitive(literal))),
-                code_pos,
-            ))),
-            Keyword(Num) => Ok(Box::new(SymbolNode::new(
-                Rc::new(RefCell::new(Primitive(LiteralEnum::Num(None)))),
-                code_pos,
-            ))),
-            Keyword(Str) => Ok(Box::new(SymbolNode::new(
-                Rc::new(RefCell::new(Primitive(LiteralEnum::Str(None)))),
-                code_pos,
-            ))),
-            Keyword(Bool) => Ok(Box::new(SymbolNode::new(
-                Rc::new(RefCell::new(Primitive(LiteralEnum::Bool(None)))),
-                code_pos,
-            ))),
+            // since the parser has no idea of the backend, we cannot construct a SymbolNode directly.
+            Literal(literal) => Ok(Box::new(ConstantNode::new(literal, code_pos))),
+            Keyword(Num) => Ok(Box::new(TypeNode::new(SymbolType::Num, code_pos))),
+            Keyword(Str) => Ok(Box::new(TypeNode::new(SymbolType::Str, code_pos))),
+            Keyword(Bool) => Ok(Box::new(TypeNode::new(SymbolType::Bool, code_pos))),
             Operator(Plus) => Ok(Box::new(PlusNode::new(code_pos))),
             Operator(Minus) => Ok(Box::new(MinusNode::new(code_pos))),
             Operator(UnaryMinus) => Ok(Box::new(UnaryMinusNode::new(code_pos))),
@@ -53,7 +41,7 @@ impl Parser {
             Operator(As) => Ok(Box::new(AsNode::new(code_pos))),
             _ => Err(CrocoError::new(
                 &self.token_pos,
-                format!("can't evaluate token in expression: {:?}", token),
+                &format!("can't evaluate token in expression: {:?}", token),
             )),
         }
     }
@@ -69,24 +57,14 @@ impl Parser {
 
         let right = match output.pop() {
             Some(x) => x,
-            None => {
-                return Err(CrocoError::new(
-                    &pos,
-                    "missing element in expression".to_owned(),
-                ))
-            }
+            None => return Err(CrocoError::new(&pos, "missing element in expression")),
         };
 
         // if we have a binary node we must get two elements on the output
         if let AstNodeType::BinaryNode = root_node.get_type() {
             let left = match output.pop() {
                 Some(x) => x,
-                None => {
-                    return Err(CrocoError::new(
-                        &pos,
-                        "missing element in expression".to_owned(),
-                    ))
-                }
+                None => return Err(CrocoError::new(&pos, "missing element in expression")),
             };
 
             root_node.add_child(left);

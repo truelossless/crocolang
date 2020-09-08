@@ -1,8 +1,10 @@
-use crate::ast::utils::get_number_value;
-use crate::ast::{AstNode, AstNodeType, NodeResult};
+use crate::ast::{AstNode, AstNodeType, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{SymTable, SymbolContent};
-use crate::token::{CodePos, LiteralEnum::*};
+use crate::symbol::SymTable;
+use crate::{
+    crocoi::{symbol::SymbolContent, utils::get_number_value, ISymbol},
+    token::{CodePos, LiteralEnum::*},
+};
 #[derive(Clone)]
 pub struct UnaryMinusNode {
     bottom: Option<Box<dyn AstNode>>,
@@ -19,13 +21,13 @@ impl UnaryMinusNode {
 }
 
 impl AstNode for UnaryMinusNode {
-    fn visit(&mut self, symtable: &mut SymTable) -> Result<NodeResult, CrocoError> {
-        let value = Num(Some(-get_number_value(
+    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+        let value = Num(-get_number_value(
             &mut self.bottom,
             symtable,
             &self.code_pos,
-        )?));
-        Ok(NodeResult::construct_symbol(SymbolContent::Primitive(
+        )?);
+        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
             value,
         )))
     }

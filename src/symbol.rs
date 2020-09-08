@@ -1,9 +1,16 @@
-use crate::ast::AstNode;
-use crate::builtin::{get_module, BuiltinCallback, BuiltinFunction, BuiltinVar};
 use crate::parser::TypedArg;
-use crate::token::{literal_eq, Identifier, LiteralEnum};
+use crate::{ast::AstNode, crocoi::ISymbol};
+use crate::{
+    builtin::{get_module, BuiltinCallback, BuiltinFunction},
+    symbol_type::type_eq,
+};
+use crate::{
+    crocoi::symbol::SymbolContent,
+    symbol_type::{FunctionType, SymbolType},
+    token::{Identifier, LiteralEnum},
+};
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::rc::Rc;
 
@@ -27,33 +34,16 @@ impl fmt::Debug for FunctionKind {
 pub struct FunctionDecl {
     pub args: Vec<TypedArg>,
     pub body: Option<FunctionKind>,
-    pub return_type: SymbolContent,
-}
-
-/// representation of a built struct
-#[derive(Clone, Debug)]
-pub struct Struct {
-    // the fields, populated with values
-    // we use an option because in declarations we don't want the overhead of an HashMap allocation
-    pub fields: Option<HashMap<String, Symbol>>,
-
-    // the corresponding type of the struct, as as StructDecl
-    // TODO: consider edge cases where someone could override a struct with a deeper scoped struct of the same name
-    pub struct_type: String,
-}
-
-impl Struct {
-    pub fn new(struct_type: String) -> Self {
-        Struct {
-            fields: None,
-            struct_type,
-        }
-    }
+    pub return_type: SymbolType,
 }
 
 #[derive(Clone)]
 pub struct StructDecl {
-    pub fields: HashMap<String, SymbolContent>,
+    // in crocol struct fields are order dependant.
+    // to guarentee that our map is sorted, use a BTreeMap
+    pub fields: BTreeMap<String, SymbolType>,
+    // TODO: generate global functions instead of this
+    // and desugar struct.call(foo) to struct_call(&struct, foo)
     pub methods: HashMap<String, FunctionDecl>,
 }
 
@@ -63,101 +53,13 @@ impl fmt::Debug for StructDecl {
     }
 }
 
-#[derive(Clone)]
-pub struct Map {
-    pub contents: HashMap<Symbol, Symbol>,
-    pub key_type: Box<SymbolContent>,
-    pub value_type: Box<SymbolContent>,
-}
-
-impl fmt::Debug for Map {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Map<{:?}, {:?}>", self.key_type, self.value_type)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Array {
-    pub contents: Option<Vec<Symbol>>,
-    pub array_type: Box<SymbolContent>,
-}
-
-/// a symbol in the symbol table. It could be either a primitive, a function, a struct ...
-// I've tried multiple times to use references with lifetimes annotations but it's too hard in graph structures
-// I had to annotate all the nodes and structs with lifetimes and it didn't even work :S
-// this is why I'm using Rc as it eases the process a lot.
-// If you have an idea for a more elegant implementation I'm all ears !
-pub type Symbol = Rc<RefCell<SymbolContent>>;
-
-#[derive(Clone, Debug)]
-/// the symbol contents
-pub enum SymbolContent {
-    /// a primitive such as 3 or false
-    Primitive(LiteralEnum),
-
-    /// an array such as [1, 2, 3]
-    Array(Array),
-
-    // a key-value map such as { "hello" => 5, "bonjour" => 4 }
-    // Map(Map),
-
-    // a pointer to a function such as let "a = b" where b is a FunctionDecl
-    // Function(FunctionPointer),
-
-    // a function, local to this scope (will be useful for struct methods)
-    Function(Box<FunctionDecl>),
-
-    /// a symbol reference  
-    Ref(Symbol),
-
-    // a structure built from a StructDecl such as "let a = B {}"
-    Struct(Struct),
-}
-
-impl SymbolContent {
-    pub fn into_primitive(self) -> Result<LiteralEnum, String> {
-        match self {
-            SymbolContent::Primitive(p) => Ok(p),
-            _ => Err("expected a primitive".to_owned()),
-        }
-    }
-
-    pub fn into_struct(self) -> Result<Struct, String> {
-        match self {
-            SymbolContent::Struct(s) => Ok(s),
-            _ => Err("expected a struct".to_owned()),
-        }
-    }
-
-    pub fn into_array(self) -> Result<Array, String> {
-        match self {
-            SymbolContent::Array(a) => Ok(a),
-            _ => Err("expected an array".to_owned()),
-        }
-    }
-
-    /// dereferences a symbol
-    pub fn into_function(self) -> Result<Box<FunctionDecl>, String> {
-        match self {
-            SymbolContent::Function(r) => Ok(r),
-            _ => Err("expected a function declaration".to_owned()),
-        }
-    }
-
-    /// dereferences a symbol
-    pub fn into_ref(self) -> Result<Symbol, String> {
-        match self {
-            SymbolContent::Ref(r) => Ok(r),
-            _ => Err("expected a reference".to_owned()),
-        }
-    }
-
-    pub fn is_void(&self) -> bool {
-        match self {
-            SymbolContent::Primitive(LiteralEnum::Void) => true,
-            _ => false,
-        }
-    }
+/// the abstract trait representing a symbol on any backend.
+// implementations among backends are prefixed with the backend name,
+// such as LSymbol or ISymbol. Tecnhically we could just use namespaces,
+// but it's both easier and shorter like that.
+pub trait Symbol {
+    /// returns the type of a Symbol
+    fn to_type(&self) -> SymbolType;
 }
 
 /// a top-level declaration such as a function declaration or a struct declaration
@@ -170,62 +72,37 @@ pub enum Decl {
     StructDecl(StructDecl),
 }
 
-/// compare if two symbols are of the same type
-pub fn symbol_eq(a: &SymbolContent, b: &SymbolContent) -> bool {
-    match (a, b) {
-        (SymbolContent::Primitive(a), SymbolContent::Primitive(b)) => literal_eq(a, b),
-        (SymbolContent::Struct(a), SymbolContent::Struct(b)) => a.struct_type == b.struct_type,
-        (SymbolContent::Array(a), SymbolContent::Array(b)) => {
-            symbol_eq(&*a.array_type, &*b.array_type)
-        }
-        (SymbolContent::Ref(a), SymbolContent::Ref(b)) => symbol_eq(&*a.borrow(), &*b.borrow()),
-        _ => false,
-    }
-}
-
-// returns the type of a symbol
-pub fn get_symbol_type(symbol: Symbol) -> SymbolContent {
-    match &*symbol.borrow() {
-        SymbolContent::Primitive(LiteralEnum::Bool(_)) => {
-            SymbolContent::Primitive(LiteralEnum::Bool(None))
-        }
-        SymbolContent::Primitive(LiteralEnum::Num(_)) => {
-            SymbolContent::Primitive(LiteralEnum::Num(None))
-        }
-        SymbolContent::Primitive(LiteralEnum::Str(_)) => {
-            SymbolContent::Primitive(LiteralEnum::Str(None))
-        }
-        SymbolContent::Primitive(LiteralEnum::Void) => SymbolContent::Primitive(LiteralEnum::Void),
-        SymbolContent::Array(arr) => SymbolContent::Array(Array {
-            contents: None,
-            array_type: arr.array_type.clone(),
-        }),
-        SymbolContent::Struct(s) => SymbolContent::Struct(Struct {
-            fields: None,
-            struct_type: s.struct_type.clone(),
-        }),
-        SymbolContent::Ref(r) => {
-            SymbolContent::Ref(Rc::new(RefCell::new(get_symbol_type(r.clone()))))
-        }
-        SymbolContent::Function(func) => SymbolContent::Function(Box::new(FunctionDecl {
+/// returns the type of a symbol
+pub fn get_symbol_type(symbol: &SymbolContent) -> SymbolType {
+    match symbol {
+        SymbolContent::Primitive(LiteralEnum::Bool(_)) => SymbolType::Bool,
+        SymbolContent::Primitive(LiteralEnum::Num(_)) => SymbolType::Num,
+        SymbolContent::Primitive(LiteralEnum::Str(_)) => SymbolType::Str,
+        SymbolContent::Primitive(LiteralEnum::Void) => SymbolType::Void,
+        SymbolContent::Array(arr) => SymbolType::Array(arr.array_type),
+        SymbolContent::Struct(s) => SymbolType::Struct(s.struct_type),
+        SymbolContent::Ref(r) => SymbolType::Ref(Box::new(get_symbol_type(&*r.borrow()))),
+        SymbolContent::Function(func) => SymbolType::Function(FunctionType {
             args: func.args.clone(),
-            body: None,
-            return_type: func.return_type.clone(),
-        })),
+            return_type: Box::new(func.return_type.clone()),
+        }),
+        SymbolContent::CrocoType(_) => SymbolType::CrocoType,
     }
 }
 
-/// SymTable represents symbol tables where all the variables are stored.
+/// SymTable represents the symbol tables where all the variables are stored.
 /// The Vec represents the different scopes of variables, introduced by BlockNodes
 /// The Hashmap stores variables by name, and bind them to a value.
 /// Top level contains all struct and function declarations.
+
+/// The SymTable is a generic struct that can accept any Symbol type, coming from any backend.
 #[derive(Clone, Default, Debug)]
-pub struct SymTable {
-    symbols: Vec<HashMap<String, Symbol>>,
+pub struct SymTable<T: Symbol + Clone> {
+    symbols: Vec<HashMap<String, T>>,
     top_level: HashMap<String, Decl>,
 }
 
-impl SymTable {
+impl<T: Symbol + Clone> SymTable<T> {
     pub fn new() -> Self {
         SymTable {
             symbols: vec![HashMap::new()],
@@ -234,7 +111,7 @@ impl SymTable {
     }
 
     /// return the desired symbol starting from the inner scope
-    pub fn get_symbol(&mut self, var_name: &str) -> Result<Symbol, String> {
+    pub fn get_symbol(&mut self, var_name: &str) -> Result<T, &'static str> {
         for table in self.symbols.iter().rev() {
             if let Some(symbol) = table.get(var_name) {
                 return Ok(symbol.clone());
@@ -242,15 +119,15 @@ impl SymTable {
         }
 
         // the variable doesn't exist
-        Err(format!("variable {} has not been declared", var_name))
+        Err(&format!("variable {} has not been declared", var_name))
     }
 
     /// return the desired function declaration starting from the inner scope
-    pub fn get_function_decl(&mut self, fn_name: &str) -> Result<&mut FunctionDecl, String> {
+    pub fn get_function_decl(&mut self, fn_name: &str) -> Result<&mut FunctionDecl, &'static str> {
         match self.top_level.get_mut(fn_name) {
             Some(Decl::FunctionDecl(ref mut function)) => return Ok(function),
             Some(_) => {
-                return Err(format!(
+                return Err(&format!(
                     "trying to get {} as a function but it's not",
                     fn_name
                 ))
@@ -259,15 +136,15 @@ impl SymTable {
         }
 
         // the function doesn't exist
-        Err(format!("function {} has not been declared", fn_name))
+        Err(&format!("function {} has not been declared", fn_name))
     }
 
     /// return the desired struct declaration starting from the inner scope
-    pub fn get_struct_decl(&mut self, struct_type: &str) -> Result<&StructDecl, String> {
+    pub fn get_struct_decl(&mut self, struct_type: &str) -> Result<&StructDecl, &'static str> {
         match self.top_level.get(struct_type) {
             Some(Decl::StructDecl(ref struct_decl)) => return Ok(struct_decl),
             Some(_) => {
-                return Err(format!(
+                return Err(&format!(
                     "trying to get {} as a struct but it's not",
                     struct_type
                 ))
@@ -276,11 +153,11 @@ impl SymTable {
         }
 
         // the function doesn't exist
-        Err(format!("struct {} has not been declared", struct_type))
+        Err(&format!("struct {} has not been declared", struct_type))
     }
 
     /// insert to the closest scope
-    pub fn insert_symbol(&mut self, name: &str, symbol: Symbol) -> Result<(), String> {
+    pub fn insert_symbol(&mut self, name: &str, symbol: T) -> Result<(), &'static str> {
         if self
             .symbols
             .last_mut()
@@ -290,7 +167,7 @@ impl SymTable {
         {
             Ok(())
         } else {
-            Err(format!(
+            Err(&format!(
                 "variable already declared with name {} in this scope",
                 name
             ))
@@ -298,7 +175,7 @@ impl SymTable {
     }
 
     /// insert to the global scope
-    pub fn insert_global_symbol(&mut self, name: String, symbol: Symbol) -> Result<(), String> {
+    pub fn insert_global_symbol(&mut self, name: String, symbol: T) -> Result<(), String> {
         if self
             .symbols
             .first_mut()
@@ -316,14 +193,14 @@ impl SymTable {
     }
 
     /// modify a symbol already present in the symbol table
-    pub fn modify_symbol(&mut self, name: &str, symbol: Symbol) -> Result<(), String> {
+    pub fn modify_symbol(&mut self, name: &str, symbol: T) -> Result<(), String> {
         for table in self.symbols.iter_mut().rev() {
             if let Some(old_symbol) = table.get_mut(name) {
-                let old_symbol_borrow = &mut *old_symbol.borrow_mut();
-                let new_symbol_borrow = &*symbol.borrow();
+                let old_symbol_type = old_symbol.to_type();
+                let new_symbol_type = symbol.to_type();
 
-                if symbol_eq(old_symbol_borrow, new_symbol_borrow) {
-                    *old_symbol_borrow = new_symbol_borrow.clone();
+                if type_eq(&old_symbol_type, &new_symbol_type) {
+                    *old_symbol = symbol;
                     return Ok(());
                 } else {
                     return Err(format!(
@@ -347,29 +224,26 @@ impl SymTable {
         }
     }
 
-    pub fn import_builtin_module(&mut self, name: &str) -> bool {
+    pub fn import_builtin_module(symtable: &mut SymTable<ISymbol>, name: &str) -> bool {
         if let Some(module) = get_module(name) {
             // the global module doesn't have any namespace
             let namespace = if name == "global" { "" } else { name };
 
             for function in module.functions {
-                self.register_builtin_function(function, namespace);
+                symtable.register_builtin_function(function, namespace);
             }
 
             for var in module.vars {
-                self.register_builtin_var(var, namespace);
+                let namespaced_name =
+                    Identifier::new(var.name, name.to_owned()).get_namespaced_name();
+                symtable
+                    .insert_global_symbol(namespaced_name, Rc::new(RefCell::new(var.value)))
+                    .unwrap();
             }
             true
         } else {
             false
         }
-    }
-
-    pub fn register_builtin_var(&mut self, var: BuiltinVar, module_name: &str) {
-        let namespaced_name =
-            Identifier::new(var.name, module_name.to_owned()).get_namespaced_name();
-        self.insert_global_symbol(namespaced_name, Rc::new(RefCell::new(var.value)))
-            .unwrap();
     }
 
     pub fn register_builtin_function(&mut self, function: BuiltinFunction, module_name: &str) {

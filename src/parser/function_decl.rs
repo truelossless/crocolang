@@ -1,8 +1,11 @@
 use super::{Parser, TypedArg};
 use crate::ast::BlockScope;
 use crate::error::CrocoError;
-use crate::symbol::{FunctionDecl, FunctionKind, SymbolContent};
-use crate::token::{CodePos, LiteralEnum, SeparatorEnum::*, Token, Token::*};
+use crate::symbol::{FunctionDecl, FunctionKind};
+use crate::{
+    symbol_type::SymbolType,
+    token::{CodePos, SeparatorEnum::*, Token, Token::*},
+};
 
 impl Parser {
     /// parses a function declation into a FunctionDecl
@@ -37,10 +40,7 @@ impl Parser {
                 }
 
                 Separator(Comma) => {
-                    return Err(CrocoError::new(
-                        &self.token_pos,
-                        "no argument before comma".to_owned(),
-                    ))
+                    return Err(CrocoError::new(&self.token_pos, "no argument before comma"))
                 }
 
                 _ if !first_arg => (),
@@ -48,7 +48,7 @@ impl Parser {
                 _ => {
                     return Err(CrocoError::new(
                         &self.token_pos,
-                        format!(
+                        &format!(
                             "expected a comma or a right parenthesis in {} function declaration",
                             identifier.name
                         ),
@@ -85,7 +85,7 @@ impl Parser {
 
         // if the return type isn't specified the function is Void
         let return_type = if let Separator(LeftCurlyBracket) = self.peek_token(iter) {
-            SymbolContent::Primitive(LiteralEnum::Void)
+            SymbolType::Void
         } else {
             self.parse_var_type(iter)?
         };

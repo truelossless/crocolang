@@ -61,8 +61,8 @@ let failed_cast = "yo !" as num // ERROR !
 assert("-12" as num == -12)
 
 // str to bool
-assert("ahahhldsf" as bool == false)
-assert("true" as bool == true)
+assert("" as bool == false)
+assert("any string" as bool == true)
 
 // bool to str
 assert(false as str == "false")
