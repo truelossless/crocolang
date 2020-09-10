@@ -23,7 +23,7 @@ impl FunctionDeclNode {
 }
 
 impl AstNode for FunctionDeclNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // once the function is declared we can move out its content since this node is not going to be used again
         let fn_decl = std::mem::replace(&mut self.fn_decl, None).unwrap();
 

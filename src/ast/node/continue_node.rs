@@ -13,7 +13,7 @@ impl ContinueNode {
 }
 
 impl AstNode for ContinueNode {
-    fn visit(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         Ok(INodeResult::Continue)
     }
 }

@@ -1,4 +1,4 @@
-use croco::crocol::Crocol;
+use croco::Crocol;
 use gumdrop::Options;
 
 #[derive(Options)]

@@ -32,12 +32,12 @@ impl AstNode for DotFieldNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let mut symbol = self
             .bottom
             .as_mut()
             .unwrap()
-            .visit(symtable)?
+            .crocoi(symtable)?
             .into_symbol(&self.code_pos)?;
 
         // auto deref if we have a Ref
@@ -53,8 +53,12 @@ impl AstNode for DotFieldNode {
             symbol = reference;
         }
 
+        let err = format!("no field with the name {}", 12);
         let value = match &*symbol.borrow() {
             // access a struct field
+
+
+
             SymbolContent::Struct(s) => s
                 .fields
                 .as_ref()
@@ -63,7 +67,8 @@ impl AstNode for DotFieldNode {
                 .ok_or_else(|| {
                     CrocoError::new(
                         &self.code_pos,
-                        &format!("no field with the name {}", self.field_name),
+                        // &format!("no field with the name {}", self.field_name),
+                        &err
                     )
                 })?
                 .clone(),

@@ -22,12 +22,12 @@ impl ArrayCreateNode {
 }
 
 impl AstNode for ArrayCreateNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // visit all array elements
         let mut visited = Vec::new();
 
         for el in &mut self.contents {
-            visited.push(el.visit(symtable)?.into_symbol(&self.code_pos)?);
+            visited.push(el.crocoi(symtable)?.into_symbol(&self.code_pos)?);
         }
 
         // infer the array type from the first element
@@ -57,13 +57,6 @@ impl AstNode for ArrayCreateNode {
         };
 
         Ok(INodeResult::construct_symbol(SymbolContent::Array(array)))
-    }
-
-    fn crocol<'ctx>(
-        &mut self,
-        codegen: &'ctx mut crate::crocol::Codegen<'ctx>,
-    ) -> Result<crate::crocol::LNodeResult<'ctx>, CrocoError> {
-        unimplemented!();
     }
 
     fn prepend_child(&mut self, _node: Box<dyn AstNode>) {

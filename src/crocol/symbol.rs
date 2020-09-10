@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use inkwell::{
     context::Context,
     module::Module,
@@ -14,9 +16,9 @@ pub struct Codegen<'ctx> {
     pub context: &'ctx Context,
     pub module: Module<'ctx>,
     pub builder: Builder<'ctx>,
-    pub symtable: SymTable<LSymbol<'ctx>>,
+    pub symtable: RefCell<SymTable<LSymbol<'ctx>>>,
     pub ptr_size: IntType<'ctx>, // this platform's isize width
-    pub current_fn: FunctionValue<'ctx>,
+    pub current_fn: RefCell<FunctionValue<'ctx>>,
 }
 
 // since PointerValues are just like C's void pointers, we have to keep track of the symbol type.
@@ -27,7 +29,7 @@ pub struct LSymbol<'ctx> {
     pub symbol_type: SymbolType,
 }
 
-impl<'ctx> Symbol for LSymbol<'ctx> {
+impl Symbol for LSymbol<'_> {
 
     fn to_type(&self) -> SymbolType {
         self.symbol_type.clone()

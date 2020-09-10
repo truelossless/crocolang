@@ -17,9 +17,9 @@ impl ReturnNode {
 }
 
 impl AstNode for ReturnNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         Ok(INodeResult::Return(
-            self.bottom.visit(symtable)?.into_symbol(&self.code_pos)?,
+            self.bottom.crocoi(symtable)?.into_symbol(&self.code_pos)?,
         ))
     }
 }

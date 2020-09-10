@@ -7,19 +7,19 @@ use crate::crocol::{Codegen, LNodeResult};
 use crate::error::CrocoError;
 use crate::symbol::SymTable;
 
-// TODO: remove distinctions between left and right and store all node children in a Vec ?
 /// a trait used to build node trait objects
 #[clonable]
 pub trait AstNode: Clone {
     /// recursively visit the node and its children and returns its value
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    // TODO: proper feature separation by moving the crocoi & crocol implementation to their respective folders.
+    fn crocoi(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         unimplemented!();
     }
 
     // we could also return a Box<dyn AnyType>, but enum performance should be better
     fn crocol<'ctx>(
         &mut self,
-        codegen: &'ctx mut Codegen<'ctx>,
+        _codegen: &Codegen<'ctx>,
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
         unimplemented!();
     }

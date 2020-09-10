@@ -21,7 +21,7 @@ impl UnaryMinusNode {
 }
 
 impl AstNode for UnaryMinusNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let value = Num(-get_number_value(
             &mut self.bottom,
             symtable,

@@ -27,7 +27,7 @@ impl ImportNode {
 }
 
 impl AstNode for ImportNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // we have a relative path e.g import "./my_module"
         // look for a file with this name
         if self.name.starts_with('.') {
@@ -59,7 +59,7 @@ impl AstNode for ImportNode {
             // a block node which doesn't introduce a new scope
             parser.set_scope(BlockScope::Keep);
             let mut bottom = parser.process(tokens)?;
-            bottom.visit(symtable)?;
+            bottom.crocoi(symtable)?;
             self.bottom = Some(bottom);
 
             Ok(INodeResult::construct_symbol(SymbolContent::Primitive(

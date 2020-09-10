@@ -32,9 +32,9 @@ impl AstNode for ArrayIndexNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // visit the index node to get the number of the element to access
-        let index_symbol = self.index.visit(symtable)?.into_symbol(&self.code_pos)?;
+        let index_symbol = self.index.crocoi(symtable)?.into_symbol(&self.code_pos)?;
 
         let index = index_symbol
             .borrow()
@@ -49,7 +49,7 @@ impl AstNode for ArrayIndexNode {
             .array
             .as_mut()
             .unwrap()
-            .visit(symtable)?
+            .crocoi(symtable)?
             .into_symbol(&self.code_pos)
             .unwrap();
 

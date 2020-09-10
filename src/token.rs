@@ -27,10 +27,10 @@ impl LiteralEnum {
         }
     }
 
-    pub fn into_bool(self) -> Result<bool, String> {
+    pub fn into_bool(self) -> Result<bool, &'static str> {
         match self {
             LiteralEnum::Bool(b) => Ok(b),
-            _ => Err("expected a boolean".to_owned()),
+            _ => Err("expected a boolean")
         }
     }
 

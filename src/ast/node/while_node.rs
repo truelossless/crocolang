@@ -33,14 +33,14 @@ impl AstNode for WhileNode {
             unreachable!()
         }
     }
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         loop {
             // loop while the condition is ok
             let cond_symbol = self
                 .left
                 .as_mut()
                 .unwrap()
-                .visit(symtable)?
+                .crocoi(symtable)?
                 .into_symbol(&self.code_pos)?;
 
             let condition = cond_symbol
@@ -59,7 +59,7 @@ impl AstNode for WhileNode {
                 break;
             }
 
-            let value = self.right.as_mut().unwrap().visit(symtable)?;
+            let value = self.right.as_mut().unwrap().crocoi(symtable)?;
             match value {
                 // propagate the early-return
                 INodeResult::Return(_) => return Ok(value),

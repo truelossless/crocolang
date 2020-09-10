@@ -28,12 +28,12 @@ impl IfNode {
 }
 
 impl AstNode for IfNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         for (condition, body) in self.conditions.iter_mut().zip(self.bodies.iter_mut()) {
             let code_pos = &self.code_pos;
 
             // check if the boolean condition is fullfilled
-            let cond_symbol = condition.visit(symtable)?.into_symbol(code_pos)?;
+            let cond_symbol = condition.crocoi(symtable)?.into_symbol(code_pos)?;
 
             let cond_ok = cond_symbol
                 .borrow()
@@ -45,7 +45,7 @@ impl AstNode for IfNode {
 
             // if the condition is fullfilled visit the corresponding body and exit early
             if cond_ok {
-                let value = body.visit(symtable)?;
+                let value = body.crocoi(symtable)?;
                 match value {
                     // propagate the early-return
                     INodeResult::Return(_) | INodeResult::Break | INodeResult::Continue => {
@@ -62,7 +62,7 @@ impl AstNode for IfNode {
 
         // if the length doesn't match this means that the last body is an else body
         if self.conditions.len() != self.bodies.len() {
-            self.bodies.last_mut().unwrap().visit(symtable)?;
+            self.bodies.last_mut().unwrap().crocoi(symtable)?;
         }
 
         Ok(INodeResult::construct_symbol(SymbolContent::Primitive(

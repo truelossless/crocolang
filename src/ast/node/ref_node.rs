@@ -20,12 +20,12 @@ impl RefNode {
 }
 
 impl AstNode for RefNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let symbol = self
             .symbol
             .as_mut()
             .unwrap()
-            .visit(symtable)?
+            .crocoi(symtable)?
             .into_symbol(&self.code_pos)?;
 
         Ok(INodeResult::construct_symbol(SymbolContent::Ref(symbol)))

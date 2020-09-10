@@ -13,7 +13,7 @@ impl BreakNode {
 }
 
 impl AstNode for BreakNode {
-    fn visit(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         Ok(INodeResult::Break)
     }
 }

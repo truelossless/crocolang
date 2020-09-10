@@ -33,7 +33,7 @@ impl StructDeclNode {
 }
 
 impl AstNode for StructDeclNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // this node is not going to be called again, we can replace
 
         let struct_decl = StructDecl {

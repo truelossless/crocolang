@@ -34,7 +34,7 @@ impl AstNode for CompareNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let left_val = get_value(&mut self.left, symtable, &self.code_pos)?;
         let right_val = get_value(&mut self.right, symtable, &self.code_pos)?;
 

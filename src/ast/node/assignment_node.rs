@@ -26,11 +26,11 @@ impl AssignmentNode {
 }
 
 impl AstNode for AssignmentNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // get a mutable reference to the variable / field to assign to
-        let var = self.var.visit(symtable)?.into_symbol(&self.code_pos)?;
+        let var = self.var.crocoi(symtable)?.into_symbol(&self.code_pos)?;
 
-        let expr = self.expr.visit(symtable)?.into_symbol(&self.code_pos)?;
+        let expr = self.expr.crocoi(symtable)?.into_symbol(&self.code_pos)?;
         let expr_borrow = &*expr.borrow();
 
         if !type_eq(

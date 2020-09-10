@@ -72,7 +72,7 @@ impl Crocoi {
         import_builtin_module(&mut symtable, "global");
 
         // println!("symbol tables: {:?}", self.symtable);
-        if let Err(mut e) = tree.visit(&mut symtable) {
+        if let Err(mut e) = tree.crocoi(&mut symtable) {
             e.set_kind(CrocoErrorKind::Runtime);
             return Err(e);
         }

@@ -17,7 +17,7 @@ impl VarCopyNode {
 }
 
 impl AstNode for VarCopyNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // TODO: deep clone: here we're only cloning the base symbol but all attributes still points to the same variable
         let value = symtable
             .get_symbol(&self.name)

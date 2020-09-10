@@ -28,12 +28,12 @@ impl AstNode for NotNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let bool_symbol = self
             .bottom
             .as_mut()
             .unwrap()
-            .visit(symtable)?
+            .crocoi(symtable)?
             .into_symbol(&self.code_pos)?;
 
         let condition = bool_symbol

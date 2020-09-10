@@ -24,12 +24,12 @@ impl DerefNode {
 }
 
 impl AstNode for DerefNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let symbol = self
             .symbol
             .as_mut()
             .unwrap()
-            .visit(symtable)?
+            .crocoi(symtable)?
             .into_symbol(&self.code_pos)?
             .borrow()
             .clone()
@@ -51,11 +51,11 @@ impl AstNode for DerefNode {
 
     fn crocol<'ctx>(
         &mut self,
-        codegen: &'ctx mut Codegen<'ctx>,
+        codegen: &Codegen<'ctx>,
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
         let ptr = self
             .symbol
-            .as_ref()
+            .as_mut()
             .unwrap()
             .crocol(codegen)?
             .into_symbol()

@@ -20,7 +20,7 @@ impl SymbolNode {
 }
 
 impl AstNode for SymbolNode {
-    fn visit(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         Ok(INodeResult::construct_symbol(self.value.clone()))
     }
 }

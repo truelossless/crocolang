@@ -1,3 +1,7 @@
+use std::convert::TryInto;
+
+use inkwell::values::BasicValueEnum;
+
 use crate::ast::{AstNode, BlockScope};
 use crate::error::CrocoError;
 use crate::symbol::SymTable;
@@ -41,7 +45,7 @@ impl AstNode for BlockNode {
         self.body.push(node);
     }
 
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // push a new scope if needed
         match self.scope {
             BlockScope::New => symtable.add_scope(),
@@ -55,7 +59,7 @@ impl AstNode for BlockNode {
         // .chain(self.prepended.iter_mut())
         // .chain(self.appended.iter_mut())
         {
-            value = node.visit(symtable)?;
+            value = node.crocoi(symtable)?;
 
             match value {
                 // propagate the early-returns until something catches it
@@ -82,14 +86,39 @@ impl AstNode for BlockNode {
         Ok(value)
     }
 
-    fn crocol<'ctx>(
-        &mut self,
-        codegen: &'ctx mut Codegen,
-    ) -> Result<LNodeResult<'ctx>, CrocoError> {
+    fn crocol<'ctx>(&mut self, codegen: &Codegen<'ctx>) -> Result<LNodeResult<'ctx>, CrocoError> {
         if let BlockScope::New = self.scope {
-            codegen
+            let block = codegen
                 .context
-                .append_basic_block(codegen.current_fn, "entry");
+                .append_basic_block(*codegen.current_fn.borrow(), "entry");
+
+            codegen.builder.position_at_end(block);
+
+            let mut early_return = false;
+
+            for node in &mut self.body {
+                match node.crocol(codegen)? {
+                    LNodeResult::Return(value) => {
+                        let basic_val: BasicValueEnum = value.try_into().unwrap();
+                        codegen.builder.build_return(Some(&basic_val));
+                        early_return = true;
+                        break;
+                    }
+                    LNodeResult::Symbol(_) | LNodeResult::Void => (),
+                    _ => unimplemented!(),
+                }
+            }
+
+            // if there is no early return the function returns void
+            if !early_return {
+                codegen.builder.build_return(None);
+            }
+
+            // we're done with this scope, drop it
+            match self.scope {
+                BlockScope::New => codegen.symtable.borrow_mut().drop_scope(),
+                BlockScope::Keep => (),
+            }
         }
 
         Ok(LNodeResult::Void)

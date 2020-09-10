@@ -3,17 +3,14 @@ use crate::{
     symbol_type::SymbolType,
 };
 use inkwell::{
-    types::{AnyTypeEnum, StructType, BasicTypeEnum, BasicType},
+    types::{AnyTypeEnum, BasicType, BasicTypeEnum, StructType},
     AddressSpace,
 };
 use std::convert::TryInto;
 
-/// allocate on stack or heap depending of the needs
-pub fn crocol_alloc(value: &AnyTypeEnum) {}
-
 /// transforms a AnyTypeEnum in a ptr of an AnyTypeEnum
 // not the most beautiful code, but eh it works
-pub fn any_type_ptr<'ctx>(any_type: AnyTypeEnum<'ctx>) -> AnyTypeEnum<'ctx> {
+pub fn any_type_ptr(any_type: AnyTypeEnum<'_>) -> AnyTypeEnum<'_> {
     match any_type {
         AnyTypeEnum::ArrayType(a) => a.ptr_type(AddressSpace::Generic).into(),
         AnyTypeEnum::FloatType(f) => f.ptr_type(AddressSpace::Generic).into(),
@@ -30,12 +27,13 @@ pub fn get_llvm_type<'ctx>(symbol_type: &SymbolType, codegen: &'ctx Codegen) -> 
         SymbolType::Str => str_type(codegen).into(),
         SymbolType::Bool => codegen.context.bool_type().into(),
         SymbolType::Function(fn_type) => {
+            let return_type: BasicTypeEnum = get_llvm_type(&*fn_type.return_type, codegen)
+                .try_into()
+                .unwrap();
 
-            let return_type: BasicTypeEnum = get_llvm_type(&*fn_type.return_type, codegen).try_into().unwrap();
+            let mut arg_types = Vec::new();
 
-            let arg_types = Vec::new();
-
-            for arg in fn_type.args {
+            for arg in fn_type.args.clone() {
                 arg_types.push(get_llvm_type(&arg.arg_type, codegen).try_into().unwrap());
             }
 
@@ -45,9 +43,10 @@ pub fn get_llvm_type<'ctx>(symbol_type: &SymbolType, codegen: &'ctx Codegen) -> 
         SymbolType::Ref(ref_type) => any_type_ptr(get_llvm_type(ref_type, codegen)),
         SymbolType::Map(_, _) => todo!(),
         SymbolType::Struct(s) => {
-            let struct_decl = codegen.symtable.get_struct_decl(s).unwrap();
+            let mut symtable_borrow = codegen.symtable.borrow_mut();
+            let struct_decl = symtable_borrow.get_struct_decl(s).unwrap();
 
-            let field_types = Vec::new();
+            let mut field_types = Vec::new();
 
             for field in struct_decl.fields.values() {
                 field_types.push(get_llvm_type(field, codegen).try_into().unwrap());
@@ -56,12 +55,13 @@ pub fn get_llvm_type<'ctx>(symbol_type: &SymbolType, codegen: &'ctx Codegen) -> 
             codegen.context.struct_type(&field_types, false).into()
         }
         SymbolType::Void => codegen.context.void_type().into(),
-        SymbolType::CrocoType => todo!()
+        SymbolType::CrocoType => todo!(),
     }
 }
 
-pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &mut Codegen<'ctx>) {
-    match init_symbol.symbol_type {
+pub fn _init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) {
+
+    match &init_symbol.symbol_type {
         // stack allocation of a f32
         // TODO: do we really have to give a name ?
         SymbolType::Num => {
@@ -108,11 +108,12 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &mut Codegen<'ct
                 .unwrap();
             codegen
                 .builder
-                .build_store(len, codegen.ptr_size.const_int(0, false));
+                .build_store(max_len, codegen.ptr_size.const_int(0, false));
         }
 
         SymbolType::Struct(s) => {
-            let struct_decl = codegen.symtable.get_struct_decl(&s).unwrap();
+            let mut symtable_borrow = codegen.symtable.borrow_mut();
+            let struct_decl = symtable_borrow.get_struct_decl(&s).unwrap();
 
             for (i, field) in struct_decl.fields.iter().enumerate() {
                 let ptr = codegen
@@ -122,10 +123,10 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &mut Codegen<'ct
 
                 let field_symbol = LSymbol {
                     pointer: ptr,
-                    symbol_type: field.1.clone()
+                    symbol_type: field.1.clone(),
                 };
 
-                init_default(&field_symbol, codegen);
+                _init_default(&field_symbol, codegen);
             }
         }
 
@@ -153,7 +154,6 @@ pub fn str_type<'ctx>(codegen: &'ctx Codegen) -> StructType<'ctx> {
     codegen
         .context
         .struct_type(&[void_ptr, isize_type, isize_type], false)
-        .into()
 }
 
 /// llvm repr of the array type

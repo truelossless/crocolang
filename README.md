@@ -9,7 +9,10 @@ You can see some examples of the syntax below :)
 Simple examples of the syntax can be seen under the `tests` folder.
 For the partial spec and even more examples, see [here](SPEC.md).
 
-PULL REQUESTS ARE WELCOME SO YOU CAN IMPROVE MY MESS !
+PULL REQUESTS ARE WELCOME SO YOU CAN IMPROVE MY MESS !  
+
+The lexer and parser are backend-agnostic, which means it should be easy to add all types of backend support.  
+Currently there is a interpreter backend (crocoi), and an llvm backend (crocol, WIP)
 
 ## Downloading croco
 
@@ -146,10 +149,10 @@ $ time python bench_name.py
 $ time croco bench_name.croco
 ```
 
-|benchmark name     |  node    |python|croco|
-|-------------------|----------|------|-----|
-|rec fibonacci, n=30|     200ms| 400ms|12s  |
-|loop, n=1000000    |     230ms| 236ms|850ms|
+|benchmark name     |  node    |python|crocoi|
+|-------------------|----------|------|------|
+|rec fibonacci, n=30|     200ms| 400ms|12s   |
+|loop, n=1000000    |     230ms| 236ms|850ms |
 
 We're getting there :D  
 Croco is fully interpreted, so it's normal that it's way slower than Node, which is basically a VM.  

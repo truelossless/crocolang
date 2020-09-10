@@ -46,11 +46,11 @@ impl AstNode for FunctionCallNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // resolve the function arguments
         let mut visited_args = Vec::new();
         for arg in &mut self.args {
-            let value = arg.visit(symtable)?.into_symbol(&self.code_pos)?;
+            let value = arg.crocoi(symtable)?.into_symbol(&self.code_pos)?;
             visited_args.push(value);
         }
 
@@ -59,7 +59,7 @@ impl AstNode for FunctionCallNode {
 
         // if we're dealing with a method, inject self as the first argument
         if let Some(method_self) = self.method.as_mut() {
-            let mut method_symbol = method_self.visit(symtable)?.into_symbol(&self.code_pos)?;
+            let mut method_symbol = method_self.crocoi(symtable)?.into_symbol(&self.code_pos)?;
 
             // auto deref if we have a Ref
             loop {
@@ -181,7 +181,7 @@ impl AstNode for FunctionCallNode {
                     )));
                 }
 
-                return_value = match block_node.visit(symtable)? {
+                return_value = match block_node.crocoi(symtable)? {
                     INodeResult::Return(ret) => ret,
                     INodeResult::Break => {
                         return Err(CrocoError::new(

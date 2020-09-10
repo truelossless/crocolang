@@ -48,7 +48,7 @@ impl Parser {
                 _ => {
                     return Err(CrocoError::new(
                         &self.token_pos,
-                        &format!(
+                        format!(
                             "expected a comma or a right parenthesis in {} function declaration",
                             identifier.name
                         ),
@@ -61,13 +61,8 @@ impl Parser {
             self.discard_newlines(iter);
 
             // we're expecting an argument variable name here
-            let arg_name = self.expect_identifier(
-                iter,
-                &format!(
-                    "expected an argument name in {} function declaration",
-                    identifier.name
-                ),
-            )?;
+            let arg_name =
+                self.expect_identifier(iter, "expected an argument name in function declaration")?;
 
             // here this should be the argument type
             let arg_type = self.parse_var_type(iter)?;
@@ -95,10 +90,7 @@ impl Parser {
         self.expect_token(
             iter,
             Separator(LeftCurlyBracket),
-            &format!(
-                "expected left bracket after {} function declaration",
-                identifier.name
-            ),
+            "expected a left bracket after function declaration",
         )?;
 
         // get the namespaced name of the function

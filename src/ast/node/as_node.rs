@@ -35,12 +35,12 @@ impl AstNode for AsNode {
         }
     }
 
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let val = self
             .left
             .as_mut()
             .unwrap()
-            .visit(symtable)?
+            .crocoi(symtable)?
             .into_symbol(&self.code_pos)?;
 
         // TODO: don't clone and take a ref
@@ -48,7 +48,7 @@ impl AstNode for AsNode {
             .right
             .as_mut()
             .unwrap()
-            .visit(symtable)?
+            .crocoi(symtable)?
             .into_symbol(&self.code_pos)?
             .borrow()
             .clone()
@@ -67,7 +67,7 @@ impl AstNode for AsNode {
                 return Err(CrocoError::new(&self.code_pos, "redundant cast"))
             }
 
-            (Bool(b), SymbolType::Bool) => {
+            (Bool(b), SymbolType::Num) => {
                 if b {
                     Num(1.)
                 } else {

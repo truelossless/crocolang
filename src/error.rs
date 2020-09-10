@@ -24,23 +24,23 @@ pub enum CrocoErrorKind {
 pub struct CrocoError {
     kind: CrocoErrorKind,
     pos: Option<CodePos>,
-    message: &'static str,
+    message: String
 }
 
 impl CrocoError {
-    pub fn new(pos: &CodePos, message: &'static str) -> Self {
+    pub fn new(pos: &CodePos, message: impl AsRef<str>) -> Self {
         CrocoError {
             kind: CrocoErrorKind::Unknown,
             pos: Some(pos.clone()),
-            message,
+            message: message.as_ref().to_owned(),
         }
     }
 
-    pub fn from_type(message: &'static str, error_type: CrocoErrorKind) -> Self {
+    pub fn from_type(message: impl AsRef<str>, error_type: CrocoErrorKind) -> Self {
         CrocoError {
-            message,
             kind: error_type,
             pos: None,
+            message: message.as_ref().to_owned()
         }
     }
 

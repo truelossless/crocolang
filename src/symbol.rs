@@ -79,8 +79,8 @@ pub fn get_symbol_type(symbol: &SymbolContent) -> SymbolType {
         SymbolContent::Primitive(LiteralEnum::Num(_)) => SymbolType::Num,
         SymbolContent::Primitive(LiteralEnum::Str(_)) => SymbolType::Str,
         SymbolContent::Primitive(LiteralEnum::Void) => SymbolType::Void,
-        SymbolContent::Array(arr) => SymbolType::Array(arr.array_type),
-        SymbolContent::Struct(s) => SymbolType::Struct(s.struct_type),
+        SymbolContent::Array(arr) => SymbolType::Array(arr.array_type.clone()),
+        SymbolContent::Struct(s) => SymbolType::Struct(s.struct_type.clone()),
         SymbolContent::Ref(r) => SymbolType::Ref(Box::new(get_symbol_type(&*r.borrow()))),
         SymbolContent::Function(func) => SymbolType::Function(FunctionType {
             args: func.args.clone(),
@@ -111,7 +111,7 @@ impl<T: Symbol + Clone> SymTable<T> {
     }
 
     /// return the desired symbol starting from the inner scope
-    pub fn get_symbol(&mut self, var_name: &str) -> Result<T, &'static str> {
+    pub fn get_symbol(&mut self, var_name: &str) -> Result<T, String> {
         for table in self.symbols.iter().rev() {
             if let Some(symbol) = table.get(var_name) {
                 return Ok(symbol.clone());
@@ -119,15 +119,15 @@ impl<T: Symbol + Clone> SymTable<T> {
         }
 
         // the variable doesn't exist
-        Err(&format!("variable {} has not been declared", var_name))
+        Err(format!("variable {} has not been declared", var_name))
     }
 
     /// return the desired function declaration starting from the inner scope
-    pub fn get_function_decl(&mut self, fn_name: &str) -> Result<&mut FunctionDecl, &'static str> {
+    pub fn get_function_decl(&mut self, fn_name: &str) -> Result<&mut FunctionDecl, String> {
         match self.top_level.get_mut(fn_name) {
             Some(Decl::FunctionDecl(ref mut function)) => return Ok(function),
             Some(_) => {
-                return Err(&format!(
+                return Err(format!(
                     "trying to get {} as a function but it's not",
                     fn_name
                 ))
@@ -136,28 +136,23 @@ impl<T: Symbol + Clone> SymTable<T> {
         }
 
         // the function doesn't exist
-        Err(&format!("function {} has not been declared", fn_name))
+        Err(format!("function {} has not been declared", fn_name))
     }
 
     /// return the desired struct declaration starting from the inner scope
-    pub fn get_struct_decl(&mut self, struct_type: &str) -> Result<&StructDecl, &'static str> {
+    pub fn get_struct_decl(&mut self, struct_type: &str) -> Result<&StructDecl, String> {
         match self.top_level.get(struct_type) {
-            Some(Decl::StructDecl(ref struct_decl)) => return Ok(struct_decl),
-            Some(_) => {
-                return Err(&format!(
-                    "trying to get {} as a struct but it's not",
-                    struct_type
-                ))
-            }
-            None => (),
+            Some(Decl::StructDecl(ref struct_decl)) => Ok(struct_decl),
+            Some(_) => Err(format!(
+                "trying to get {} as a struct but it's not",
+                struct_type
+            )),
+            None => Err(format!("struct {} has not been declared", struct_type)),
         }
-
-        // the function doesn't exist
-        Err(&format!("struct {} has not been declared", struct_type))
     }
 
     /// insert to the closest scope
-    pub fn insert_symbol(&mut self, name: &str, symbol: T) -> Result<(), &'static str> {
+    pub fn insert_symbol(&mut self, name: &str, symbol: T) -> Result<(), String> {
         if self
             .symbols
             .last_mut()
@@ -167,7 +162,7 @@ impl<T: Symbol + Clone> SymTable<T> {
         {
             Ok(())
         } else {
-            Err(&format!(
+            Err(format!(
                 "variable already declared with name {} in this scope",
                 name
             ))

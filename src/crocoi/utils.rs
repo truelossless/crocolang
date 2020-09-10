@@ -17,7 +17,7 @@ pub fn get_value(
     Ok(opt_node
         .as_mut()
         .ok_or_else(|| CrocoError::new(code_pos, "one variable hasn't been initialized !"))?
-        .visit(symtable)?
+        .crocoi(symtable)?
         .into_symbol(code_pos)?
         .borrow()
         .clone()
@@ -60,7 +60,8 @@ pub fn init_default(
         SymbolType::Struct(struct_type) => {
             let struct_decl = symtable
                 .get_struct_decl(struct_type)
-                .map_err(|e| CrocoError::new(&code_pos, e))?;
+                .map_err(|e| CrocoError::new(&code_pos, e))?
+                .clone();
 
             let rc_fields = struct_decl.fields.into_iter();
 

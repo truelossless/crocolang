@@ -229,16 +229,6 @@ impl SymbolContent {
     }
 }
 
-/// a top-level declaration such as a function declaration or a struct declaration
-#[derive(Clone, Debug)]
-pub enum Decl {
-    // the blueprint of a function such as "fn a { .. }"
-    FunctionDecl(FunctionDecl),
-
-    // the blueprint of a struct such as "struct A { .. }"
-    StructDecl(StructDecl),
-}
-
 /// returns the type of a symbol
 pub fn get_symbol_type(symbol: &SymbolContent) -> SymbolType {
     match symbol {
@@ -246,8 +236,8 @@ pub fn get_symbol_type(symbol: &SymbolContent) -> SymbolType {
         SymbolContent::Primitive(LiteralEnum::Num(_)) => SymbolType::Num,
         SymbolContent::Primitive(LiteralEnum::Str(_)) => SymbolType::Str,
         SymbolContent::Primitive(LiteralEnum::Void) => SymbolType::Void,
-        SymbolContent::Array(arr) => SymbolType::Array(arr.array_type),
-        SymbolContent::Struct(s) => SymbolType::Struct(s.struct_type),
+        SymbolContent::Array(arr) => SymbolType::Array(arr.array_type.clone()),
+        SymbolContent::Struct(s) => SymbolType::Struct(s.struct_type.clone()),
         SymbolContent::Ref(r) => SymbolType::Ref(Box::new(get_symbol_type(&*r.borrow()))),
         SymbolContent::Function(func) => SymbolType::Function(FunctionType {
             args: func.args.clone(),

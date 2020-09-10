@@ -20,7 +20,7 @@ impl DivideNode {
 }
 
 impl AstNode for DivideNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let value = Num(get_number_value(&mut self.left, symtable, &self.code_pos)?
             / get_number_value(&mut self.right, symtable, &self.code_pos)?);
         Ok(INodeResult::construct_symbol(SymbolContent::Primitive(

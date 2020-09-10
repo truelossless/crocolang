@@ -21,7 +21,7 @@ impl TypeNode {
 }
 
 impl AstNode for TypeNode {
-    fn visit(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         Ok(INodeResult::construct_symbol(SymbolContent::CrocoType(
             self.value.clone(),
         )))

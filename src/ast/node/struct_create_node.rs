@@ -28,7 +28,7 @@ impl StructCreateNode {
 
 // actually we can't move out as a node can be visited multiple times in a loop
 impl AstNode for StructCreateNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let mut struct_symbol = Struct {
             struct_type: self.struct_type.clone(),
             fields: Some(HashMap::new()),
@@ -45,18 +45,18 @@ impl AstNode for StructCreateNode {
         let struct_decl_len = struct_decl.fields.len();
 
         // make sure all fields in struct decl are present
-        for mut field_decl in struct_decl.fields.into_iter() {
+        for field_decl in struct_decl.fields.into_iter() {
             let field_val = match self.fields.get_mut(&field_decl.0) {
                 // this field has not been declared, use its default value
                 None => Rc::new(RefCell::new(init_default(
-                    &mut field_decl.1,
+                    &field_decl.1,
                     symtable,
                     &self.code_pos,
                 )?)),
 
                 // the field is present, visit it
                 Some(field) => {
-                    let field_val = field.visit(symtable)?.into_symbol(&self.code_pos)?;
+                    let field_val = field.crocoi(symtable)?.into_symbol(&self.code_pos)?;
 
                     if !type_eq(&field_decl.1, &get_symbol_type(&*field_val.borrow())) {
                         return Err(CrocoError::new(

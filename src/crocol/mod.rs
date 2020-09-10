@@ -1,14 +1,13 @@
 pub mod symbol;
 
-pub use self::symbol::LSymbol;
-pub use self::symbol::LNodeResult;
 pub use self::symbol::Codegen;
+pub use self::symbol::LNodeResult;
+pub use self::symbol::LSymbol;
 
-pub mod node;
 pub mod utils;
 
-use std::fs;
 use std::rc::Rc;
+use std::{cell::RefCell, fs};
 
 use inkwell::{
     context::Context,
@@ -21,6 +20,7 @@ use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::{symbol::SymTable, token::CodePos};
 
+#[derive(Default)]
 pub struct Crocol {
     file_path: String,
 }
@@ -106,27 +106,34 @@ impl Crocol {
         let fn_return = context.void_type().fn_type(&[], false);
         let main_fn = module.add_function("main", fn_return, None);
 
-        let mut codegen = Codegen {
+        let codegen = Codegen {
             context: &context,
             module,
             builder: context.create_builder(),
-            symtable: SymTable::new(),
+            symtable: RefCell::new(SymTable::new()),
             ptr_size: context.ptr_sized_int_type(&target_machine.get_target_data(), None),
-            current_fn: main_fn,
+            current_fn: RefCell::new(main_fn),
         };
 
-        if let Err(mut e) = tree.crocol(&mut codegen) {
+        if let Err(mut e) = tree.crocol(&codegen) {
             e.set_kind(CrocoErrorKind::Runtime);
             return Err(e);
         }
 
-        let output_filename = format!("{}.o", self.file_path);
+        codegen.module.verify().unwrap();
 
-        target_machine
-            .write_to_file(&codegen.module, FileType::Object, output_filename.as_ref())
-            .map_err(|e| {
-                CrocoError::from_type(e.to_str().unwrap(), CrocoErrorKind::CompileTarget)
-            })?;
+        // get the result with both formats
+        let outputs = vec![(FileType::Assembly, "asm"), (FileType::Object, "o")];
+
+        for output in outputs.into_iter() {
+            let output_filename = format!("{}.{}", self.file_path, output.1);
+
+            target_machine
+                .write_to_file(&codegen.module, output.0, output_filename.as_ref())
+                .map_err(|e| {
+                    CrocoError::from_type(e.to_str().unwrap(), CrocoErrorKind::CompileTarget)
+                })?;
+        }
 
         Ok(())
     }

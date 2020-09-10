@@ -17,7 +17,7 @@ impl VarCallNode {
 }
 
 impl AstNode for VarCallNode {
-    fn visit(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let symbol = symtable
             .get_symbol(&self.name)
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
