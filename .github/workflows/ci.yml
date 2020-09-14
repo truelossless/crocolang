@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os:
+        include:
           - os: ubuntu-latest
             env:
               LLVM_SYS_100_PREFIX: /tmp/llvm
