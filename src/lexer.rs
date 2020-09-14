@@ -326,8 +326,6 @@ impl Lexer {
 
             // error out on other characters
             _ => {
-                dbg!(el.len());
-
                 return Err(CrocoError::new(
                     &CodePos {
                         file: self.file.clone(),

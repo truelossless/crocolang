@@ -9,7 +9,7 @@ struct MyOptions {
     #[options(help = "show help message")]
     help: bool,
 
-    #[options(help = "show croco version")]
+    #[options(help = "show crocoi version")]
     version: bool,
 }
 

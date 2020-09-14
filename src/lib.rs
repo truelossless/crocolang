@@ -8,6 +8,8 @@ mod ast;
 mod builtin;
 mod error;
 mod lexer;
+mod linker;
+mod ms_craziness_bindings;
 mod parser;
 mod symbol;
 mod symbol_type;

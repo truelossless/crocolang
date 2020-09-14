@@ -1,7 +1,6 @@
 # Croco lang
 
-![build](https://github.com/truelossless/crocolang/workflows/build/badge.svg)
-![tests](https://github.com/truelossless/crocolang/workflows/tests/badge.svg)
+![ci](https://github.com/truelossless/crocolang/workflows/ci/badge.svg)
 
 Croco is a small and fun-to-use interpreted language written in Rust.
 

@@ -22,7 +22,7 @@ pub fn get_module() -> BuiltinModule {
 fn exec(mut args: Vec<ISymbol>) -> SymbolContent {
     let command_str = get_arg_str(&mut args);
 
-    let command = if cfg!(target_os = "windows") {
+    let command = if cfg!(windows) {
         Command::new("cmd").args(&["/C", &command_str]).output()
     } else {
         Command::new("sh").args(&["-c", &command_str]).output()

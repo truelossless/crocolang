@@ -6,30 +6,56 @@ pub use self::symbol::LSymbol;
 
 pub mod utils;
 
-use std::rc::Rc;
 use std::{cell::RefCell, fs};
+use std::{path::Path, rc::Rc};
 
+use crate::lexer::Lexer;
+use crate::parser::Parser;
+use crate::{
+    error::{CrocoError, CrocoErrorKind},
+    linker::Linker,
+};
+use crate::{symbol::SymTable, token::CodePos};
 use inkwell::{
     context::Context,
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
     OptimizationLevel,
 };
 
-use crate::error::{CrocoError, CrocoErrorKind};
-use crate::lexer::Lexer;
-use crate::parser::Parser;
-use crate::{symbol::SymTable, token::CodePos};
-
 #[derive(Default)]
 pub struct Crocol {
     file_path: String,
+    asm_flag: bool,
+    object_flag: bool,
+    output_flag: String,
+    verbose_flag: bool,
 }
 
 impl Crocol {
     pub fn new() -> Self {
         Crocol {
             file_path: String::new(),
+            asm_flag: false,
+            object_flag: false,
+            output_flag: String::new(),
+            verbose_flag: false,
         }
+    }
+
+    pub fn emit_assembly(&mut self) {
+        self.asm_flag = true;
+    }
+
+    pub fn emit_object_file(&mut self) {
+        self.object_flag = true;
+    }
+
+    pub fn set_verbose(&mut self, verbose: bool) {
+        self.verbose_flag = verbose;
+    }
+
+    pub fn set_output(&mut self, output: String) {
+        self.output_flag = output;
     }
 
     pub fn exec_file(&mut self, file_path: &str) -> Result<(), CrocoError> {
@@ -120,21 +146,76 @@ impl Crocol {
             return Err(e);
         }
 
+        // this should never fail if our nodes are right
         codegen.module.verify().unwrap();
 
-        // get the result with both formats
-        let outputs = vec![(FileType::Assembly, "asm"), (FileType::Object, "o")];
+        // emit an executable if we don't specifically want to emit assembly and object files
+        let exe_flag = !self.asm_flag && !self.object_flag;
 
-        for output in outputs.into_iter() {
-            let output_filename = format!("{}.{}", self.file_path, output.1);
+        // get the llvm file output name
+        let llvm_output_filename = if !self.output_flag.is_empty() && !exe_flag {
+            self.output_flag.clone()
+        } else {
+            let ext = if self.asm_flag { "asm" } else { "o" };
+            format!("{}.{}", strip_ext(&self.file_path), ext)
+        };
 
-            target_machine
-                .write_to_file(&codegen.module, output.0, output_filename.as_ref())
-                .map_err(|e| {
-                    CrocoError::from_type(e.to_str().unwrap(), CrocoErrorKind::CompileTarget)
-                })?;
+        let emit_method = if self.asm_flag {
+            FileType::Assembly
+        } else {
+            FileType::Object
+        };
+
+        target_machine
+            .write_to_file(&codegen.module, emit_method, llvm_output_filename.as_ref())
+            .map_err(|e| {
+                CrocoError::from_type(e.to_str().unwrap(), CrocoErrorKind::CompileTarget)
+            })?;
+
+        // if the user specified -S or -c, we're done here
+        if self.asm_flag || self.object_flag {
+            return Ok(());
         }
+
+        // else we need to link the object file into an executable
+        let mut linker = Linker::new();
+
+        let linker_search = linker
+            .find_linker()
+            .map_err(|e| CrocoError::from_type(e, CrocoErrorKind::Linker))?;
+
+        if self.verbose_flag {
+            println!("{}", linker_search);
+        }
+
+        let exe_output_filename = if !self.output_flag.is_empty() {
+            self.output_flag.clone()
+        } else {
+            let ext = if cfg!(windows) { "exe" } else { "" };
+            format!("{}.{}", strip_ext(&self.file_path), ext)
+        };
+
+        let link_stage = linker
+            .link(&llvm_output_filename, &exe_output_filename)
+            .map_err(|e| CrocoError::from_type(e, CrocoErrorKind::Linker))?;
+
+        if self.verbose_flag {
+            println!("{}", link_stage);
+        }
+
+        // we can now remove the unwanted object file
+        fs::remove_file(llvm_output_filename).map_err(|_| {
+            CrocoError::from_type("cannot remove temporary object file", CrocoErrorKind::IO)
+        })?;
 
         Ok(())
     }
+}
+
+fn strip_ext(file: &str) -> &str {
+    Path::new(file)
+        .file_stem()
+        .unwrap_or_else(|| file.as_ref())
+        .to_str()
+        .unwrap()
 }

@@ -1,5 +1,6 @@
 /target
 **/*.rs.bk
 main.croco
-main.croco.asm
-main.croco.o
+main.asm
+main.o
+main.exe

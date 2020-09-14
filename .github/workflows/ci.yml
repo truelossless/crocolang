@@ -2,48 +2,76 @@ name: build
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-
   # build croco on every OS
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os:
+          - os: ubuntu-latest
+            env:
+              LLVM_SYS_100_PREFIX: /tmp/llvm
+          - os: windows-latest
+            env:
+              LLVM_SYS_100_PREFIX: C:/llvm
+          - os: macos-latest
+            env:
+              LLVM_SYS_100_PREFIX: /tmp/llvm
 
     steps:
-    - uses: actions/checkout@v2
-    
-    - name: Build release
-      run: cargo build --release
-    
-    # save the file
-    - uses: actions/upload-artifact@v2
-      if: ${{ matrix.os != 'windows-latest' }}
-      with:
-        name: croco-${{ matrix.os }}
-        path: ./target/release/croco
+      - name: Clone project
+        uses: actions/checkout@v2
 
-    # on windows the executable is ending with a .exe
-    - uses: actions/upload-artifact@v2
-      if: ${{ matrix.os == 'windows-latest' }}
-      with:
-        name: croco-${{ matrix.os }}
-        path: ./target/release/croco.exe
-  
+      - name: Download & unzip LLVM
+        run: |
+          curl -O https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-10.0.1.src.tar.xz
+          tar -xJf llvm-10.0.1.src.tar.xz -C ${{ env.LLVM_SYS_100_PREFIX }}
+
+      - name: Build LLVM
+        uses: seanmiddleditch/gha-setup-ninja@v2
+        run: |
+          cd ${{ env.LLVM_SYS_100_PREFIX }}
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -G Ninja ..
+          cmake --build build
+
+      - name: Build release
+        run: |
+          cd ${{ env.GITHUB_WORKSPACE }}
+          cargo build --release
+
+      - name: Run tests
+        run: cargo test --lib --tests --no-fail-fast
+
+      - name: Zip crocoi & crocol [windows]
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: tar -a -c -f out.zip target/release/crocoi.exe target/release/crocol.exe
+
+      - name: Zip crocoi & crocol [unix]
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: tar -a -c -f out.zip target/release/crocoi target/release/crocol
+
+      - name: Upload zip
+        uses: actions/upload-artifact@v2
+        if: ${{ matrix.os != 'windows-latest' }}
+        with:
+          name: croco-${{ matrix.os }}.zip
+          path: out.zip
+
   # upload the resulting binaries to github releases
   upload:
     needs: build
     runs-on: ubuntu-latest
     steps:
-
       # retreive the previously saved binaries
       - uses: actions/download-artifact@v2
         with:
@@ -65,8 +93,8 @@ jobs:
       - name: get commit infos
         id: commit
         run: echo "::set-output name=hash::$(echo ${GITHUB_SHA} | cut -c1-8)"
-        # echo "::set-output name=msg::$(git log --format=%B -n 1 ${{ github.event.after }})"
 
+        # echo "::set-output name=msg::$(git log --format=%B -n 1 ${{ github.event.after }})"
       - name: create release
         id: create_release
         uses: actions/create-release@v1
@@ -78,7 +106,7 @@ jobs:
           body: This is an automated build for commit ${{ steps.commit.outputs.hash }}.
           draft: false
           prerelease: true
-      
+
       - name: upload Linux binary
         uses: actions/upload-release-asset@v1
         env:
@@ -98,7 +126,7 @@ jobs:
           asset_path: ./windows/croco.exe
           asset_name: croco-windows-${{ steps.commit.outputs.hash }}.exe
           asset_content_type: application/x-msdownload
-      
+
       - name: upload MacOS binary
         uses: actions/upload-release-asset@v1
         env:

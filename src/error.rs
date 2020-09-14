@@ -17,14 +17,15 @@ pub enum CrocoErrorKind {
 
     // crocol-specific
     CompileTarget, // thrown when no compilation is possible on this target
-    Malloc,        // thown when the OS has no default allocator
+    Malloc,        // thrown when the OS has no default allocator
+    Linker,        // thrown when there isn't a linker available
 }
 
 /// errors thrown by croco
 pub struct CrocoError {
     kind: CrocoErrorKind,
     pos: Option<CodePos>,
-    message: String
+    message: String,
 }
 
 impl CrocoError {
@@ -40,7 +41,7 @@ impl CrocoError {
         CrocoError {
             kind: error_type,
             pos: None,
-            message: message.as_ref().to_owned()
+            message: message.as_ref().to_owned(),
         }
     }
 
@@ -61,6 +62,7 @@ impl fmt::Display for CrocoError {
             CrocoErrorKind::IO => "File error",
             CrocoErrorKind::CompileTarget => "Compile error",
             CrocoErrorKind::Malloc => "Allocation error",
+            CrocoErrorKind::Linker => "Linker error",
             CrocoErrorKind::Unknown => unreachable!(),
         };
 
