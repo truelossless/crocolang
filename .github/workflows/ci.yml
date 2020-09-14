@@ -30,10 +30,16 @@ jobs:
       - name: Clone project
         uses: actions/checkout@v2
 
-      - name: Download & unzip LLVM
-        run: |
-          curl -O https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-10.0.1.src.tar.xz
-          tar -xJf llvm-10.0.1.src.tar.xz -C ${{ jobs[github.job].env.LLVM_SYS_100_PREFIX }}
+      - name: Download LLVM
+        run: curl -O https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-10.0.1.src.tar.xz
+          
+      - name: Unzip LLVM [unix]
+        if: matrix.os != 'windows-latest'
+        run: tar -xJf llvm-10.0.1.src.tar.xz -C $LLVM_SYS_100_PREFIX
+
+      - name: Unzip LLVM [windows]
+        if: matrix.os == 'windows-latest'
+        run: tar -xJf llvm-10.0.1.src.tar.xz -C $env:LLVM_SYS_100_PREFIX
 
       - uses: seanmiddleditch/gha-setup-ninja@v2
       
@@ -54,16 +60,16 @@ jobs:
         run: cargo test --lib --tests --no-fail-fast
 
       - name: Zip crocoi & crocol [windows]
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: matrix.os == 'windows-latest'
         run: tar -a -c -f out.zip target/release/crocoi.exe target/release/crocol.exe
 
       - name: Zip crocoi & crocol [unix]
-        if: ${{ matrix.os != 'windows-latest' }}
+        if: matrix.os != 'windows-latest'
         run: tar -a -c -f out.zip target/release/crocoi target/release/crocol
 
       - name: Upload zip
         uses: actions/upload-artifact@v2
-        if: ${{ matrix.os != 'windows-latest' }}
+        if: matrix.os != 'windows-latest'
         with:
           name: croco-${{ matrix.os }}.zip
           path: out.zip
