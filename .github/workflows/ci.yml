@@ -13,6 +13,7 @@ jobs:
   # build croco on every OS
   build:
     runs-on: ${{ matrix.os }}
+    env: ${{ matrix.env }}
     strategy:
       matrix:
         include:
