@@ -18,13 +18,13 @@ jobs:
         include:
           - os: ubuntu-latest
             env:
-              LLVM_SYS_100_PREFIX: /tmp/llvm
+              LLVM_SYS_100_PREFIX: '/tmp/llvm'
           - os: windows-latest
             env:
-              LLVM_SYS_100_PREFIX: C:/llvm
+              LLVM_SYS_100_PREFIX: 'C:/llvm'
           - os: macos-latest
             env:
-              LLVM_SYS_100_PREFIX: /tmp/llvm
+              LLVM_SYS_100_PREFIX: '/tmp/llvm'
 
     steps:
       - name: Clone project
