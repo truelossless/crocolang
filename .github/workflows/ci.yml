@@ -18,13 +18,13 @@ jobs:
         include:
           - os: ubuntu-latest
             env:
-              LLVM_SYS_100_PREFIX: '/tmp/llvm'
+              LLVM_SYS_100_PREFIX: /tmp/llvm
           - os: windows-latest
             env:
-              LLVM_SYS_100_PREFIX: 'C:/llvm'
+              LLVM_SYS_100_PREFIX: C:/llvm
           - os: macos-latest
             env:
-              LLVM_SYS_100_PREFIX: '/tmp/llvm'
+              LLVM_SYS_100_PREFIX: /tmp/llvm
 
     steps:
       - name: Clone project
@@ -33,7 +33,7 @@ jobs:
       - name: Download & unzip LLVM
         run: |
           curl -O https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-10.0.1.src.tar.xz
-          tar -xJf llvm-10.0.1.src.tar.xz -C ${{ env.LLVM_SYS_100_PREFIX }}
+          tar -xJf llvm-10.0.1.src.tar.xz -C ${{ github.job.env.LLVM_SYS_100_PREFIX }}
 
       - uses: seanmiddleditch/gha-setup-ninja@v2
       
