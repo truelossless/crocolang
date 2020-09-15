@@ -23,6 +23,7 @@ jobs:
           - os: windows-latest
             env:
               LLVM_SYS_100_PREFIX: C:/llvm
+            shell: bash
           - os: macos-latest
             env:
               LLVM_SYS_100_PREFIX: /tmp/llvm
@@ -31,37 +32,44 @@ jobs:
       - name: Clone project
         uses: actions/checkout@v2
 
+      - name: Cache LLVM
+        id: cache-llvm
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LLVM_SYS_100_PREFIX }}
+          key: llvm-${{ matrix.os }}
+
       - name: Download LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: curl -O -L https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-10.0.1.src.tar.xz
           
       - name: Unzip LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: tar -xJf llvm-10.0.1.src.tar.xz
 
-      - name: Move LLVM to the right path [windows]
-        if: matrix.os == 'windows-latest'
-        run: mv llvm-10.0.1.src $env:LLVM_SYS_100_PREFIX 
-
-      - name: Move LLVM to the right path [unix]
-        if: matrix.os != 'windows-latest'
+      - name: Move LLVM to the right path
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: mv llvm-10.0.1.src $LLVM_SYS_100_PREFIX
 
       - uses: seanmiddleditch/gha-setup-ninja@v2
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
       
       - name: Build LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: |
-          cd ${{ env.LLVM_SYS_100_PREFIX }}
+          cd $LLVM_SYS_100_PREFIX
           mkdir build
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -G Ninja ..
+          cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" Ninja ..
           cmake --build .
 
       - name: Build release
         run: |
-          cd ${{ env.GITHUB_WORKSPACE }}
+          cd ${{ github.workspace }}
           cargo build --release
 
       - name: Run tests
-        run: cargo test --lib --tests --no-fail-fast
+        run: cargo test --release --lib --tests --no-fail-fast
 
       - name: Zip crocoi & crocol [windows]
         if: matrix.os == 'windows-latest'
@@ -73,10 +81,9 @@ jobs:
 
       - name: Upload zip
         uses: actions/upload-artifact@v2
-        if: matrix.os != 'windows-latest'
         with:
-          name: croco-${{ matrix.os }}.zip
-          path: out.zip
+          name: croco-${{ matrix.os }}
+          path: croco.zip
 
   # upload the resulting binaries to github releases
   upload:
@@ -124,9 +131,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./linux/croco
-          asset_name: croco-linux-${{ steps.commit.outputs.hash }}
-          asset_content_type: application/x-elf
+          asset_path: ./linux/croco.zip
+          asset_name: croco-linux-${{ steps.commit.outputs.hash }}.zip
+          asset_content_type: application/zip
 
       - name: upload Windows binary
         uses: actions/upload-release-asset@v1
@@ -134,9 +141,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./windows/croco.exe
-          asset_name: croco-windows-${{ steps.commit.outputs.hash }}.exe
-          asset_content_type: application/x-msdownload
+          asset_path: ./windows/croco.zip
+          asset_name: croco-windows-${{ steps.commit.outputs.hash }}.zip
+          asset_content_type: application/zip
 
       - name: upload MacOS binary
         uses: actions/upload-release-asset@v1
@@ -144,6 +151,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./macos/croco
-          asset_name: croco-macos-${{ steps.commit.outputs.hash }}
-          asset_content_type: application/x-elf
+          asset_path: ./macos/croco.zip
+          asset_name: croco-macos-${{ steps.commit.outputs.hash }}.zip
+          asset_content_type: application/zip
