@@ -1,5 +1,9 @@
 name: ci
 
+defaults:
+  run:
+    shell: bash
+
 on:
   push:
     branches: [master]
@@ -23,7 +27,6 @@ jobs:
           - os: windows-latest
             env:
               LLVM_SYS_100_PREFIX: C:/llvm
-            shell: bash
           - os: macos-latest
             env:
               LLVM_SYS_100_PREFIX: /tmp/llvm
