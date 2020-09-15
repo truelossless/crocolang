@@ -9,7 +9,10 @@ mod builtin;
 mod error;
 mod lexer;
 mod linker;
+
+#[cfg(windows)]
 mod ms_craziness_bindings;
+
 mod parser;
 mod symbol;
 mod symbol_type;

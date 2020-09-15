@@ -44,8 +44,11 @@ jobs:
         run: curl -O -L https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-10.0.1.src.tar.xz
           
       - name: Unzip LLVM
+        # windows tar doesn't support xz files, so we use 7z instead in two steps
         if: steps.cache-llvm.outputs.cache-hit != 'true'
-        run: tar -xJf llvm-10.0.1.src.tar.xz
+        run: |
+          7z x llvm-10.0.1.src.tar.xz
+          7z x llvm-10.0.1.src.tar
 
       - name: Move LLVM to the right path
         if: steps.cache-llvm.outputs.cache-hit != 'true'
