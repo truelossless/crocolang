@@ -1,4 +1,4 @@
-name: build
+name: ci
 
 on:
   push:
@@ -34,13 +34,14 @@ jobs:
       - name: Download LLVM
         run: curl -O -L https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-10.0.1.src.tar.xz
           
-      - name: Unzip LLVM [unix]
-        if: matrix.os != 'windows-latest'
-        run: tar -xJf llvm-10.0.1.src.tar.xz -C $LLVM_SYS_100_PREFIX
+      - name: Unzip LLVM
+        run: tar -xJf llvm-10.0.1.src.tar.xz
 
-      - name: Unzip LLVM [windows]
-        if: matrix.os == 'windows-latest'
-        run: tar -xJf llvm-10.0.1.src.tar.xz -C $env:LLVM_SYS_100_PREFIX
+      - name: Move LLVM to the right path [windows]
+        run: mv llvm-10.0.1.src $env:LLVM_SYS_100_PREFIX 
+
+      - name: Move LLVM to the right path [unix]
+        run: mv llvm-10.0.1.src $LLVM_SYS_100_PREFIEX
 
       - uses: seanmiddleditch/gha-setup-ninja@v2
       
