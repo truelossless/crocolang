@@ -38,9 +38,11 @@ jobs:
         run: tar -xJf llvm-10.0.1.src.tar.xz
 
       - name: Move LLVM to the right path [windows]
+        if: matrix.os == 'windows-latest'
         run: mv llvm-10.0.1.src $env:LLVM_SYS_100_PREFIX 
 
       - name: Move LLVM to the right path [unix]
+        if: matrix.os != 'windows-latest'
         run: mv llvm-10.0.1.src $LLVM_SYS_100_PREFIX
 
       - uses: seanmiddleditch/gha-setup-ninja@v2
