@@ -41,7 +41,7 @@ jobs:
         run: mv llvm-10.0.1.src $env:LLVM_SYS_100_PREFIX 
 
       - name: Move LLVM to the right path [unix]
-        run: mv llvm-10.0.1.src $LLVM_SYS_100_PREFIEX
+        run: mv llvm-10.0.1.src $LLVM_SYS_100_PREFIX
 
       - uses: seanmiddleditch/gha-setup-ninja@v2
       
