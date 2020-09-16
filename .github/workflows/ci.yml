@@ -68,7 +68,6 @@ jobs:
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" -G Ninja ..
           cmake --build . --config Release
-          cmake --build . --config Release --target install
         
 
       - name: Build Croco release
