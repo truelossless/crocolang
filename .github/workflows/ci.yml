@@ -66,10 +66,12 @@ jobs:
           cd $LLVM_SYS_100_PREFIX
           mkdir build
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" Ninja ..
-          cmake --build .
+          cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" -G Ninja ..
+          cmake --build . --config Release
+          cmake --build . --config Release --target install
+        
 
-      - name: Build release
+      - name: Build Croco release
         run: |
           cd ${{ github.workspace }}
           cargo build --release
