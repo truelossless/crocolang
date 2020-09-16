@@ -73,7 +73,7 @@ jobs:
 
       - name: Build Croco release
         run: |
-          cd ${{ github.workspace }}
+          cd $GITHUB_WORKSPACE
           cargo build --release
 
       - name: Run tests
@@ -81,11 +81,15 @@ jobs:
 
       - name: Zip crocoi & crocol [windows]
         if: matrix.os == 'windows-latest'
-        run: tar -a -c -f croco.zip target/release/crocoi.exe target/release/crocol.exe
+        run: |
+          cd target/release
+          tar -a -c -f croco.zip crocoi.exe crocol.exe
 
       - name: Zip crocoi & crocol [unix]
         if: matrix.os != 'windows-latest'
-        run: tar -a -c -f croco.zip target/release/crocoi target/release/crocol
+        run: |
+          cd target/release
+          tar -a -c -f croco.zip crocoi crocol
 
       - name: Upload zip
         uses: actions/upload-artifact@v2
