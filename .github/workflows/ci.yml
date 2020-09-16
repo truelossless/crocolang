@@ -81,11 +81,11 @@ jobs:
 
       - name: Zip crocoi & crocol [windows]
         if: matrix.os == 'windows-latest'
-        run: tar -a -c -f out.zip target/release/crocoi.exe target/release/crocol.exe
+        run: tar -a -c -f croco.zip target/release/crocoi.exe target/release/crocol.exe
 
       - name: Zip crocoi & crocol [unix]
         if: matrix.os != 'windows-latest'
-        run: tar -a -c -f out.zip target/release/crocoi target/release/crocol
+        run: tar -a -c -f croco.zip target/release/crocoi target/release/crocol
 
       - name: Upload zip
         uses: actions/upload-artifact@v2
