@@ -67,6 +67,7 @@ jobs:
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" -G Ninja ..
+          cmake --build . --config Release
           cmake -DCMAKE_INSTALL_PREFIX=$LLVM_SYS_100_PREFIX -P cmake_install.cmake
         
 
