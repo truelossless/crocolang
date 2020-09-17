@@ -63,6 +63,7 @@ jobs:
       - name: Prepare LLVM [windows]
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: |
+          cd llvm
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" ..
