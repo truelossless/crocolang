@@ -34,11 +34,11 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ env.LLVM_SYS_100_PREFIX }}
-          key: llvm-${{ matrix.os }}
+          key: llvm-11-${{ matrix.os }}
 
       - name: Download LLVM
         if: steps.cache-llvm.outputs.cache-hit != 'true'
-        run: curl -O -L https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1-rc4/llvm-10.0.1rc4.src.tar.xz
+        run: curl -O -L https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0-rc2/llvm-11.0.0rc2.src.tar.xz
           
       - name: Unzip LLVM
         # windows tar doesn't support xz files, so we use 7z instead in two steps
