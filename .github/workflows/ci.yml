@@ -70,6 +70,7 @@ jobs:
       - name: Build LLVM
         if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: |
+          cd llvm/build
           cmake --build . --config Release
           cmake -DCMAKE_INSTALL_PREFIX=$LLVM_SYS_100_PREFIX -P cmake_install.cmake
 
