@@ -27,7 +27,7 @@ jobs:
 
       - name: set LLVM_SYS_PREFIX
         run: |
-          echo '::set-env name=LLVM_SYS_100_PREFIX::$PWD/llvm'
+          echo '::set-env name=LLVM_SYS_100_PREFIX::{{ env.PWD }}/llvm'
 
       - name: Cache LLVM
         id: cache-llvm
