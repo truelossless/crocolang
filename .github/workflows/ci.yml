@@ -52,7 +52,7 @@ jobs:
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
       
       - name: Prepare LLVM [unix]
-        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
         run: |
           cd llvm
           mkdir build
@@ -61,7 +61,7 @@ jobs:
         
       # we can't use ninja on windows because it's outputting lib*.a files where we need *.lib for llvm-sys
       - name: Prepare LLVM [windows]
-        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: |
           mkdir build
           cd build
