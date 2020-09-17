@@ -25,6 +25,10 @@ jobs:
       - name: Clone project
         uses: actions/checkout@v2
 
+      - name: set LLVM_SYS_PREFIX
+        run: |
+          echo '::set-env name=LLVM_SYS_100_PREFIX::$PWD/llvm'
+
       - name: Cache LLVM
         id: cache-llvm
         uses: actions/cache@v2
@@ -46,11 +50,6 @@ jobs:
 
       - uses: seanmiddleditch/gha-setup-ninja@v2
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
-      
-      - name: set LLVM_SYS_PREFIX
-        run: |
-          cd llvm
-          echo '::set-env name=LLVM_SYS_100_PREFIX::$PWD'
       
       - name: Prepare LLVM [unix]
         if: steps.cache-llvm.outputs.cache-hit != 'true'
