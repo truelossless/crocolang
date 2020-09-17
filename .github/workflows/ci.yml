@@ -68,6 +68,8 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" ..
           
       - name: Build LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: |
           cmake --build . --config Release
           cmake -DCMAKE_INSTALL_PREFIX=$LLVM_SYS_100_PREFIX -P cmake_install.cmake
 
