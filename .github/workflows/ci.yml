@@ -17,19 +17,9 @@ jobs:
   # build croco on every OS
   build:
     runs-on: ${{ matrix.os }}
-    env: ${{ matrix.env }}
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            env:
-              LLVM_SYS_100_PREFIX: /tmp/llvm
-          - os: windows-latest
-            env:
-              LLVM_SYS_100_PREFIX: C:/llvm
-          - os: macos-latest
-            env:
-              LLVM_SYS_100_PREFIX: /tmp/llvm
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - name: Clone project
@@ -50,26 +40,36 @@ jobs:
         # windows tar doesn't support xz files, so we use 7z instead in two steps
         if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: |
-          7z x llvm-10.0.1rc4.src.tar.xz
-          7z x llvm-10.0.1rc4.src.tar
-
-      - name: Move LLVM to the right path
-        if: steps.cache-llvm.outputs.cache-hit != 'true'
-        run: mv llvm-10.0.1rc4.src $LLVM_SYS_100_PREFIX
+          7z x llvm-*.tar.xz
+          7z x llvm-*.tar
+          mv llvm-*.src llvm
 
       - uses: seanmiddleditch/gha-setup-ninja@v2
-        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
       
-      - name: Build LLVM
+      - name: set LLVM_SYS_PREFIX
+        run: |
+          cd llvm
+          echo '::set-env name=LLVM_SYS_100_PREFIX::$PWD'
+      
+      - name: Prepare LLVM [unix]
         if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: |
-          cd $LLVM_SYS_100_PREFIX
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" -G Ninja ..
+        
+      # we can't use ninja on windows because it's outputting lib*.a files where we need *.lib for llvm-sys
+      - name: Prepare LLVM [windows]
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" ..
+          
+      - name: Build LLVM
           cmake --build . --config Release
           cmake -DCMAKE_INSTALL_PREFIX=$LLVM_SYS_100_PREFIX -P cmake_install.cmake
-        
 
       - name: Build Croco release
         run: |
@@ -95,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: croco-${{ matrix.os }}
-          path: croco.zip
+          path: target/release/croco.zip
 
   # upload the resulting binaries to github releases
   upload:
