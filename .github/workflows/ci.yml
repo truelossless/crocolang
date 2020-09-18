@@ -96,7 +96,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           cd target/release
-          tar -a -c -f croco.zip crocoi.exe crocol.exe
+          7z a croco.zip crocoi.exe crocol.exe
 
       - name: Zip crocoi & crocol [unix]
         if: matrix.os != 'windows-latest'
