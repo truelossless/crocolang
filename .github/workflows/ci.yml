@@ -24,8 +24,17 @@ jobs:
     steps:
       - name: Clone project
         uses: actions/checkout@v2
-
-      - name: set LLVM_SYS_PREFIX
+      
+      # we cannot set the sys_prefix on windows with bash because it constructs a /d/ path instead of d:/
+      # which later conduces in a cache miss
+      - name: set LLVM_SYS_PREFIX [windows]
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          echo "::set-env name=LLVM_SYS_100_PREFIX::$PWD/llvm"
+          
+      - name: set LLVM_SYS_PREFIX [unix]
+        if: matrix.os != 'windows-latest'
         run: |
           echo "::set-env name=LLVM_SYS_100_PREFIX::$PWD/llvm"
 
