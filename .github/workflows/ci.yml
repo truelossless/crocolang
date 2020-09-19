@@ -1,4 +1,8 @@
-name: build
+name: ci
+
+defaults:
+  run:
+    shell: bash
 
 on:
   push:
@@ -15,58 +19,96 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            env:
-              LLVM_SYS_100_PREFIX: /tmp/llvm
-          - os: windows-latest
-            env:
-              LLVM_SYS_100_PREFIX: C:/llvm
-          - os: macos-latest
-            env:
-              LLVM_SYS_100_PREFIX: /tmp/llvm
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - name: Clone project
         uses: actions/checkout@v2
-
-      - name: Download & unzip LLVM
+      
+      # we cannot set the sys_prefix on windows with bash because it constructs a /d/ path instead of d:/
+      # which later conduces in a cache miss
+      - name: set LLVM_SYS_PREFIX [windows]
+        if: matrix.os == 'windows-latest'
+        shell: powershell
         run: |
-          curl -O https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-10.0.1.src.tar.xz
-          tar -xJf llvm-10.0.1.src.tar.xz -C ${{ env.LLVM_SYS_100_PREFIX }}
+          echo "::set-env name=LLVM_SYS_100_PREFIX::$PWD/llvm"
+          
+      - name: set LLVM_SYS_PREFIX [unix]
+        if: matrix.os != 'windows-latest'
+        run: |
+          echo "::set-env name=LLVM_SYS_100_PREFIX::$PWD/llvm"
+
+      - name: Cache LLVM
+        id: cache-llvm
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LLVM_SYS_100_PREFIX }}
+          key: llvm-11rc2-${{ matrix.os }}
+
+      - name: Download LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: curl -O -L https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0-rc2/llvm-11.0.0rc2.src.tar.xz
+          
+      - name: Unzip LLVM
+        # windows tar doesn't support xz files, so we use 7z instead in two steps
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: |
+          7z x llvm-*.tar.xz
+          7z x llvm-*.tar
+          mv llvm-*.src llvm
 
       - uses: seanmiddleditch/gha-setup-ninja@v2
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
       
-      - name: Build LLVM
+      - name: Prepare LLVM [unix]
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
         run: |
-          cd ${{ env.LLVM_SYS_100_PREFIX }}
+          cd llvm
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release -G Ninja ..
-          cmake --build build
-
-      - name: Build release
+        
+      # we can't use ninja on windows because it's outputting lib*.a files where we need *.lib for llvm-sys
+      - name: Prepare LLVM [windows]
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: |
-          cd ${{ env.GITHUB_WORKSPACE }}
+          cd llvm
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          
+      - name: Build LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: |
+          cd llvm/build
+          cmake --build . --config Release
+          cmake -DCMAKE_INSTALL_PREFIX=$LLVM_SYS_100_PREFIX -P cmake_install.cmake
+
+      - name: Build Croco release
+        run: |
+          cd $GITHUB_WORKSPACE
           cargo build --release
 
       - name: Run tests
-        run: cargo test --lib --tests --no-fail-fast
+        run: cargo test --release --lib --tests --no-fail-fast
 
       - name: Zip crocoi & crocol [windows]
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: tar -a -c -f out.zip target/release/crocoi.exe target/release/crocol.exe
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd target/release
+          7z a croco.zip crocoi.exe crocol.exe
 
       - name: Zip crocoi & crocol [unix]
-        if: ${{ matrix.os != 'windows-latest' }}
-        run: tar -a -c -f out.zip target/release/crocoi target/release/crocol
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/release
+          7z a croco.zip crocoi crocol
 
       - name: Upload zip
         uses: actions/upload-artifact@v2
-        if: ${{ matrix.os != 'windows-latest' }}
         with:
-          name: croco-${{ matrix.os }}.zip
-          path: out.zip
+          name: croco-${{ matrix.os }}
+          path: target/release/croco.zip
 
   # upload the resulting binaries to github releases
   upload:
@@ -114,9 +156,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./linux/croco
-          asset_name: croco-linux-${{ steps.commit.outputs.hash }}
-          asset_content_type: application/x-elf
+          asset_path: ./linux/croco.zip
+          asset_name: croco-linux-${{ steps.commit.outputs.hash }}.zip
+          asset_content_type: application/zip
 
       - name: upload Windows binary
         uses: actions/upload-release-asset@v1
@@ -124,9 +166,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./windows/croco.exe
-          asset_name: croco-windows-${{ steps.commit.outputs.hash }}.exe
-          asset_content_type: application/x-msdownload
+          asset_path: ./windows/croco.zip
+          asset_name: croco-windows-${{ steps.commit.outputs.hash }}.zip
+          asset_content_type: application/zip
 
       - name: upload MacOS binary
         uses: actions/upload-release-asset@v1
@@ -134,6 +176,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./macos/croco
-          asset_name: croco-macos-${{ steps.commit.outputs.hash }}
-          asset_content_type: application/x-elf
+          asset_path: ./macos/croco.zip
+          asset_name: croco-macos-${{ steps.commit.outputs.hash }}.zip
+          asset_content_type: application/zip

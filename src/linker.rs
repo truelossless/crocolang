@@ -1,7 +1,5 @@
 use std::process::{Command, Stdio};
 
-use crate::ms_craziness_bindings::find_msvc;
-
 /// a linker to transform object files into an executable
 // this leverages native linkers
 pub struct Linker {
@@ -59,8 +57,9 @@ impl Linker {
         }
 
         // if we are on windows we can try to locate MSVC tools
-        if cfg!(windows) {
-            let msvc_result = find_msvc();
+        #[cfg(windows)] // using cfg! here yields an error regarding the crate import on unix
+        {
+            let msvc_result = crate::ms_craziness_bindings::find_msvc();
 
             if msvc_result.windows_sdk_version != 0 {
                 self.linker = format!("{}\\link.exe", msvc_result.vs_exe_path);

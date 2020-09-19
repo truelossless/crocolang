@@ -21,8 +21,12 @@ struct MyOptions {
     #[options(short = "c", no_long, help = "emit object files only")]
     object: bool,
 
+    #[options(no_short, help = "emit llvm ir only")]
+    emit_llvm: bool,
+
     #[options(short = "o", no_long, help = "output file path")]
     output: String,
+
 }
 
 pub fn main() {
@@ -38,8 +42,22 @@ pub fn main() {
         std::process::exit(1);
     }
 
-    if opts.assembly && opts.object {
-        eprintln!("Conflicting flags");
+    let mut output_flat_count = 0;
+
+    if opts.assembly {
+        output_flat_count += 1;
+    }
+
+    if opts.object {
+        output_flat_count += 1;
+    }
+
+    if opts.emit_llvm {
+        output_flat_count += 1;
+    }
+
+    if output_flat_count > 1 {
+        eprintln!("Conflicting output flags");
         std::process::exit(1);
     }
 
@@ -57,6 +75,10 @@ pub fn main() {
 
     if opts.object {
         crocol.emit_object_file();
+    }
+
+    if opts.emit_llvm {
+        crocol.emit_llvm();
     }
 
     if opts.verbose {

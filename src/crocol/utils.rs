@@ -1,12 +1,18 @@
 use crate::{
     crocol::{Codegen, LSymbol},
+    error::CrocoError,
+    error::CrocoErrorKind,
     symbol_type::SymbolType,
 };
+
 use inkwell::{
+    context::Context,
+    types::IntType,
     types::{AnyTypeEnum, BasicType, BasicTypeEnum, StructType},
-    AddressSpace,
+    values::PointerValue,
+    AddressSpace, IntPredicate,
 };
-use std::convert::TryInto;
+use std::{convert::TryInto, path::Path};
 
 /// transforms a AnyTypeEnum in a ptr of an AnyTypeEnum
 // not the most beautiful code, but eh it works
@@ -21,10 +27,10 @@ pub fn any_type_ptr(any_type: AnyTypeEnum<'_>) -> AnyTypeEnum<'_> {
 }
 
 /// get the llvm type corresponding to a SymbolType
-pub fn get_llvm_type<'ctx>(symbol_type: &SymbolType, codegen: &'ctx Codegen) -> AnyTypeEnum<'ctx> {
+pub fn get_llvm_type<'ctx>(symbol_type: &SymbolType, codegen: &Codegen<'ctx>) -> AnyTypeEnum<'ctx> {
     match symbol_type {
         SymbolType::Num => codegen.context.f32_type().into(),
-        SymbolType::Str => str_type(codegen).into(),
+        SymbolType::Str => codegen.str_type.into(),
         SymbolType::Bool => codegen.context.bool_type().into(),
         SymbolType::Function(fn_type) => {
             let return_type: BasicTypeEnum = get_llvm_type(&*fn_type.return_type, codegen)
@@ -59,15 +65,14 @@ pub fn get_llvm_type<'ctx>(symbol_type: &SymbolType, codegen: &'ctx Codegen) -> 
     }
 }
 
-pub fn _init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) {
-
+pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) {
     match &init_symbol.symbol_type {
         // stack allocation of a f32
         // TODO: do we really have to give a name ?
         SymbolType::Num => {
             codegen
                 .builder
-                .build_store(init_symbol.pointer, codegen.context.f64_type().const_zero());
+                .build_store(init_symbol.pointer, codegen.context.f32_type().const_zero());
         }
 
         // stack allocation of a bool
@@ -84,7 +89,7 @@ pub fn _init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>)
             // the heap ptr is a null ptr
             let heap_ptr = codegen
                 .builder
-                .build_struct_gep(init_symbol.pointer, 0, "heapptr")
+                .build_struct_gep(init_symbol.pointer, 0, "gepheapptr")
                 .unwrap();
             let null_ptr = codegen
                 .context
@@ -96,7 +101,7 @@ pub fn _init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>)
             // both fields defaults to 0
             let len = codegen
                 .builder
-                .build_struct_gep(init_symbol.pointer, 1, "len")
+                .build_struct_gep(init_symbol.pointer, 1, "geplen")
                 .unwrap();
             codegen
                 .builder
@@ -104,7 +109,7 @@ pub fn _init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>)
 
             let max_len = codegen
                 .builder
-                .build_struct_gep(init_symbol.pointer, 2, "max_len")
+                .build_struct_gep(init_symbol.pointer, 2, "gepmaxlen")
                 .unwrap();
             codegen
                 .builder
@@ -126,7 +131,7 @@ pub fn _init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>)
                     symbol_type: field.1.clone(),
                 };
 
-                _init_default(&field_symbol, codegen);
+                init_default(&field_symbol, codegen);
             }
         }
 
@@ -143,17 +148,137 @@ pub fn _init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>)
 //     max_len: isize
 // }
 // this uses a different size depending on the host's architecture, for performance reasons
-pub fn str_type<'ctx>(codegen: &'ctx Codegen) -> StructType<'ctx> {
-    let void_ptr = codegen
-        .context
-        .i8_type()
-        .ptr_type(AddressSpace::Generic)
-        .into();
-    let isize_type = codegen.ptr_size.into();
+pub fn str_type<'ctx>(context: &'ctx Context, ptr_size: IntType) -> StructType<'ctx> {
+    let void_ptr = context.i8_type().ptr_type(AddressSpace::Generic).into();
+    let isize_type = ptr_size.into();
+
+    context.struct_type(&[void_ptr, isize_type, isize_type], false)
+}
+
+/// set the contents of a str
+// very inefficient because for large batch of text we're allocating every 16 chars.
+// TODO: in the future, pass a void* ptr and a value ?
+pub fn set_str_text(str_ptr: PointerValue, text: &str, codegen: &Codegen) {
+    let add_char_fn = codegen.module.get_function("_str_add_char").unwrap();
+
+    for el in text.chars() {
+        let llvm_char = codegen.context.i8_type().const_int(el as u64, false);
+        codegen
+            .builder
+            .build_call(add_char_fn, &[str_ptr.into(), llvm_char.into()], "");
+    }
+}
+
+/// a function to add a character to a str
+// TODO: less naive impl, with less allocations and growth factor
+pub fn register_str_add_char(codegen: &Codegen) -> Result<(), CrocoError> {
+    let add_char_ty = codegen.context.void_type().fn_type(
+        &[
+            codegen.str_type.ptr_type(AddressSpace::Generic).into(),
+            codegen.context.i8_type().into(),
+        ],
+        false,
+    );
+    let add_char_fn = codegen
+        .module
+        .add_function("_str_add_char", add_char_ty, None);
+
+    let str_ptr = add_char_fn.get_first_param().unwrap().into_pointer_value();
+    let character = add_char_fn.get_last_param().unwrap().into_int_value();
+
+    // entry block of the function
+    let entry_block = codegen.context.append_basic_block(add_char_fn, "entry");
+    // block if we need to malloc
+    let malloc_block = codegen.context.append_basic_block(add_char_fn, "malloc");
+    // return block of the function
+    let ret_block = codegen.context.append_basic_block(add_char_fn, "end");
+
+    codegen.builder.position_at_end(entry_block);
+
+    let heap_ptr_ptr = codegen
+        .builder
+        .build_struct_gep(str_ptr, 0, "gepheapptr")
+        .unwrap();
+    let heap_ptr = codegen
+        .builder
+        .build_load(heap_ptr_ptr, "loadheapptr")
+        .into_pointer_value();
+
+    let len_ptr = codegen
+        .builder
+        .build_struct_gep(str_ptr, 1, "geplen")
+        .unwrap();
+    let mut len = codegen
+        .builder
+        .build_load(len_ptr, "loadlen")
+        .into_int_value();
+
+    let max_len_ptr = codegen
+        .builder
+        .build_struct_gep(str_ptr, 2, "gepmaxlen")
+        .unwrap();
+    let mut max_len = codegen
+        .builder
+        .build_load(max_len_ptr, "loadmaxlen")
+        .into_int_value();
+
+    // if len and max_len are equal then len+1 will overflow, check this
+    let cmp = codegen
+        .builder
+        .build_int_compare(IntPredicate::EQ, len, max_len, "cmplen");
 
     codegen
-        .context
-        .struct_type(&[void_ptr, isize_type, isize_type], false)
+        .builder
+        .build_conditional_branch(cmp, malloc_block, ret_block);
+
+    // if we need to allocate more space
+    codegen.builder.position_at_end(malloc_block);
+
+    // add to max_len the required space
+    let growth_factor = codegen.ptr_size.const_int(16, false);
+    max_len = codegen
+        .builder
+        .build_int_add(max_len, growth_factor, "addgrowth");
+
+    // update our ptr
+    codegen.builder.build_store(max_len_ptr, max_len);
+
+    // alloc the new size
+    codegen.builder.position_at_end(malloc_block);
+    let new_heap_ptr = codegen
+        .builder
+        .build_array_malloc(codegen.context.i8_type(), max_len, "malloclen")
+        .map_err(|_| CrocoError::from_type("heap allocation failed", CrocoErrorKind::Malloc))?;
+
+    // copy heap_ptr into new_heap_ptr
+    codegen
+        .builder
+        .build_memcpy(new_heap_ptr, 8, heap_ptr, 8, len)
+        .map_err(|_| CrocoError::from_type("memcpy failed", CrocoErrorKind::Malloc))?;
+
+    // free heap_ptr: if it was a nullptr this shouldn't do anything
+    codegen.builder.build_free(heap_ptr);
+
+    // replace heap_ptr by our new_heap_ptr in our string
+    codegen.builder.build_store(heap_ptr_ptr, new_heap_ptr);
+
+    // store our new character in the array, we should now have 1 to 16 empty slots
+    let new_char_ptr = unsafe { codegen.builder.build_gep(new_heap_ptr, &[len], "gepchar") };
+    codegen.builder.build_store(new_char_ptr, character);
+
+    // end the branch
+    codegen.builder.build_unconditional_branch(ret_block);
+    codegen.builder.position_at_end(ret_block);
+
+    // update our string to our new len
+    len =
+        codegen
+            .builder
+            .build_int_add(len, codegen.ptr_size.const_int(1, false), "addlen");
+    codegen.builder.build_store(len_ptr, len);
+
+    codegen.builder.build_return(None);
+    Ok(())
 }
 
 /// llvm repr of the array type
@@ -164,6 +289,15 @@ pub fn str_type<'ctx>(codegen: &'ctx Codegen) -> StructType<'ctx> {
 //     max_len: isize
 // }
 #[inline]
-pub fn array_type<'ctx>(codegen: &'ctx Codegen) -> StructType<'ctx> {
-    str_type(codegen)
+pub fn array_type<'ctx>(codegen: &Codegen<'ctx>) -> StructType<'ctx> {
+    codegen.str_type
+}
+
+/// removes the extension of a file if possible
+pub fn strip_ext(file: &str) -> &str {
+    Path::new(file)
+        .file_stem()
+        .unwrap_or_else(|| file.as_ref())
+        .to_str()
+        .unwrap()
 }

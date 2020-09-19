@@ -6,8 +6,8 @@ pub use self::symbol::LSymbol;
 
 pub mod utils;
 
+use std::rc::Rc;
 use std::{cell::RefCell, fs};
-use std::{path::Path, rc::Rc};
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -21,33 +21,49 @@ use inkwell::{
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
     OptimizationLevel,
 };
+use utils::{str_type, strip_ext, register_str_add_char};
 
-#[derive(Default)]
+#[derive(PartialEq)]
+enum OutputFormat {
+    LlvmIr,
+    ObjectFile,
+    Assembly,
+    Executable,
+}
+
 pub struct Crocol {
     file_path: String,
-    asm_flag: bool,
-    object_flag: bool,
+    output_format: OutputFormat,
     output_flag: String,
     verbose_flag: bool,
+}
+
+impl Default for Crocol {
+    fn default() -> Self {
+        Crocol::new()
+    }
 }
 
 impl Crocol {
     pub fn new() -> Self {
         Crocol {
             file_path: String::new(),
-            asm_flag: false,
-            object_flag: false,
+            output_format: OutputFormat::Executable,
             output_flag: String::new(),
             verbose_flag: false,
         }
     }
 
     pub fn emit_assembly(&mut self) {
-        self.asm_flag = true;
+        self.output_format = OutputFormat::Assembly;
     }
 
     pub fn emit_object_file(&mut self) {
-        self.object_flag = true;
+        self.output_format = OutputFormat::ObjectFile;
+    }
+
+    pub fn emit_llvm(&mut self) {
+        self.output_format = OutputFormat::LlvmIr;
     }
 
     pub fn set_verbose(&mut self, verbose: bool) {
@@ -132,14 +148,20 @@ impl Crocol {
         let fn_return = context.void_type().fn_type(&[], false);
         let main_fn = module.add_function("main", fn_return, None);
 
+        let ptr_size = context.ptr_sized_int_type(&target_machine.get_target_data(), None);
+
         let codegen = Codegen {
             context: &context,
             module,
             builder: context.create_builder(),
             symtable: RefCell::new(SymTable::new()),
-            ptr_size: context.ptr_sized_int_type(&target_machine.get_target_data(), None),
+            str_type: str_type(&context, ptr_size),
+            ptr_size,
             current_fn: RefCell::new(main_fn),
         };
+
+        // register built-in functions
+        register_str_add_char(&codegen)?;
 
         if let Err(mut e) = tree.crocol(&codegen) {
             e.set_kind(CrocoErrorKind::Runtime);
@@ -149,21 +171,34 @@ impl Crocol {
         // this should never fail if our nodes are right
         codegen.module.verify().unwrap();
 
-        // emit an executable if we don't specifically want to emit assembly and object files
-        let exe_flag = !self.asm_flag && !self.object_flag;
-
+        // emit an executable if we don't specifically want to emit assembly, object files, llvm ir
         // get the llvm file output name
-        let llvm_output_filename = if !self.output_flag.is_empty() && !exe_flag {
-            self.output_flag.clone()
-        } else {
-            let ext = if self.asm_flag { "asm" } else { "o" };
-            format!("{}.{}", strip_ext(&self.file_path), ext)
-        };
+        let llvm_output_filename =
+            if !self.output_flag.is_empty() && self.output_format != OutputFormat::Executable {
+                self.output_flag.clone()
+            } else {
+                let ext = match self.output_format {
+                    OutputFormat::Assembly | OutputFormat::Executable => "asm",
+                    OutputFormat::ObjectFile => "o",
+                    OutputFormat::LlvmIr => "ll",
+                };
+                format!("{}.{}", strip_ext(&self.file_path), ext)
+            };
 
-        let emit_method = if self.asm_flag {
-            FileType::Assembly
-        } else {
-            FileType::Object
+        // here we want to save the llvm ir
+        if self.output_format == OutputFormat::LlvmIr {
+            codegen
+                .module
+                .print_to_file(llvm_output_filename)
+                .map_err(|_| {
+                    CrocoError::from_type("cannot write llvm ir to disk", CrocoErrorKind::IO)
+                })?;
+            return Ok(());
+        }
+
+        let emit_method = match self.output_format {
+            OutputFormat::Assembly => FileType::Assembly,
+            _ => FileType::Object,
         };
 
         target_machine
@@ -173,8 +208,9 @@ impl Crocol {
             })?;
 
         // if the user specified -S or -c, we're done here
-        if self.asm_flag || self.object_flag {
-            return Ok(());
+        match self.output_format {
+            OutputFormat::Assembly | OutputFormat::ObjectFile => return Ok(()),
+            _ => (),
         }
 
         // else we need to link the object file into an executable
@@ -210,12 +246,4 @@ impl Crocol {
 
         Ok(())
     }
-}
-
-fn strip_ext(file: &str) -> &str {
-    Path::new(file)
-        .file_stem()
-        .unwrap_or_else(|| file.as_ref())
-        .to_str()
-        .unwrap()
 }
