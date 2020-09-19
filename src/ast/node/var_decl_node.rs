@@ -1,16 +1,26 @@
-use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
 use crate::symbol::{get_symbol_type, SymTable};
 use crate::{
-    crocoi::{symbol::SymbolContent, utils::init_default, ISymbol},
-    crocol::{utils::get_llvm_type, Codegen, LNodeResult},
+    ast::{AstNode, INodeResult},
     symbol_type::{type_eq, SymbolType},
     token::{CodePos, LiteralEnum::*},
 };
 
-use inkwell::{types::BasicTypeEnum, values::BasicValueEnum};
+#[cfg(feature = "crocol")]
+use {
+    crate::{
+        crocol::LSymbol,
+        crocol::{utils::get_llvm_type, Codegen, LNodeResult},
+    },
+    inkwell::{types::BasicTypeEnum, values::BasicValueEnum},
+    std::convert::TryInto,
+};
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{symbol::SymbolContent, utils::init_default, ISymbol};
+
 use std::cell::RefCell;
-use std::{convert::TryInto, rc::Rc};
+use std::rc::Rc;
 
 /// a node to declare a new variable (declared variable are initialized by default)
 #[derive(Clone)]
@@ -41,6 +51,8 @@ impl VarDeclNode {
 }
 
 impl AstNode for VarDeclNode {
+
+    #[cfg(feature = "crocoi")]
     fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let value = match &mut self.right {
             // there is a node
@@ -98,17 +110,18 @@ impl AstNode for VarDeclNode {
         )))
     }
 
+    #[cfg(feature = "crocol")]
     fn crocol<'ctx>(&mut self, codegen: &Codegen<'ctx>) -> Result<LNodeResult<'ctx>, CrocoError> {
         // TODO: remove once checker works
-        self.var_type = SymbolType::Num;
+        self.var_type = SymbolType::Str;
 
         let ty: BasicTypeEnum = get_llvm_type(&self.var_type, codegen).try_into().unwrap();
-        let alloca = codegen.builder.build_alloca(ty, &self.left);
+        let alloca = codegen.create_entry_block_alloca(ty, &self.left);
 
-        // let symbol = LSymbol {
-        //     pointer: alloca,
-        //     symbol_type: self.var_type.clone(),
-        // };
+        let symbol = LSymbol {
+            pointer: alloca,
+            symbol_type: self.var_type.clone(),
+        };
 
         match &mut self.right {
             Some(node) => {
@@ -120,14 +133,12 @@ impl AstNode for VarDeclNode {
             None => {
                 // the checker should ensure that the type is valid
                 // we can just default assign
-                // lifetime mismatch here !!!! >:(
-                // crocol::utils::init_default(&symbol, codegen);
+                crate::crocol::utils::init_default(&symbol, codegen);
             }
         }
 
-        // let symtable_borrow = codegen.symtable.borrow_mut();
-        // lifetime mismatch here !!!! >:(
-        // symtable_borrow.insert_symbol(&self.left, symbol).unwrap();
+        let mut symtable_borrow = codegen.symtable.borrow_mut();
+        symtable_borrow.insert_symbol(&self.left, symbol).unwrap();
 
         Ok(LNodeResult::Void)
     }

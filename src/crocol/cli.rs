@@ -9,6 +9,9 @@ struct MyOptions {
     #[options(no_short, help = "verbose output")]
     verbose: bool,
 
+    #[options(no_short, help = "ignore llvm ir checks")]
+    no_llvm_checks: bool,
+
     #[options(help = "show help message")]
     help: bool,
 
@@ -80,14 +83,13 @@ pub fn main() {
     if opts.emit_llvm {
         crocol.emit_llvm();
     }
-
-    if opts.verbose {
-        crocol.set_verbose(true);
-    }
-
+    
     if !opts.output.is_empty() {
         crocol.set_output(opts.output);
     }
+
+    crocol.set_verbose(opts.verbose);
+    crocol.set_no_llvm_checks(opts.no_llvm_checks);
 
     if let Err(e) = crocol.exec_file(file_path) {
         println!("{}", e);

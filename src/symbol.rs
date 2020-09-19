@@ -111,7 +111,7 @@ impl<T: Symbol + Clone> SymTable<T> {
     }
 
     /// return the desired symbol starting from the inner scope
-    pub fn get_symbol(&mut self, var_name: &str) -> Result<T, String> {
+    pub fn get_symbol(&self, var_name: &str) -> Result<T, String> {
         for table in self.symbols.iter().rev() {
             if let Some(symbol) = table.get(var_name) {
                 return Ok(symbol.clone());

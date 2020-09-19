@@ -1,9 +1,15 @@
+#[cfg(feature = "crocol")]
+use crate::crocol::{Codegen, LNodeResult};
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{symbol::SymbolContent, INodeResult, ISymbol};
+
 use crate::ast::AstNode;
 use crate::error::CrocoError;
 use crate::symbol::{get_symbol_type, SymTable};
 use crate::{
     symbol_type::type_eq,
-    token::{CodePos, LiteralEnum::*}, crocoi::{INodeResult, ISymbol, symbol::SymbolContent},
+    token::{CodePos, LiteralEnum::*},
 };
 /// a node to assign a variable to a certain value
 #[derive(Clone)]
@@ -26,6 +32,7 @@ impl AssignmentNode {
 }
 
 impl AstNode for AssignmentNode {
+    #[cfg(feature = "crocoi")]
     fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // get a mutable reference to the variable / field to assign to
         let var = self.var.crocoi(symtable)?.into_symbol(&self.code_pos)?;
@@ -51,7 +58,21 @@ impl AstNode for AssignmentNode {
         )))
     }
 
-    // fn crocol<'ctx>(&mut self, codegen: &'ctx mut Codegen) -> Result<AnyTypeEnum<'ctx>, CrocoError> {
+    #[cfg(feature = "crocol")]
+    fn crocol<'ctx>(&mut self, codegen: &Codegen<'ctx>) -> Result<LNodeResult<'ctx>, CrocoError> {
+        let var_ptr = self.var.crocol(codegen)?.into_symbol();
 
-    // }
+        let expr = self
+            .expr
+            .crocol(codegen)?
+            .into_symbol();
+            
+        let expr_value = codegen.auto_deref(expr);
+
+        codegen
+            .builder
+            .build_store(var_ptr.into_pointer_value(), expr_value);
+
+        Ok(LNodeResult::Void)
+    }
 }

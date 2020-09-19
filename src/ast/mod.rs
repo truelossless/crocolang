@@ -2,21 +2,27 @@ pub mod node;
 
 use dyn_clonable::*;
 
-use crate::crocoi::{INodeResult, ISymbol};
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{ISymbol, INodeResult};
+
+#[cfg(feature = "crocol")]
 use crate::crocol::{Codegen, LNodeResult};
+
 use crate::error::CrocoError;
 use crate::symbol::SymTable;
 
 /// a trait used to build node trait objects
 #[clonable]
 pub trait AstNode: Clone {
-    /// recursively visit the node and its children and returns its value
-    // TODO: proper feature separation by moving the crocoi & crocol implementation to their respective folders.
+    /// crocoi backend interpreter
+    #[cfg(feature = "crocoi")]
     fn crocoi(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         unimplemented!();
     }
 
+    /// crocol backend code generation, using llvm
     // we could also return a Box<dyn AnyType>, but enum performance should be better
+    #[cfg(feature = "crocol")]
     fn crocol<'ctx>(
         &mut self,
         _codegen: &Codegen<'ctx>,

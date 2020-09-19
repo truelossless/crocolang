@@ -271,10 +271,9 @@ pub fn register_str_add_char(codegen: &Codegen) -> Result<(), CrocoError> {
     codegen.builder.position_at_end(ret_block);
 
     // update our string to our new len
-    len =
-        codegen
-            .builder
-            .build_int_add(len, codegen.ptr_size.const_int(1, false), "addlen");
+    len = codegen
+        .builder
+        .build_int_add(len, codegen.ptr_size.const_int(1, false), "addlen");
     codegen.builder.build_store(len_ptr, len);
 
     codegen.builder.build_return(None);

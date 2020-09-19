@@ -79,9 +79,6 @@ pub use self::unary_minus_node::UnaryMinusNode;
 mod var_decl_node;
 pub use self::var_decl_node::VarDeclNode;
 
-mod var_copy_node;
-pub use self::var_copy_node::VarCopyNode;
-
 mod var_call_node;
 pub use self::var_call_node::VarCallNode;
 

@@ -6,9 +6,10 @@ use inkwell::{
     module::Module,
     types::BasicTypeEnum,
     types::IntType,
+    types::StructType,
     values::BasicValueEnum,
     values::{AnyValueEnum, FunctionValue, PointerValue},
-types::StructType};
+};
 
 use crate::{
     symbol::{SymTable, Symbol},
@@ -29,6 +30,8 @@ pub struct Codegen<'ctx> {
 }
 
 impl<'ctx> Codegen<'ctx> {
+
+    // create a variable at the start of a block
     pub fn create_entry_block_alloca(
         &self,
         ty: BasicTypeEnum<'ctx>,
@@ -41,18 +44,22 @@ impl<'ctx> Codegen<'ctx> {
             None => self.builder.position_at_end(entry),
         }
 
-        self.builder.build_alloca(ty, name)
+        let alloca = self.builder.build_alloca(ty, name);
+        self.builder.position_at_end(entry);
+
+        alloca
     }
 
     pub fn get_ptr_value(&self, any_value: AnyValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
-        self.builder.build_load(any_value.into_pointer_value(), "load")
+        self.builder
+            .build_load(any_value.into_pointer_value(), "load")
     }
 
     /// dereferences a pointer if needed, or returns the corresponding enum
     pub fn auto_deref(&self, value: AnyValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
         match value {
-            AnyValueEnum::PointerValue(p) => self.builder.build_load(p, "auto deref load"),
-            value => value.try_into().unwrap()
+            AnyValueEnum::PointerValue(p) => self.builder.build_load(p, "loadautoderef"),
+            value => value.try_into().unwrap(),
         }
     }
 }

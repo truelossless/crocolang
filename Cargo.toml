@@ -1,25 +1,25 @@
 [package]
-name = "croco_lang"
-version = "0.5.1"
 authors = ["truelossless <esteban.gressard@gmail.com>"]
-edition = "2018"
 build = "build.rs"
+edition = "2018"
+name = "croco_lang"
+version = "0.5.2"
 
-[build-dependencies]
-cc = "1.0"
+[target.'cfg(windows)'.build-dependencies]
+cc = {version = "1.0", optional = true}
 
 [dependencies]
-unicode-segmentation = "1.6.0"
-dyn-clonable = "0.9.0"
+dyn-clonable = "0.9.0" 
 gumdrop = "0.8.0" # lighter alternative to clap
-ureq = { version = "*", default-features = false, features = ["native-tls"] } # lighter alternative to reqwest
-inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm10-0"], optional = true }
-libc = { version="0.2.77", optional = true }
+inkwell = {git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm10-0"], optional = true} 
+libc = {version = "0.2.77", optional = true} 
+unicode-segmentation = "1.6.0" 
+ureq = {version = "*", default-features = false, features = ["native-tls"]}# lighter alternative to reqwest 
 
 [features]
-default = ["crocoi", "crocol"]
 crocoi = [] # the croco interpreter backend
-crocol = ["inkwell", "libc"] # the croco llvm backend 
+crocol = ["inkwell", "libc", "cc"] # the croco llvm backend 
+default = ["crocol", "crocoi"]
 
 [lib]
 name = "croco"
@@ -28,12 +28,14 @@ path = "src/lib.rs"
 [[bin]]
 name = "crocoi"
 path = "src/crocoi/cli.rs"
+required-features = ["crocoi"]
 
 [[bin]]
 name = "crocol"
 path = "src/crocol/cli.rs"
+required-features = ["crocol"]
 
 [profile.release]
-panic = "abort"
-lto = true
 debug = 0
+lto = true
+panic = "abort"

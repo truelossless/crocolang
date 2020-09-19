@@ -44,7 +44,7 @@ impl AstNode for ConstantNode {
             LiteralEnum::Num(n) => codegen.context.f32_type().const_float(*n as f64).into(),
             LiteralEnum::Str(s) => {
                 let alloca =
-                    codegen.create_entry_block_alloca(codegen.str_type.into(), "str alloc");
+                    codegen.create_entry_block_alloca(codegen.str_type.into(), "allocastr");
                 set_str_text(alloca, &s, codegen);
 
                 alloca.into()
@@ -52,6 +52,6 @@ impl AstNode for ConstantNode {
             _ => unreachable!(),
         };
 
-        Ok(LNodeResult::Symbol(llvm_value))
+        Ok(LNodeResult::Symbol(codegen.auto_deref(llvm_value).into()))
     }
 }

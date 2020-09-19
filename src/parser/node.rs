@@ -16,7 +16,7 @@ impl Parser {
         let code_pos = self.token_pos.clone();
 
         match token {
-            Identifier(identifier) => Ok(Box::new(VarCopyNode::new(
+            Identifier(identifier) => Ok(Box::new(VarCallNode::new(
                 identifier.name,
                 self.token_pos.clone(),
             ))),

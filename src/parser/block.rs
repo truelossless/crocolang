@@ -272,12 +272,19 @@ impl Parser {
                     let fn_decl_node =
                         FunctionDeclNode::new(fn_name, fn_decl, self.token_pos.clone());
 
-                    block.add_child(Box::new(fn_decl_node));
+                    block.prepend_child(Box::new(fn_decl_node));
                 }
 
                 // returning a value
                 Keyword(Return) => {
                     self.next_token(iter);
+
+                    if is_top_level {
+                        return Err(CrocoError::new(
+                            &self.token_pos,
+                            "can't return a value outside of a function",
+                        ));
+                    }
 
                     let return_node = self.parse_expr(iter, AllowStructDeclaration)?;
                     // TODO: correct CodePos

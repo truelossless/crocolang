@@ -1,11 +1,13 @@
 use crate::ast::{AstNode, AstNodeType, INodeResult};
 use crate::error::CrocoError;
 use crate::symbol::SymTable;
-use crate::{
-    crocoi::ISymbol,
-    crocol::{Codegen, LNodeResult},
-    token::CodePos,
-};
+use crate::token::CodePos;
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::ISymbol;
+
+#[cfg(feature = "crocol")]
+use crate::crocol::{Codegen, LNodeResult};
 
 /// a node creating a reference to a symbol
 #[derive(Clone)]
@@ -24,6 +26,7 @@ impl DerefNode {
 }
 
 impl AstNode for DerefNode {
+    #[cfg(feature = "crocoi")]
     fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         let symbol = self
             .symbol
@@ -49,10 +52,8 @@ impl AstNode for DerefNode {
         AstNodeType::UnaryNode
     }
 
-    fn crocol<'ctx>(
-        &mut self,
-        codegen: &Codegen<'ctx>,
-    ) -> Result<LNodeResult<'ctx>, CrocoError> {
+    #[cfg(feature = "crocol")]
+    fn crocol<'ctx>(&mut self, codegen: &Codegen<'ctx>) -> Result<LNodeResult<'ctx>, CrocoError> {
         let ptr = self
             .symbol
             .as_mut()

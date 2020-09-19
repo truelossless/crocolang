@@ -35,6 +35,7 @@ pub struct Crocol {
     file_path: String,
     output_format: OutputFormat,
     output_flag: String,
+    no_llvm_checks_flag: bool,
     verbose_flag: bool,
 }
 
@@ -50,6 +51,7 @@ impl Crocol {
             file_path: String::new(),
             output_format: OutputFormat::Executable,
             output_flag: String::new(),
+            no_llvm_checks_flag: false,
             verbose_flag: false,
         }
     }
@@ -64,6 +66,10 @@ impl Crocol {
 
     pub fn emit_llvm(&mut self) {
         self.output_format = OutputFormat::LlvmIr;
+    }
+
+    pub fn set_no_llvm_checks(&mut self, no_llvm_checks: bool) {
+        self.no_llvm_checks_flag = no_llvm_checks;
     }
 
     pub fn set_verbose(&mut self, verbose: bool) {
@@ -167,9 +173,11 @@ impl Crocol {
             e.set_kind(CrocoErrorKind::Runtime);
             return Err(e);
         }
-
+        
         // this should never fail if our nodes are right
-        codegen.module.verify().unwrap();
+        if !self.no_llvm_checks_flag {
+            codegen.module.verify().unwrap();
+        }
 
         // emit an executable if we don't specifically want to emit assembly, object files, llvm ir
         // get the llvm file output name

@@ -3,8 +3,23 @@ source_filename = "main"
 
 define void @main() {
 entry:
-  %a = alloca float
-  store float 1.200000e+01, float* %a
+  %allocastr1 = alloca { i8*, i64, i64 }
+  %b = alloca { i8*, i64, i64 }
+  %allocastr = alloca { i8*, i64, i64 }
+  %a = alloca { i8*, i64, i64 }
+  call void @_str_add_char({ i8*, i64, i64 }* %allocastr, i8 116)
+  call void @_str_add_char({ i8*, i64, i64 }* %allocastr, i8 101)
+  call void @_str_add_char({ i8*, i64, i64 }* %allocastr, i8 115)
+  call void @_str_add_char({ i8*, i64, i64 }* %allocastr, i8 116)
+  call void @_str_add_char({ i8*, i64, i64 }* %allocastr, i8 32)
+  call void @_str_add_char({ i8*, i64, i64 }* %allocastr, i8 33)
+  call void @_str_add_char({ i8*, i64, i64 }* %allocastr, i8 33)
+  %loadautoderef = load { i8*, i64, i64 }, { i8*, i64, i64 }* %allocastr
+  store { i8*, i64, i64 } %loadautoderef, { i8*, i64, i64 }* %a
+  call void @_str_add_char({ i8*, i64, i64 }* %allocastr1, i8 121)
+  call void @_str_add_char({ i8*, i64, i64 }* %allocastr1, i8 111)
+  %loadautoderef2 = load { i8*, i64, i64 }, { i8*, i64, i64 }* %allocastr1
+  store { i8*, i64, i64 } %loadautoderef2, { i8*, i64, i64 }* %b
   ret void
 }
 

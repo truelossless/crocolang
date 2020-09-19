@@ -1,14 +1,17 @@
 use std::convert::TryInto;
 
-use inkwell::values::BasicValueEnum;
-
 use crate::ast::{AstNode, BlockScope};
 use crate::error::CrocoError;
 use crate::symbol::SymTable;
-use crate::{
-    crocoi::{symbol::SymbolContent, INodeResult, ISymbol},
-    crocol::{Codegen, LNodeResult},
-    token::LiteralEnum::*,
+use crate::token::LiteralEnum::*;
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{symbol::SymbolContent, INodeResult, ISymbol};
+
+#[cfg(feature = "crocol")]
+use {
+    crate::crocol::{Codegen, LNodeResult},
+    inkwell::values::BasicValueEnum,
 };
 
 /// node containing multiple instructions
@@ -45,6 +48,7 @@ impl AstNode for BlockNode {
         self.body.push(node);
     }
 
+    #[cfg(feature = "crocoi")]
     fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
         // push a new scope if needed
         match self.scope {
@@ -86,19 +90,20 @@ impl AstNode for BlockNode {
         Ok(value)
     }
 
+    #[cfg(feature = "crocol")]
     fn crocol<'ctx>(&mut self, codegen: &Codegen<'ctx>) -> Result<LNodeResult<'ctx>, CrocoError> {
         if let BlockScope::New = self.scope {
             let block = codegen
                 .context
                 .append_basic_block(*codegen.current_fn.borrow(), "entry");
 
-            codegen.builder.position_at_end(block);
-
             let mut early_return = false;
 
             for node in &mut self.body {
                 match node.crocol(codegen)? {
                     LNodeResult::Return(value) => {
+                        // TODO: void returns
+                        codegen.builder.position_at_end(block);
                         let basic_val: BasicValueEnum = value.try_into().unwrap();
                         codegen.builder.build_return(Some(&basic_val));
                         early_return = true;
@@ -111,6 +116,7 @@ impl AstNode for BlockNode {
 
             // if there is no early return the function returns void
             if !early_return {
+                codegen.builder.position_at_end(block);
                 codegen.builder.build_return(None);
             }
 
