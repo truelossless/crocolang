@@ -1,6 +1,8 @@
-use crate::ast::{AstNode,INodeResult};
+use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::{crocoi::ISymbol, symbol::SymTable};
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{ISymTable, INodeResult};
 
 /// a node representing a break statement
 #[derive(Clone)]
@@ -13,7 +15,10 @@ impl BreakNode {
 }
 
 impl AstNode for BreakNode {
-    fn crocoi(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(
+        &mut self,
+        _symtable: &mut ISymTable,
+    ) -> Result<INodeResult, CrocoError> {
         Ok(INodeResult::Break)
     }
 }

@@ -6,8 +6,8 @@ pub use self::symbol::LSymbol;
 
 pub mod utils;
 
+use std::fs;
 use std::rc::Rc;
-use std::{cell::RefCell, fs};
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -21,7 +21,7 @@ use inkwell::{
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
     OptimizationLevel,
 };
-use utils::{str_type, strip_ext, register_str_add_char};
+use utils::{register_str_add_char, str_type, strip_ext};
 
 #[derive(PartialEq)]
 enum OutputFormat {
@@ -156,24 +156,24 @@ impl Crocol {
 
         let ptr_size = context.ptr_sized_int_type(&target_machine.get_target_data(), None);
 
-        let codegen = Codegen {
+        let mut codegen = Codegen {
             context: &context,
             module,
             builder: context.create_builder(),
-            symtable: RefCell::new(SymTable::new()),
+            symtable: SymTable::new(),
             str_type: str_type(&context, ptr_size),
             ptr_size,
-            current_fn: RefCell::new(main_fn),
+            current_fn: main_fn,
         };
 
         // register built-in functions
         register_str_add_char(&codegen)?;
 
-        if let Err(mut e) = tree.crocol(&codegen) {
+        if let Err(mut e) = tree.crocol(&mut codegen) {
             e.set_kind(CrocoErrorKind::Runtime);
             return Err(e);
         }
-        
+
         // this should never fail if our nodes are right
         if !self.no_llvm_checks_flag {
             codegen.module.verify().unwrap();

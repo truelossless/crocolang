@@ -2,10 +2,7 @@ use super::{Parser, TypedArg};
 use crate::ast::BlockScope;
 use crate::error::CrocoError;
 use crate::symbol::{FunctionDecl, FunctionKind};
-use crate::{
-    symbol_type::SymbolType,
-    token::{CodePos, SeparatorEnum::*, Token, Token::*},
-};
+use crate::token::{CodePos, SeparatorEnum::*, Token, Token::*};
 
 impl Parser {
     /// parses a function declation into a FunctionDecl
@@ -80,9 +77,9 @@ impl Parser {
 
         // if the return type isn't specified the function is Void
         let return_type = if let Separator(LeftCurlyBracket) = self.peek_token(iter) {
-            SymbolType::Void
+            None
         } else {
-            self.parse_var_type(iter)?
+            Some(self.parse_var_type(iter)?)
         };
 
         self.discard_newlines(iter);
@@ -98,11 +95,7 @@ impl Parser {
         let fn_decl = FunctionDecl {
             args: typed_args,
             return_type,
-            body: Some(FunctionKind::Regular(self.parse_block(
-                iter,
-                BlockScope::New,
-                false,
-            )?)),
+            body: FunctionKind::Regular(self.parse_block(iter, BlockScope::New, false)?),
         };
 
         Ok((fn_decl, identifier.name))

@@ -1,0 +1,10 @@
+let a = "youpi !"
+let b = a
+b = "yay !"
+
+assert(a == "youpi !")
+
+let c = &a
+*c = "yeehaw !"
+
+assert(a == "yeehaw !")

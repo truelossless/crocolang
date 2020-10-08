@@ -1,10 +1,11 @@
 use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
+use crate::token::CodePos;
+
+#[cfg(feature = "crocoi")]
 use crate::{
-    crocoi::{symbol::SymbolContent, ISymbol},
+    crocoi::{ISymTable, ISymbol},
     symbol_type::SymbolType,
-    token::CodePos,
 };
 
 /// a node holding a type value
@@ -21,9 +22,9 @@ impl TypeNode {
 }
 
 impl AstNode for TypeNode {
-    fn crocoi(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
-        Ok(INodeResult::construct_symbol(SymbolContent::CrocoType(
-            self.value.clone(),
-        )))
+
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, _symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
+        Ok(INodeResult::Value(ISymbol::CrocoType(self.value.clone())))
     }
 }

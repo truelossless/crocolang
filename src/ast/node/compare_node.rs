@@ -1,7 +1,9 @@
-use crate::ast::{AstNode, AstNodeType, INodeResult};
+use crate::ast::{AstNode, AstNodeType};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
-use crate::{crocoi::{utils::get_value, ISymbol, symbol::SymbolContent}, token::{literal_eq, CodePos, LiteralEnum::*, OperatorEnum}};
+use crate::token::{literal_eq, CodePos, LiteralEnum::*, OperatorEnum};
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{utils::get_value, INodeResult, ISymTable, ISymbol};
 
 #[derive(Clone)]
 /// A node used to compare two values, returns a boolean
@@ -34,7 +36,7 @@ impl AstNode for CompareNode {
         }
     }
 
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         let left_val = get_value(&mut self.left, symtable, &self.code_pos)?;
         let right_val = get_value(&mut self.right, symtable, &self.code_pos)?;
 
@@ -62,9 +64,7 @@ impl AstNode for CompareNode {
             _ => unreachable!(),
         };
 
-        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-            Bool(value),
-        )))
+        Ok(INodeResult::Value(ISymbol::Primitive(Bool(value))))
     }
     fn get_type(&self) -> AstNodeType {
         AstNodeType::BinaryNode

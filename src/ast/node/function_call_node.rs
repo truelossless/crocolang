@@ -1,16 +1,12 @@
 use crate::ast::node::*;
 use crate::ast::{AstNode, INodeResult};
-use crate::symbol::{get_symbol_type, FunctionKind, SymTable};
+use crate::symbol::FunctionKind;
 use crate::token::{CodePos, LiteralEnum};
 
-use crate::{
-    crocoi::{self, symbol::SymbolContent, ISymbol},
-    error::CrocoError,
-    symbol_type::type_eq,
-};
+use crate::error::CrocoError;
 
-use std::cell::RefCell;
-use std::rc::Rc;
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{self, symbol::get_symbol_type, utils::auto_deref, ISymTable, ISymbol};
 
 #[derive(Clone)]
 pub struct FunctionCallNode {
@@ -46,7 +42,8 @@ impl AstNode for FunctionCallNode {
         }
     }
 
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         // resolve the function arguments
         let mut visited_args = Vec::new();
         for arg in &mut self.args {
@@ -59,27 +56,18 @@ impl AstNode for FunctionCallNode {
 
         // if we're dealing with a method, inject self as the first argument
         if let Some(method_self) = self.method.as_mut() {
-            let mut method_symbol = method_self.crocoi(symtable)?.into_symbol(&self.code_pos)?;
-
-            // auto deref if we have a Ref
-            loop {
-                let reference;
-
-                if let SymbolContent::Ref(r) = &*method_symbol.borrow() {
-                    reference = r.clone();
-                } else {
-                    break;
-                }
-
-                method_symbol = reference;
-            }
+            let mut method_symbol = method_self
+                .crocoi(symtable)?
+                .into_value_or_var_ref(&self.code_pos)?;
 
             // inject the "self" argument
             self_arg = Some(method_symbol.clone());
 
-            match &*method_symbol.borrow() {
+            method_symbol = auto_deref(method_symbol);
+
+            match method_symbol {
                 // struct methods
-                SymbolContent::Struct(s) => {
+                ISymbol::Struct(s) => {
                     // look for the method declaration
                     fn_decl = symtable
                         .get_struct_decl(&s.struct_type)
@@ -96,22 +84,22 @@ impl AstNode for FunctionCallNode {
                 }
 
                 // str methods
-                SymbolContent::Primitive(LiteralEnum::Str(_s)) => {
+                ISymbol::Primitive(LiteralEnum::Str(_s)) => {
                     todo!();
                 }
 
                 // num methods
-                SymbolContent::Primitive(LiteralEnum::Num(_n)) => {
+                ISymbol::Primitive(LiteralEnum::Num(_n)) => {
                     todo!();
                 }
 
                 // bool methods
-                SymbolContent::Primitive(LiteralEnum::Bool(_b)) => {
+                ISymbol::Primitive(LiteralEnum::Bool(_b)) => {
                     todo!();
                 }
 
                 // array methods
-                SymbolContent::Array(_arr) => {
+                ISymbol::Array(_arr) => {
                     todo!();
                 }
 
@@ -139,7 +127,7 @@ impl AstNode for FunctionCallNode {
         }
 
         for (i, arg) in visited_args.iter().enumerate() {
-            if !type_eq(&get_symbol_type(&*arg.borrow()), &fn_decl.args[i].arg_type) {
+            if !get_symbol_type(arg).eq(&fn_decl.args[i].arg_type) {
                 return Err(CrocoError::new(
                     &self.code_pos,
                     &format!("parameter {} doesn't match function definition", i + 1,),
@@ -147,9 +135,9 @@ impl AstNode for FunctionCallNode {
             }
         }
 
-        let return_value: ISymbol;
+        let return_value;
 
-        match fn_decl.body.unwrap() {
+        match fn_decl.body {
             FunctionKind::Regular(mut block_node) => {
                 // get the block node of the function
 
@@ -157,26 +145,28 @@ impl AstNode for FunctionCallNode {
                 // TODO: deep clone
                 for (i, arg) in visited_args.into_iter().enumerate() {
                     let resolved_literal = Box::new(crocoi::node::SymbolNode::new(
-                        arg.borrow().clone(),
+                        arg.clone(),
                         self.code_pos.clone(),
                     ));
 
                     block_node.prepend_child(Box::new(VarDeclNode::new(
                         fn_decl.args[i].arg_name.clone(),
                         Some(resolved_literal),
-                        fn_decl.args[i].arg_type.clone(),
+                        Some(fn_decl.args[i].arg_type.clone()),
                         self.code_pos.clone(),
                     )));
                 }
 
                 if let Some(self_symbol) = self_arg {
+                    let var_type = Some(get_symbol_type(&self_symbol));
+
                     block_node.prepend_child(Box::new(VarDeclNode::new(
                         "self".to_owned(),
                         Some(Box::new(crocoi::node::SymbolNode::new(
-                            self_symbol.borrow().clone(),
+                            self_symbol,
                             self.code_pos.clone(),
                         ))),
-                        get_symbol_type(&*self_symbol.borrow()),
+                        var_type,
                         self.code_pos.clone(),
                     )));
                 }
@@ -195,26 +185,31 @@ impl AstNode for FunctionCallNode {
                             "cannot use continue in a function",
                         ))
                     }
+                    INodeResult::Value(val) => Some(val),
+                    INodeResult::Variable(var) => Some(var.borrow().clone()),
                     // this must be void if it's returned by a block node
-                    INodeResult::Symbol(s) => s,
+                    INodeResult::Void => None,
                 }
             }
 
             FunctionKind::Builtin(builtin_call) => {
-                return_value = Rc::new(RefCell::new(builtin_call(visited_args)));
+                return_value = builtin_call(visited_args);
             }
         }
 
-        if !type_eq(
-            &fn_decl.return_type,
-            &get_symbol_type(&*return_value.borrow()),
-        ) {
-            return Err(CrocoError::new(
-                &self.code_pos,
-                "function returned a wrong type",
-            ));
+        // if this is false then both return types are void
+        if let (Some(ret_ty), Some(ret_val)) = (&fn_decl.return_type, &return_value) {
+            if !ret_ty.eq(&get_symbol_type(ret_val)) {
+                return Err(CrocoError::new(
+                    &self.code_pos,
+                    "function returned a wrong type",
+                ));
+            }
         }
 
-        Ok(INodeResult::Symbol(return_value))
+        match return_value {
+            None => Ok(INodeResult::Void),
+            Some(val) => Ok(INodeResult::Value(val)),
+        }
     }
 }

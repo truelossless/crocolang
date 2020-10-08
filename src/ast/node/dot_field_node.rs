@@ -1,10 +1,10 @@
 use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
-use crate::{
-    crocoi::{symbol::SymbolContent, ISymbol},
-    token::{CodePos, LiteralEnum},
-};
+use crate::token::{CodePos, LiteralEnum};
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{utils::auto_deref, ISymTable, ISymbol};
+
 /// a node to access symbol fields
 #[derive(Clone)]
 pub struct DotFieldNode {
@@ -32,71 +32,54 @@ impl AstNode for DotFieldNode {
         }
     }
 
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
+        
         let mut symbol = self
             .bottom
             .as_mut()
             .unwrap()
             .crocoi(symtable)?
             .into_symbol(&self.code_pos)?;
+            
+        symbol = auto_deref(symbol);
 
-        // auto deref if we have a Ref
-        loop {
-            let reference;
-
-            if let SymbolContent::Ref(r) = &*symbol.borrow() {
-                reference = r.clone();
-            } else {
-                break;
-            }
-
-            symbol = reference;
-        }
-
-        let err = format!("no field with the name {}", 12);
-        let value = match &*symbol.borrow() {
+        let value = match &symbol {
             // access a struct field
-
-
-
-            SymbolContent::Struct(s) => s
+            ISymbol::Struct(s) => s
                 .fields
-                .as_ref()
-                .unwrap()
                 .get(&self.field_name)
                 .ok_or_else(|| {
                     CrocoError::new(
                         &self.code_pos,
-                        // &format!("no field with the name {}", self.field_name),
-                        &err
+                        format!("no field with the name {}", self.field_name),
                     )
                 })?
                 .clone(),
 
             // str fields
-            SymbolContent::Primitive(LiteralEnum::Str(_s)) => {
+            ISymbol::Primitive(LiteralEnum::Str(_s)) => {
                 todo!();
             }
 
             // num fields
-            SymbolContent::Primitive(LiteralEnum::Num(_n)) => {
+            ISymbol::Primitive(LiteralEnum::Num(_n)) => {
                 todo!();
             }
 
             // bool fields
-            SymbolContent::Primitive(LiteralEnum::Bool(_b)) => {
+            ISymbol::Primitive(LiteralEnum::Bool(_b)) => {
                 todo!();
             }
 
             // array fields
-            SymbolContent::Array(_arr) => {
+            ISymbol::Array(_arr) => {
                 todo!();
             }
 
             // we should never have a reference / empty primitive
             _ => unreachable!(),
         };
-
-        Ok(INodeResult::Symbol(value))
+        Ok(INodeResult::Variable(value))
     }
 }

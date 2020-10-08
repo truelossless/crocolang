@@ -1,17 +1,16 @@
 use crate::ast::AstNode;
-use crate::crocoi::symbol::{Array, FunctionDecl, Struct, SymbolContent};
-use crate::crocoi::ISymbol;
+use crate::crocoi::symbol::{Array, FunctionDecl, ISymbol, Struct, ISymTable};
 use crate::error::CrocoError;
 use crate::{
     symbol_type::SymbolType,
-    token::{CodePos, LiteralEnum, LiteralEnum::*}, symbol::SymTable,
+    token::{CodePos, LiteralEnum, LiteralEnum::*},
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 /// returns the LiteralEnum associated to a node
 pub fn get_value(
     opt_node: &mut Option<Box<dyn AstNode>>,
-    symtable: &mut SymTable<ISymbol>,
+    symtable: &mut ISymTable,
     code_pos: &CodePos,
 ) -> Result<LiteralEnum, CrocoError> {
     Ok(opt_node
@@ -19,8 +18,6 @@ pub fn get_value(
         .ok_or_else(|| CrocoError::new(code_pos, "one variable hasn't been initialized !"))?
         .crocoi(symtable)?
         .into_symbol(code_pos)?
-        .borrow()
-        .clone()
         .into_primitive()
         .map_err(|_| CrocoError::new(code_pos, "cannot use this type in an expression"))?)
 }
@@ -28,7 +25,7 @@ pub fn get_value(
 /// returns the number value of a node
 pub fn get_number_value(
     opt_node: &mut Option<Box<dyn AstNode>>,
-    symtable: &mut SymTable<ISymbol>,
+    symtable: &mut ISymTable,
     code_pos: &CodePos,
 ) -> Result<f32, CrocoError> {
     let node = get_value(opt_node, symtable, &code_pos)?;
@@ -41,20 +38,37 @@ pub fn get_number_value(
     }
 }
 
+/// auto deref if we have a Ref
+/// e.g (&a).foo -> a.foo
+pub fn auto_deref(mut symbol: ISymbol) -> ISymbol {
+    loop {
+        let reference;
+
+        if let ISymbol::Ref(r) = symbol {
+            reference = r.borrow().clone();
+        } else {
+            break;
+        }
+
+        symbol = reference;
+    }
+
+    symbol
+}
+
 /// initializes recursively a symbol to its default value
 pub fn init_default(
     symbol_type: &SymbolType,
-    symtable: &mut SymTable<ISymbol>,
+    symtable: &mut ISymTable,
     code_pos: &CodePos,
-) -> Result<SymbolContent, CrocoError> {
+) -> Result<ISymbol, CrocoError> {
     Ok(match symbol_type {
-        SymbolType::Void => SymbolContent::Primitive(LiteralEnum::Void),
-        SymbolType::Num => SymbolContent::Primitive(Num(0.)),
-        SymbolType::Bool => SymbolContent::Primitive(LiteralEnum::Bool(false)),
-        SymbolType::Str => SymbolContent::Primitive(Str(String::new())),
-        SymbolType::Array(array_type) => SymbolContent::Array(Array {
+        SymbolType::Num => ISymbol::Primitive(Num(0.)),
+        SymbolType::Bool => ISymbol::Primitive(LiteralEnum::Bool(false)),
+        SymbolType::Str => ISymbol::Primitive(Str(String::new())),
+        SymbolType::Array(array_type) => ISymbol::Array(Array {
             array_type: array_type.clone(),
-            contents: Some(Vec::new()),
+            contents: Vec::new(),
         }),
         SymbolType::Ref(_) => return Err(CrocoError::new(code_pos, "dangling reference")),
         SymbolType::Struct(struct_type) => {
@@ -73,17 +87,17 @@ pub fn init_default(
                 );
             }
 
-            SymbolContent::Struct(Struct {
-                fields: Some(fields),
+            ISymbol::Struct(Struct {
+                fields,
                 struct_type: struct_type.clone(),
             })
         }
         SymbolType::Map(_, _) => todo!(),
-        SymbolType::Function(fn_type) => SymbolContent::Function(Box::new(FunctionDecl {
+        SymbolType::Function(fn_type) => ISymbol::Function(Box::new(FunctionDecl {
             args: fn_type.args.clone(),
             return_type: *fn_type.return_type.clone(),
             body: None,
         })),
-        SymbolType::CrocoType => SymbolContent::CrocoType(SymbolType::Void),
+        SymbolType::CrocoType => ISymbol::CrocoType(SymbolType::CrocoType),
     })
 }

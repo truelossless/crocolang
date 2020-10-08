@@ -5,7 +5,6 @@ pub enum LiteralEnum {
     Bool(bool),
     Num(f32),
     Str(String),
-    Void,
 }
 
 pub fn literal_eq(a: &LiteralEnum, b: &LiteralEnum) -> bool {
@@ -13,13 +12,6 @@ pub fn literal_eq(a: &LiteralEnum, b: &LiteralEnum) -> bool {
 }
 
 impl LiteralEnum {
-    pub fn is_void(&self) -> bool {
-        match self {
-            LiteralEnum::Void => true,
-            _ => false,
-        }
-    }
-
     pub fn is_num(&self) -> bool {
         match self {
             LiteralEnum::Num(_) => true,
@@ -30,7 +22,7 @@ impl LiteralEnum {
     pub fn into_bool(self) -> Result<bool, &'static str> {
         match self {
             LiteralEnum::Bool(b) => Ok(b),
-            _ => Err("expected a boolean")
+            _ => Err("expected a boolean"),
         }
     }
 

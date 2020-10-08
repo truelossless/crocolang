@@ -1,11 +1,14 @@
-use crate::ast::{AstNode, INodeResult};
+use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::symbol::{Decl, FunctionDecl, StructDecl, SymTable};
-use crate::{
-    symbol_type::SymbolType,
-    token::{CodePos, LiteralEnum}, crocoi::{symbol::SymbolContent, ISymbol},
-};
+use crate::symbol::{Decl, FunctionDecl, StructDecl};
+use crate::token::CodePos;
 use std::collections::{BTreeMap, HashMap};
+
+#[cfg(feature = "crocoi")]
+use crate::{
+    crocoi::{INodeResult, ISymTable},
+    symbol_type::SymbolType,
+};
 
 /// a node that contains the declaration of a struct
 #[derive(Clone)]
@@ -33,7 +36,7 @@ impl StructDeclNode {
 }
 
 impl AstNode for StructDeclNode {
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         // this node is not going to be called again, we can replace
 
         let struct_decl = StructDecl {
@@ -45,8 +48,6 @@ impl AstNode for StructDeclNode {
             .register_decl(self.name.clone(), Decl::StructDecl(struct_decl))
             .map_err(|e| CrocoError::new(&self.code_pos, &e))?;
 
-        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-            LiteralEnum::Void,
-        )))
+        Ok(INodeResult::Void)
     }
 }

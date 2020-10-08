@@ -1,5 +1,5 @@
 use crate::builtin::{BuiltinModule, BuiltinVar};
-use crate::crocoi::symbol::SymbolContent::*;
+use crate::crocoi::symbol::ISymbol::*;
 use crate::token::LiteralEnum::*;
 
 // module definition

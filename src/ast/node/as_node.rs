@@ -1,10 +1,12 @@
 use crate::ast::{AstNode, AstNodeType};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
 use crate::{
     symbol_type::SymbolType,
-    token::{CodePos, LiteralEnum::*}, crocoi::{ISymbol, INodeResult, symbol::SymbolContent},
+    token::{CodePos, LiteralEnum::*},
 };
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{symbol::INodeResult, symbol::ISymbol, ISymTable};
 
 #[derive(Clone)]
 /// a node used to cast primitives
@@ -35,7 +37,7 @@ impl AstNode for AsNode {
         }
     }
 
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         let val = self
             .left
             .as_mut()
@@ -49,17 +51,14 @@ impl AstNode for AsNode {
             .as_mut()
             .unwrap()
             .crocoi(symtable)?
-            .into_symbol(&self.code_pos)?
-            .borrow()
-            .clone()
+            .into_value(&self.code_pos)?
             .into_croco_type()
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
 
         // we can only cast primitive together
-        let val_primitive =
-            val.borrow().clone().into_primitive().map_err(|_| {
-                CrocoError::new(&self.code_pos, "can only cast primitives together")
-            })?;
+        let val_primitive = val
+            .into_primitive()
+            .map_err(|_| CrocoError::new(&self.code_pos, "can only cast primitives together"))?;
 
         let casted = match (val_primitive, as_type) {
             // useless cast
@@ -113,9 +112,7 @@ impl AstNode for AsNode {
             }
         };
 
-        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-            casted,
-        )))
+        Ok(INodeResult::Value(ISymbol::Primitive(casted)))
     }
 
     fn get_type(&self) -> AstNodeType {

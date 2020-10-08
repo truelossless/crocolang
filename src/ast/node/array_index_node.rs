@@ -1,8 +1,9 @@
 use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::symbol::{SymTable};
-use crate::crocoi::{ISymbol, symbol::SymbolContent::*, INodeResult};
 use crate::token::CodePos;
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{INodeResult, ISymTable, ISymbol::*};
 
 #[derive(Clone)]
 
@@ -32,33 +33,29 @@ impl AstNode for ArrayIndexNode {
         }
     }
 
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         // visit the index node to get the number of the element to access
-        let index_symbol = self.index.crocoi(symtable)?.into_symbol(&self.code_pos)?;
+        let index_symbol = self.index.crocoi(symtable)?.into_value(&self.code_pos)?;
 
         let index = index_symbol
-            .borrow()
-            .clone()
             .into_primitive()
             .map_err(|e| CrocoError::new(&self.code_pos, e))?
             .into_num()
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
 
-        // get a mutable reference to the array, it should not fail on unwraps
+        // get the variable referencing  the array, it should not fail on unwraps
         let array_ref = self
             .array
             .as_mut()
             .unwrap()
             .crocoi(symtable)?
-            .into_symbol(&self.code_pos)
-            .unwrap();
+            .into_var(&self.code_pos)?;
 
-        let array_borrow = array_ref.borrow_mut();
+        let array_borrow = &mut *array_ref.borrow_mut();
 
-        let array = match &*array_borrow {
+        let array = match array_borrow {
             Array(arr) => arr,
-
-            _ => return Err(CrocoError::new(&self.code_pos, "expected an array")),
+            _ => return Err(CrocoError::new(&self.code_pos, "only arrays are indexable")),
         };
 
         // make sure the index is a uint
@@ -76,9 +73,8 @@ impl AstNode for ArrayIndexNode {
             ));
         }
 
-        // return a clone to that element
-        match array.contents.as_ref().unwrap().get(index as usize) {
-            Some(el) => Ok(INodeResult::Symbol(el.clone())),
+        match array.contents.get(index as usize) {
+            Some(el) => Ok(INodeResult::Variable(el.clone())),
             None => Err(CrocoError::new(&self.code_pos, "index out of bounds")),
         }
     }

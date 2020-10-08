@@ -2,6 +2,7 @@ pub mod symbol;
 use symbol::import_builtin_module;
 
 pub use self::symbol::INodeResult;
+pub use self::symbol::ISymTable;
 pub use self::symbol::ISymbol;
 
 pub mod node;
@@ -11,8 +12,7 @@ use crate::error::{CrocoError, CrocoErrorKind};
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::symbol::SymTable;
-use crate::token::CodePos;
-use std::{fs, rc::Rc};
+use std::fs;
 
 pub struct Crocoi {
     file_path: String,
@@ -27,14 +27,8 @@ impl Crocoi {
 
     pub fn exec_file(&mut self, file_path: &str) -> Result<(), CrocoError> {
         let contents = fs::read_to_string(file_path).map_err(|_| {
-            let mut err = CrocoError::new(
-                &CodePos {
-                    file: Rc::from(file_path),
-                    line: 0,
-                    word: 0,
-                },
-                &format!("file not found: {}", file_path),
-            );
+            let mut err =
+                CrocoError::from_type(format!("file not found: {}", file_path), CrocoErrorKind::IO);
             err.set_kind(CrocoErrorKind::IO);
             err
         })?;

@@ -1,8 +1,12 @@
-use crate::ast::{AstNode, INodeResult};
+use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::symbol::{get_symbol_type, SymTable};
-use crate::{symbol_type::type_eq, token::CodePos, crocoi::{symbol::{SymbolContent, Struct}, ISymbol, utils::init_default}};
+use crate::token::CodePos;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{
+    symbol::get_symbol_type, symbol::Struct, utils::init_default, INodeResult, ISymTable, ISymbol,
+};
 
 /// a node holding a struct
 #[derive(Clone)]
@@ -28,10 +32,10 @@ impl StructCreateNode {
 
 // actually we can't move out as a node can be visited multiple times in a loop
 impl AstNode for StructCreateNode {
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         let mut struct_symbol = Struct {
             struct_type: self.struct_type.clone(),
-            fields: Some(HashMap::new()),
+            fields: HashMap::new(),
         };
 
         // we need to check first if the struct is valid
@@ -56,36 +60,30 @@ impl AstNode for StructCreateNode {
 
                 // the field is present, visit it
                 Some(field) => {
-                    let field_val = field.crocoi(symtable)?.into_symbol(&self.code_pos)?;
+                    let field_val = field.crocoi(symtable)?.into_value(&self.code_pos)?;
 
-                    if !type_eq(&field_decl.1, &get_symbol_type(&*field_val.borrow())) {
+                    if !&field_decl.1.eq(&get_symbol_type(&field_val)) {
                         return Err(CrocoError::new(
                             &self.code_pos,
                             &format!("field {} is not of the right type", field_decl.0),
                         ));
                     }
 
-                    field_val
+                    Rc::new(RefCell::new(field_val))
                 }
             };
 
-            struct_symbol
-                .fields
-                .as_mut()
-                .unwrap()
-                .insert(field_decl.0.clone(), field_val);
+            struct_symbol.fields.insert(field_decl.0.clone(), field_val);
         }
 
         // also we have to make sure that there is no extra field in our struct
-        if struct_decl_len != struct_symbol.fields.as_ref().unwrap().len() {
+        if struct_decl_len != struct_symbol.fields.len() {
             return Err(CrocoError::new(
                 &self.code_pos,
                 "extra field in struct declaration",
             ));
         }
 
-        Ok(INodeResult::construct_symbol(SymbolContent::Struct(
-            struct_symbol,
-        )))
+        Ok(INodeResult::Value(ISymbol::Struct(struct_symbol)))
     }
 }

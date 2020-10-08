@@ -45,7 +45,7 @@ impl Parser {
                         "expected a variable name after the let keyword",
                     )?;
 
-                    let mut assign_type = SymbolType::Void;
+                    let mut assign_type = None;
 
                     match self.peek_token(iter) {
                         // we're giving a value to our variable with type inference
@@ -61,7 +61,7 @@ impl Parser {
                         | Identifier(_)
                         | Operator(BitwiseAnd)
                         | Separator(LeftSquareBracket) => {
-                            assign_type = self.parse_var_type(iter)?;
+                            assign_type = Some(self.parse_var_type(iter)?);
                         }
 
                         // newline: we're declaring a variable without value or type
@@ -81,7 +81,7 @@ impl Parser {
                     }
 
                     // if we had a type annotation we need to check again for the variable value
-                    if assign_type.is_void() {
+                    if assign_type.is_some() {
                         match self.next_token(iter) {
                             Operator(Assign) => {
                                 out_node = Some(self.parse_expr(iter, AllowStructDeclaration)?);
@@ -107,8 +107,7 @@ impl Parser {
 
                 // assigning a new value to a variable / struct field, or calling a function
                 Identifier(_) | Operator(Multiplicate) => {
-                    let (lvalue_node, lvalue_compatible) =
-                        self.parse_identifier(iter, AllowStructDeclaration)?;
+                    let lvalue = self.parse_identifier(iter, AllowStructDeclaration)?;
 
                     if let Operator(op_token) = self.peek_token(iter) {
                         self.next_token(iter);
@@ -123,7 +122,7 @@ impl Parser {
                             | DivideEquals
                             | PowerEquals => {
 
-                                if !lvalue_compatible {
+                                if !lvalue.1 {
                                     return Err(CrocoError::new(
                                         &self.token_pos,
                                         "can't assign to this expression",
@@ -134,7 +133,7 @@ impl Parser {
 
                                 // add to the root function this statement
                                 if op_token == Assign {
-                                    block.add_child(Box::new(AssignmentNode::new(lvalue_node, expr_node, self.token_pos.clone())));
+                                    block.add_child(Box::new(AssignmentNode::new(lvalue.0, expr_node, self.token_pos.clone())));
                                 } else {
                                     let mut dyn_op_node: Box<dyn AstNode> = match op_token {
                                         PlusEquals => Box::new(PlusNode::new(self.token_pos.clone())),
@@ -147,12 +146,12 @@ impl Parser {
                                         _ => unreachable!(),
                                     };
 
-                                    dyn_op_node.add_child(lvalue_node.clone());
+                                    dyn_op_node.add_child(lvalue.0.clone());
                                     dyn_op_node.add_child(expr_node);
 
                                     self.expect_token(iter, Separator(NewLine), "expected a new line after assignation")?;
 
-                                    block.add_child(Box::new(AssignmentNode::new(lvalue_node, dyn_op_node, self.token_pos.clone())));
+                                    block.add_child(Box::new(AssignmentNode::new(lvalue.0, dyn_op_node, self.token_pos.clone())));
                                 }
                             }
 
@@ -164,7 +163,7 @@ impl Parser {
                             }
                         }
                     } else {
-                        block.add_child(lvalue_node);
+                        block.add_child(lvalue.0);
                     }
                 }
 

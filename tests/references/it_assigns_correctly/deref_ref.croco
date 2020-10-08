@@ -1,4 +1,4 @@
 let hello = "hello"
-let ref = *&*&hello
+let ref = *&hello
 
 assert(ref == "hello")

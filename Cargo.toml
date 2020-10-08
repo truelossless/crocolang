@@ -3,7 +3,7 @@ authors = ["truelossless <esteban.gressard@gmail.com>"]
 build = "build.rs"
 edition = "2018"
 name = "croco_lang"
-version = "0.5.2"
+version = "0.5.4"
 
 [target.'cfg(windows)'.build-dependencies]
 cc = {version = "1.0", optional = true}
@@ -14,11 +14,12 @@ gumdrop = "0.8.0" # lighter alternative to clap
 inkwell = {git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm10-0"], optional = true} 
 libc = {version = "0.2.77", optional = true} 
 unicode-segmentation = "1.6.0" 
-ureq = {version = "*", default-features = false, features = ["native-tls"]}# lighter alternative to reqwest 
+ureq = {version = "*", default-features = false, features = ["native-tls"]} # lighter alternative to reqwest  
 
 [features]
+checker = [] # the checker for compiled backends
 crocoi = [] # the croco interpreter backend
-crocol = ["inkwell", "libc", "cc"] # the croco llvm backend 
+crocol = ["checker", "inkwell", "libc", "cc"] # the croco llvm backend
 default = ["crocol", "crocoi"]
 
 [lib]

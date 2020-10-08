@@ -1,4 +1,4 @@
-use std::{cell::RefCell, convert::TryInto};
+use std::convert::TryInto;
 
 use inkwell::{
     builder::Builder,
@@ -11,10 +11,7 @@ use inkwell::{
     values::{AnyValueEnum, FunctionValue, PointerValue},
 };
 
-use crate::{
-    symbol::{SymTable, Symbol},
-    symbol_type::SymbolType,
-};
+use crate::{ast::NodeResult, symbol::SymTable, symbol_type::SymbolType};
 
 // I'll be using a simple struct as in the README example for now
 // https://github.com/TheDan64/inkwell/blob/master/README.md
@@ -23,21 +20,20 @@ pub struct Codegen<'ctx> {
     pub context: &'ctx Context,
     pub module: Module<'ctx>,
     pub builder: Builder<'ctx>,
-    pub symtable: RefCell<SymTable<LSymbol<'ctx>>>,
+    pub symtable: SymTable<LSymbol<'ctx>>,
     pub str_type: StructType<'ctx>,
     pub ptr_size: IntType<'ctx>, // this platform's isize width
-    pub current_fn: RefCell<FunctionValue<'ctx>>,
+    pub current_fn: FunctionValue<'ctx>,
 }
 
 impl<'ctx> Codegen<'ctx> {
-
     // create a variable at the start of a block
     pub fn create_entry_block_alloca(
         &self,
         ty: BasicTypeEnum<'ctx>,
         name: &str,
     ) -> PointerValue<'ctx> {
-        let entry = self.current_fn.borrow().get_first_basic_block().unwrap();
+        let entry = self.current_fn.get_first_basic_block().unwrap();
 
         match entry.get_first_instruction() {
             Some(first_instr) => self.builder.position_before(&first_instr),
@@ -68,39 +64,11 @@ impl<'ctx> Codegen<'ctx> {
 /// a symbol in the crocol backend
 #[derive(Clone)]
 pub struct LSymbol<'ctx> {
-    pub pointer: PointerValue<'ctx>,
+    pub value: BasicValueEnum<'ctx>,
     pub symbol_type: SymbolType,
 }
 
-impl Symbol for LSymbol<'_> {
-    fn to_type(&self) -> SymbolType {
-        self.symbol_type.clone()
-    }
-}
-
-/// The type of value returned by a node in the crocol backend
-#[derive(Clone)]
-pub enum LNodeResult<'ctx> {
-    /// a break statement
-    Break,
-    /// a continue statement
-    Continue,
-    /// a return statement
-    /// e.g return 3
-    Return(AnyValueEnum<'ctx>),
-    /// a symbol
-    /// e.g a struct or a primitive
-    Symbol(AnyValueEnum<'ctx>),
-    // void values doesn't exist in llvm, here is ours
-    /// a void value
-    Void,
-}
-
-impl<'ctx> LNodeResult<'ctx> {
-    pub fn into_symbol(self) -> AnyValueEnum<'ctx> {
-        match self {
-            Self::Symbol(s) => s,
-            _ => unreachable!(),
-        }
-    }
-}
+/// The result returned by a node.  
+/// A symbol value is a LSymbol.  
+/// A symbol in the symtable is also a LSymbol but the value is always guarenteed a pointer.
+pub type LNodeResult<'ctx> = NodeResult<LSymbol<'ctx>, LSymbol<'ctx>>;

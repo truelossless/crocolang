@@ -15,24 +15,22 @@ pub mod math;
 // the os module
 pub mod os;
 
-use crate::{
-    crocoi::symbol::Struct, crocoi::symbol::SymbolContent, crocoi::ISymbol, symbol_type::SymbolType,
-};
+use crate::{crocoi::symbol::Struct, crocoi::symbol::ISymbol, symbol_type::SymbolType};
 
 /// callback to a built-in function
-pub type BuiltinCallback = fn(Vec<ISymbol>) -> SymbolContent;
+pub type BuiltinCallback = fn(Vec<ISymbol>) -> Option<ISymbol>;
 
 /// representation of a built-in function
 pub struct BuiltinFunction {
     pub name: String,
     pub args: Vec<SymbolType>,
-    pub return_type: SymbolType,
+    pub return_type: Option<SymbolType>,
     pub pointer: BuiltinCallback,
 }
 
 pub struct BuiltinVar {
     pub name: String,
-    pub value: SymbolContent,
+    pub value: ISymbol,
 }
 
 /// representation of a built-in module
@@ -61,29 +59,15 @@ pub fn get_module(name: &str) -> Option<BuiltinModule> {
 
 // utils to easily get args
 pub fn get_arg_str(args: &mut Vec<ISymbol>) -> String {
-    args.remove(0)
-        .borrow()
-        .clone()
-        .into_primitive()
-        .unwrap()
-        .into_str()
-        .unwrap()
+    args.remove(0).into_primitive().unwrap().into_str().unwrap()
 }
 
 pub fn _get_arg_num(args: &mut Vec<ISymbol>) -> f32 {
-    args.remove(0)
-        .borrow()
-        .clone()
-        .into_primitive()
-        .unwrap()
-        .into_num()
-        .unwrap()
+    args.remove(0).into_primitive().unwrap().into_num().unwrap()
 }
 
 pub fn get_arg_bool(args: &mut Vec<ISymbol>) -> bool {
     args.remove(0)
-        .borrow()
-        .clone()
         .into_primitive()
         .unwrap()
         .into_bool()
@@ -91,5 +75,5 @@ pub fn get_arg_bool(args: &mut Vec<ISymbol>) -> bool {
 }
 
 pub fn _get_arg_struct(args: &mut Vec<ISymbol>) -> Struct {
-    args.remove(0).borrow().clone().into_struct().unwrap()
+    args.remove(0).into_struct().unwrap()
 }

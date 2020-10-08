@@ -49,8 +49,7 @@ pub fn get_llvm_type<'ctx>(symbol_type: &SymbolType, codegen: &Codegen<'ctx>) ->
         SymbolType::Ref(ref_type) => any_type_ptr(get_llvm_type(ref_type, codegen)),
         SymbolType::Map(_, _) => todo!(),
         SymbolType::Struct(s) => {
-            let mut symtable_borrow = codegen.symtable.borrow_mut();
-            let struct_decl = symtable_borrow.get_struct_decl(s).unwrap();
+            let struct_decl = codegen.symtable.get_struct_decl(s).unwrap();
 
             let mut field_types = Vec::new();
 
@@ -60,25 +59,27 @@ pub fn get_llvm_type<'ctx>(symbol_type: &SymbolType, codegen: &Codegen<'ctx>) ->
 
             codegen.context.struct_type(&field_types, false).into()
         }
-        SymbolType::Void => codegen.context.void_type().into(),
         SymbolType::CrocoType => todo!(),
     }
 }
 
 pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) {
+
+    // we're guarenteed to have a pointer here
+    let ptr = init_symbol.value.into_pointer_value();
+
     match &init_symbol.symbol_type {
         // stack allocation of a f32
-        // TODO: do we really have to give a name ?
         SymbolType::Num => {
             codegen
                 .builder
-                .build_store(init_symbol.pointer, codegen.context.f32_type().const_zero());
+                .build_store(ptr, codegen.context.f32_type().const_zero());
         }
 
         // stack allocation of a bool
         SymbolType::Bool => {
             codegen.builder.build_store(
-                init_symbol.pointer,
+                ptr,
                 codegen.context.bool_type().const_zero(),
             );
         }
@@ -89,7 +90,7 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) 
             // the heap ptr is a null ptr
             let heap_ptr = codegen
                 .builder
-                .build_struct_gep(init_symbol.pointer, 0, "gepheapptr")
+                .build_struct_gep(ptr, 0, "gepheapptr")
                 .unwrap();
             let null_ptr = codegen
                 .context
@@ -101,7 +102,7 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) 
             // both fields defaults to 0
             let len = codegen
                 .builder
-                .build_struct_gep(init_symbol.pointer, 1, "geplen")
+                .build_struct_gep(ptr, 1, "geplen")
                 .unwrap();
             codegen
                 .builder
@@ -109,7 +110,7 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) 
 
             let max_len = codegen
                 .builder
-                .build_struct_gep(init_symbol.pointer, 2, "gepmaxlen")
+                .build_struct_gep(ptr, 2, "gepmaxlen")
                 .unwrap();
             codegen
                 .builder
@@ -117,17 +118,16 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) 
         }
 
         SymbolType::Struct(s) => {
-            let mut symtable_borrow = codegen.symtable.borrow_mut();
-            let struct_decl = symtable_borrow.get_struct_decl(&s).unwrap();
+            let struct_decl = codegen.symtable.get_struct_decl(&s).unwrap();
 
             for (i, field) in struct_decl.fields.iter().enumerate() {
-                let ptr = codegen
+                let field_ptr = codegen
                     .builder
-                    .build_struct_gep(init_symbol.pointer, i as u32, &field.0)
+                    .build_struct_gep(ptr, i as u32, &field.0)
                     .unwrap();
 
                 let field_symbol = LSymbol {
-                    pointer: ptr,
+                    value: field_ptr.into(),
                     symbol_type: field.1.clone(),
                 };
 

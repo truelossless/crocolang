@@ -1,11 +1,14 @@
-use crate::ast::{AstNode};
+use crate::ast::{AstNode, NodeResult};
 use crate::error::CrocoError;
-use crate::symbol::{get_symbol_type, SymTable};
-use crate::{
-    symbol_type::{type_eq, SymbolType},
-    token::CodePos, crocoi::{INodeResult, ISymbol},
+
+#[cfg(feature = "crocoi")]
+use {
+    crate::crocoi::{symbol::get_symbol_type, symbol::Array, INodeResult, ISymTable, ISymbol},
+    std::cell::RefCell,
+    std::rc::Rc,
 };
-use crate::crocoi::symbol::{SymbolContent, Array};
+
+use crate::token::CodePos;
 
 /// a node representing an array symbol
 /// checks at runtime if the type constraint is respected
@@ -22,41 +25,50 @@ impl ArrayCreateNode {
 }
 
 impl AstNode for ArrayCreateNode {
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
+        // don't allow empty array declarations
+        // people should use
+        // let a [num] and not let a [num] = []
+        if self.contents.is_empty() {
+            return Err(CrocoError::new(
+                &self.code_pos,
+                "do not use this syntax to declare empty arrays",
+            )
+            .hint("use type annotations to declare empty arrays"));
+        }
+
         // visit all array elements
-        let mut visited = Vec::new();
+        let mut visited = Vec::with_capacity(self.contents.len());
 
         for el in &mut self.contents {
             visited.push(el.crocoi(symtable)?.into_symbol(&self.code_pos)?);
         }
 
         // infer the array type from the first element
-        let array_type = if visited.is_empty() {
-            // we have no idea of the type since the array is empty
-            SymbolType::Void
-        } else {
-            // the first element can be taken as the array type
-            get_symbol_type(&*visited[0].borrow())
-        };
+        let array_type = get_symbol_type(&visited[0]);
 
-        // make sure all elements are of the same type
-        for el in visited.iter().skip(1) {
-            let el_type = get_symbol_type(&*el.borrow());
+        // make sure all elements are of the same type and wrap them in Rcs
+        let mut visited_rc = Vec::with_capacity(self.contents.len());
+        for el in visited.into_iter() {
+            let el_type = get_symbol_type(&el);
 
-            if !type_eq(&el_type, &array_type) {
+            if !el_type.eq(&array_type) {
                 return Err(CrocoError::new(
                     &self.code_pos,
                     "array elements must be of the same type",
                 ));
             }
+
+            visited_rc.push(Rc::new(RefCell::new(el)))
         }
 
         let array = Array {
-            contents: Some(visited),
+            contents: visited_rc,
             array_type: Box::new(array_type),
         };
 
-        Ok(INodeResult::construct_symbol(SymbolContent::Array(array)))
+        Ok(NodeResult::Value(ISymbol::Array(array)))
     }
 
     fn prepend_child(&mut self, _node: Box<dyn AstNode>) {

@@ -1,7 +1,9 @@
 use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
-use crate::{crocoi::{symbol::SymbolContent, ISymbol}, token::{CodePos, LiteralEnum::*}};
+use crate::token::CodePos;
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::ISymTable;
 
 /// a node representing a while statement
 #[derive(Clone)]
@@ -33,7 +35,7 @@ impl AstNode for WhileNode {
             unreachable!()
         }
     }
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         loop {
             // loop while the condition is ok
             let cond_symbol = self
@@ -41,11 +43,9 @@ impl AstNode for WhileNode {
                 .as_mut()
                 .unwrap()
                 .crocoi(symtable)?
-                .into_symbol(&self.code_pos)?;
+                .into_value(&self.code_pos)?;
 
             let condition = cond_symbol
-                .borrow()
-                .clone()
                 .into_primitive()
                 .map_err(|_| {
                     CrocoError::new(&self.code_pos, "expected a boolean for the condition")
@@ -63,17 +63,12 @@ impl AstNode for WhileNode {
             match value {
                 // propagate the early-return
                 INodeResult::Return(_) => return Ok(value),
-                INodeResult::Break => {
-                    return Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-                        Void,
-                    )))
-                }
-                INodeResult::Symbol(_) | INodeResult::Continue => (),
+                INodeResult::Break => return Ok(INodeResult::Void),
+                INodeResult::Value(_) | INodeResult::Continue => (),
+                _ => unreachable!(),
             }
         }
 
-        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-            Void,
-        )))
+        Ok(INodeResult::Void)
     }
 }

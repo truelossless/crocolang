@@ -1,13 +1,13 @@
 use crate::builtin::*;
-use crate::crocoi::symbol::{SymbolContent, SymbolContent::*};
-use crate::{crocoi::ISymbol, token::LiteralEnum::*};
+use crate::crocoi::symbol::{ISymbol, ISymbol::*};
+use crate::token::LiteralEnum::*;
 
 // module definition
 pub fn get_module() -> BuiltinModule {
     let functions = vec![BuiltinFunction {
         name: "get".to_owned(),
         args: vec![SymbolType::Str],
-        return_type: SymbolType::Str,
+        return_type: Some(SymbolType::Str),
         pointer: get,
     }];
 
@@ -17,7 +17,7 @@ pub fn get_module() -> BuiltinModule {
 }
 
 /// returns the contents of a page given an url
-fn get(mut args: Vec<ISymbol>) -> SymbolContent {
+fn get(mut args: Vec<ISymbol>) -> Option<ISymbol> {
     let url = get_arg_str(&mut args);
 
     let res = ureq::get(&url).call().into_string();
@@ -25,8 +25,8 @@ fn get(mut args: Vec<ISymbol>) -> SymbolContent {
     // return an empty string if we have an error
     // TODO: implement errors
     if let Ok(text) = res {
-        Primitive(Str(text))
+        Some(Primitive(Str(text)))
     } else {
-        Primitive(Str(String::new()))
+        Some(Primitive(Str(String::new())))
     }
 }

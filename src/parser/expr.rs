@@ -3,9 +3,7 @@ use super::{ExprParsingType, Parser};
 use crate::ast::node::*;
 use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::token::{
-    CodePos, KeywordEnum::*, LiteralEnum, OperatorEnum::*, SeparatorEnum::*, Token, Token::*,
-};
+use crate::token::{CodePos, KeywordEnum::*, OperatorEnum::*, SeparatorEnum::*, Token, Token::*};
 
 impl Parser {
     /// Parses an expression using the shunting-yard algorithm.
@@ -215,10 +213,7 @@ impl Parser {
         }
 
         if output.is_empty() {
-            return Ok(Box::new(
-                ConstantNode::new(LiteralEnum::Void,
-                self.token_pos.clone(),
-            )));
+            return Ok(Box::new(VoidNode::new()));
         }
 
         Ok(output.pop().unwrap())

@@ -1,6 +1,5 @@
 use crate::builtin::*;
-use crate::crocoi::{ISymbol, symbol::{SymbolContent, SymbolContent::*}};
-use crate::token::LiteralEnum::*;
+use crate::crocoi::symbol::ISymbol;
 
 /// module definition
 pub fn get_module() -> BuiltinModule {
@@ -8,31 +7,31 @@ pub fn get_module() -> BuiltinModule {
         BuiltinFunction {
             name: "assert".to_owned(),
             args: vec![SymbolType::Bool],
-            return_type: SymbolType::Void,
+            return_type: None,
             pointer: assert,
         },
         BuiltinFunction {
             name: "eprint".to_owned(),
             args: vec![SymbolType::Str],
-            return_type: SymbolType::Void,
+            return_type: None,
             pointer: eprint,
         },
         BuiltinFunction {
             name: "eprintln".to_owned(),
             args: vec![SymbolType::Str],
-            return_type: SymbolType::Void,
+            return_type: None,
             pointer: eprintln,
         },
         BuiltinFunction {
             name: "print".to_owned(),
             args: vec![SymbolType::Str],
-            return_type: SymbolType::Void,
+            return_type: None,
             pointer: print,
         },
         BuiltinFunction {
             name: "println".to_owned(),
             args: vec![SymbolType::Str],
-            return_type: SymbolType::Void,
+            return_type: None,
             pointer: println,
         },
     ];
@@ -43,41 +42,40 @@ pub fn get_module() -> BuiltinModule {
 }
 
 /// Exits if the first argument is false
-fn assert(mut args: Vec<ISymbol>) -> SymbolContent {
+fn assert(mut args: Vec<ISymbol>) -> Option<ISymbol> {
     let assertion = get_arg_bool(&mut args);
 
     if !assertion {
         eprintln!("Assertion failed !");
         std::process::exit(1);
     }
-
-    Primitive(Void)
+    None
 }
 
 /// Prints to stderr the first argument
-fn eprint(mut args: Vec<ISymbol>) -> SymbolContent {
+fn eprint(mut args: Vec<ISymbol>) -> Option<ISymbol> {
     let err = get_arg_str(&mut args);
     eprint!("{}", err);
-    Primitive(Void)
+    None
 }
 
 /// Prints to stderr the first argument, with a line feed
-fn eprintln(mut args: Vec<ISymbol>) -> SymbolContent {
+fn eprintln(mut args: Vec<ISymbol>) -> Option<ISymbol> {
     let err = get_arg_str(&mut args);
     eprintln!("{}", err);
-    Primitive(Void)
+    None
 }
 
 /// Prints to stdout the first argument
-fn print(mut args: Vec<ISymbol>) -> SymbolContent {
+fn print(mut args: Vec<ISymbol>) -> Option<ISymbol> {
     let msg = get_arg_str(&mut args);
     print!("{}", msg);
-    Primitive(Void)
+    None
 }
 
 /// Prints to stdout the first argument, with a line feed
-fn println(mut args: Vec<ISymbol>) -> SymbolContent {
+fn println(mut args: Vec<ISymbol>) -> Option<ISymbol> {
     let msg = get_arg_str(&mut args);
     println!("{}", msg);
-    Primitive(Void)
+    None
 }

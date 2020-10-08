@@ -1,7 +1,9 @@
 use crate::ast::{AstNode, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
-use crate::{crocoi::{symbol::SymbolContent, ISymbol}, token::{CodePos, LiteralEnum::*}};
+use crate::token::CodePos;
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::ISymTable;
 
 /// a node representing an if / elif / else structure
 #[derive(Clone)]
@@ -28,7 +30,9 @@ impl IfNode {
 }
 
 impl AstNode for IfNode {
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         for (condition, body) in self.conditions.iter_mut().zip(self.bodies.iter_mut()) {
             let code_pos = &self.code_pos;
 
@@ -36,8 +40,6 @@ impl AstNode for IfNode {
             let cond_symbol = condition.crocoi(symtable)?.into_symbol(code_pos)?;
 
             let cond_ok = cond_symbol
-                .borrow()
-                .clone()
                 .into_primitive()
                 .map_err(|_| CrocoError::new(code_pos, "expected a boolean for the condition"))?
                 .into_bool()
@@ -51,11 +53,7 @@ impl AstNode for IfNode {
                     INodeResult::Return(_) | INodeResult::Break | INodeResult::Continue => {
                         return Ok(value)
                     }
-                    _ => {
-                        return Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-                            Void,
-                        )))
-                    }
+                    _ => return Ok(INodeResult::Void),
                 }
             }
         }
@@ -65,8 +63,6 @@ impl AstNode for IfNode {
             self.bodies.last_mut().unwrap().crocoi(symtable)?;
         }
 
-        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-            Void,
-        )))
+        Ok(INodeResult::Void)
     }
 }

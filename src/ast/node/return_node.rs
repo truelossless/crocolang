@@ -1,7 +1,9 @@
-use crate::ast::{AstNode, INodeResult};
+use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
-use crate::{crocoi::ISymbol, token::CodePos};
+use crate::token::CodePos;
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{INodeResult, ISymTable};
 
 /// A node returning a value from a block
 #[derive(Clone)]
@@ -17,9 +19,16 @@ impl ReturnNode {
 }
 
 impl AstNode for ReturnNode {
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
-        Ok(INodeResult::Return(
-            self.bottom.crocoi(symtable)?.into_symbol(&self.code_pos)?,
-        ))
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
+        match self.bottom.crocoi(symtable)? {
+            INodeResult::Value(val) => Ok(INodeResult::Return(Some(val))),
+            INodeResult::Variable(var) => Ok(INodeResult::Return(Some(var.borrow().clone()))),
+            INodeResult::Void => Ok(INodeResult::Return(None)),
+            _ => Err(CrocoError::new(
+                &self.code_pos,
+                "expected a valid return value",
+            )),
+        }
     }
 }

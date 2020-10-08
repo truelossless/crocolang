@@ -82,6 +82,9 @@ pub use self::var_decl_node::VarDeclNode;
 mod var_call_node;
 pub use self::var_call_node::VarCallNode;
 
+mod void_node;
+pub use self::void_node::VoidNode;
+
 mod ref_node;
 pub use self::ref_node::RefNode;
 

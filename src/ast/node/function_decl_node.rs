@@ -1,8 +1,11 @@
 use crate::ast::{AstNode, INodeResult};
-use crate::symbol::{Decl, FunctionDecl, SymTable};
-use crate::token::{CodePos, LiteralEnum::*};
+use crate::symbol::{Decl, FunctionDecl};
+use crate::token::CodePos;
 
-use crate::{crocoi::{symbol::SymbolContent, ISymbol}, error::CrocoError};
+use crate::error::CrocoError;
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::ISymTable;
 
 /// function declaration node
 #[derive(Clone)]
@@ -23,15 +26,15 @@ impl FunctionDeclNode {
 }
 
 impl AstNode for FunctionDeclNode {
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         // once the function is declared we can move out its content since this node is not going to be used again
         let fn_decl = std::mem::replace(&mut self.fn_decl, None).unwrap();
 
         symtable
             .register_decl(self.name.clone(), Decl::FunctionDecl(fn_decl))
             .map_err(|e| CrocoError::new(&self.code_pos, &e))?;
-        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-            Void,
-        )))
+        Ok(INodeResult::Void)
     }
 }

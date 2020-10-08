@@ -1,7 +1,9 @@
 use crate::ast::{AstNode, AstNodeType, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
-use crate::{crocoi::{symbol::SymbolContent, ISymbol}, token::{CodePos, LiteralEnum::*}};
+use crate::token::{CodePos, LiteralEnum::*};
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::symbol::{ISymTable, ISymbol};
 
 #[derive(Clone)]
 /// a node used to invert a boolean value
@@ -28,7 +30,8 @@ impl AstNode for NotNode {
         }
     }
 
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         let bool_symbol = self
             .bottom
             .as_mut()
@@ -37,8 +40,6 @@ impl AstNode for NotNode {
             .into_symbol(&self.code_pos)?;
 
         let condition = bool_symbol
-            .borrow()
-            .clone()
             .into_primitive()
             .map_err(|_| {
                 CrocoError::new(
@@ -54,9 +55,7 @@ impl AstNode for NotNode {
                 )
             })?;
 
-        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-            Bool(!condition),
-        )))
+        Ok(INodeResult::Value(ISymbol::Primitive(Bool(!condition))))
     }
 
     fn get_type(&self) -> AstNodeType {

@@ -1,7 +1,9 @@
-use crate::ast::{AstNode, AstNodeType, INodeResult};
+use crate::ast::{AstNode, AstNodeType};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
-use crate::{crocoi::{utils::get_number_value, ISymbol, symbol::SymbolContent}, token::{CodePos, LiteralEnum::*}};
+use crate::token::{CodePos, LiteralEnum::*};
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{utils::get_number_value, INodeResult, ISymTable, ISymbol};
 
 #[derive(Clone)]
 pub struct PowerNode {
@@ -31,12 +33,11 @@ impl AstNode for PowerNode {
         }
     }
 
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         let value = Num(get_number_value(&mut self.left, symtable, &self.code_pos)?
             .powf(get_number_value(&mut self.right, symtable, &self.code_pos)?));
-        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-            value,
-        )))
+        Ok(INodeResult::Value(ISymbol::Primitive(value)))
     }
     fn get_type(&self) -> AstNodeType {
         AstNodeType::BinaryNode

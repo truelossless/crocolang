@@ -1,15 +1,14 @@
 #[cfg(feature = "crocoi")]
-use crate::crocoi::{symbol::SymbolContent, INodeResult, ISymbol};
+use crate::crocoi::{INodeResult, ISymTable, ISymbol};
 
 #[cfg(feature = "crocol")]
 use {
-    crate::crocol::{utils::set_str_text, Codegen, LNodeResult},
-    inkwell::values::AnyValueEnum,
+    crate::crocol::{utils::set_str_text, Codegen, LNodeResult, LSymbol},
+    crate::symbol_type::SymbolType,
 };
 
 use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
 use crate::token::{CodePos, LiteralEnum};
 
 /// a node holding a literal value
@@ -27,31 +26,45 @@ impl ConstantNode {
 
 impl AstNode for ConstantNode {
     #[cfg(feature = "crocoi")]
-    fn crocoi(&mut self, _symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
-        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-            self.value.clone(),
-        )))
+    fn crocoi(&mut self, _symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
+        Ok(INodeResult::Value(ISymbol::Primitive(self.value.clone())))
     }
 
     #[cfg(feature = "crocol")]
-    fn crocol<'ctx>(&mut self, codegen: &Codegen<'ctx>) -> Result<LNodeResult<'ctx>, CrocoError> {
-        let llvm_value: AnyValueEnum = match &self.value {
-            LiteralEnum::Bool(b) => codegen
-                .context
-                .bool_type()
-                .const_int(*b as u64, false)
-                .into(),
-            LiteralEnum::Num(n) => codegen.context.f32_type().const_float(*n as f64).into(),
+    fn crocol<'ctx>(
+        &mut self,
+        codegen: &mut Codegen<'ctx>,
+    ) -> Result<LNodeResult<'ctx>, CrocoError> {
+        let constant_symbol = match &self.value {
+            LiteralEnum::Bool(b) => LSymbol {
+                value: codegen
+                    .context
+                    .bool_type()
+                    .const_int(*b as u64, false)
+                    .into(),
+                symbol_type: SymbolType::Bool,
+            },
+
+            LiteralEnum::Num(n) => LSymbol {
+                value: codegen.context.f32_type().const_float(*n as f64).into(),
+                symbol_type: SymbolType::Num,
+            },
+
+            // TODO: wacky. we need to initialize right away our string because we then loose the information about
+            // the text content.
+            // Maybe introduce a strconst type for compiled backends ?
             LiteralEnum::Str(s) => {
                 let alloca =
                     codegen.create_entry_block_alloca(codegen.str_type.into(), "allocastr");
                 set_str_text(alloca, &s, codegen);
 
-                alloca.into()
+                LSymbol {
+                    value: alloca.into(),
+                    symbol_type: SymbolType::Str,
+                }
             }
-            _ => unreachable!(),
         };
 
-        Ok(LNodeResult::Symbol(codegen.auto_deref(llvm_value).into()))
+        Ok(LNodeResult::Value(constant_symbol))
     }
 }

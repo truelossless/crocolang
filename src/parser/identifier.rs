@@ -8,9 +8,9 @@ use crate::error::CrocoError;
 use crate::parser::ExprParsingType::*;
 use crate::token::{CodePos, OperatorEnum::*, SeparatorEnum::*, Token, Token::*};
 
-/// Parses an identifier in the right AstNode given the next tokens as the context
-/// e.g tokens like identifier[0].name
 impl Parser {
+    /// Parses an identifier in the right AstNode given the next tokens as the context
+    /// e.g tokens like identifier[0].name
     pub fn parse_identifier(
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
@@ -31,7 +31,7 @@ impl Parser {
             match self.peek_token(iter) {
                 // ref
                 Operator(BitwiseAnd) => {
-                    chain_ref_nodes.push(Box::new(RefNode::new(self.token_pos.clone())))
+                    chain_ref_nodes.push(Box::new(RefNode::new(self.token_pos.clone())));
                 }
 
                 // deref
@@ -54,6 +54,7 @@ impl Parser {
             // function call
             Separator(LeftParenthesis) => {
                 lvalue_compatible = false;
+
                 self.next_token(iter);
                 chain_nodes.push(self.parse_function_call(iter, identifier.name)?);
             }

@@ -1,58 +1,14 @@
-use crate::builtin::BuiltinCallback;
-use crate::parser::TypedArg;
 use crate::{ast::AstNode, builtin::get_module, symbol::SymTable, token::Identifier};
+use crate::{ast::NodeResult, builtin::BuiltinCallback};
+use crate::{error::CrocoError, parser::TypedArg, token::CodePos};
 use crate::{
-    error::CrocoError,
-    symbol::Symbol,
     symbol_type::{FunctionType, SymbolType},
-    token::{CodePos, LiteralEnum},
+    token::LiteralEnum,
 };
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::rc::Rc;
-
-//// The type of value returned by a node
-// TODO: in the long run we could probably merge this with LNodeResult
-#[derive(Clone)]
-pub enum INodeResult {
-    /// a break statement
-    Break,
-    /// a continue statement
-    Continue,
-    /// a return statement
-    /// e.g return 3
-    Return(ISymbol),
-    /// a symbol
-    /// e.g a struct or a primitive
-    Symbol(ISymbol),
-    // empty value
-}
-
-impl INodeResult {
-    /// convenience function to build a INodeResult
-    pub fn construct_symbol(symbol_content: SymbolContent) -> INodeResult {
-        INodeResult::Symbol(Rc::new(RefCell::new(symbol_content)))
-    }
-
-    pub fn into_symbol(self, pos: &CodePos) -> Result<ISymbol, CrocoError> {
-        match self {
-            INodeResult::Symbol(s) => Ok(s),
-            _ => Err(CrocoError::new(
-                pos,
-                "Expected a value but got an early-return keyword",
-            )),
-        }
-    }
-
-    pub fn into_return(self) -> Result<ISymbol, CrocoError> {
-        match self {
-            INodeResult::Return(s) => Ok(s),
-            _ => panic!("Expected a return value but got an early-return keyword !!"),
-        }
-    }
-}
-
 // Either the function is a classic function or a built-in function
 #[derive(Clone)]
 pub enum FunctionKind {
@@ -81,19 +37,10 @@ pub struct FunctionDecl {
 pub struct Struct {
     // the fields, populated with values
     // we use an option because in declarations we don't want the overhead of an HashMap allocation
-    pub fields: Option<HashMap<String, ISymbol>>,
+    pub fields: HashMap<String, Rc<RefCell<ISymbol>>>,
 
     // the corresponding type of the struct, as as StructDecl
     pub struct_type: String,
-}
-
-impl Struct {
-    pub fn new(struct_type: String) -> Self {
-        Struct {
-            fields: None,
-            struct_type,
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -115,8 +62,8 @@ impl fmt::Debug for StructDecl {
 #[derive(Clone)]
 pub struct Map {
     pub contents: HashMap<ISymbol, ISymbol>,
-    pub key_type: Box<SymbolContent>,
-    pub value_type: Box<SymbolContent>,
+    pub key_type: Box<SymbolType>,
+    pub value_type: Box<SymbolType>,
 }
 
 impl fmt::Debug for Map {
@@ -127,26 +74,13 @@ impl fmt::Debug for Map {
 
 #[derive(Clone, Debug)]
 pub struct Array {
-    pub contents: Option<Vec<ISymbol>>,
+    pub contents: Vec<Rc<RefCell<ISymbol>>>,
     pub array_type: Box<SymbolType>,
-}
-
-/// a symbol in the symbol table. It could be either a primitive, a function, a struct ...
-// I've tried multiple times to use references with lifetimes annotations but it's too hard in graph structures
-// I had to annotate all the nodes and structs with lifetimes and it didn't even work :S
-// this is why I'm using Rc as it eases the process a lot.
-// If you have an idea for a more elegant implementation I'm all ears !
-pub type ISymbol = Rc<RefCell<SymbolContent>>;
-
-impl Symbol for ISymbol {
-    fn to_type(&self) -> SymbolType {
-        get_symbol_type(&*self.borrow())
-    }
 }
 
 #[derive(Clone, Debug)]
 /// the symbol contents
-pub enum SymbolContent {
+pub enum ISymbol {
     /// a primitive such as 3 or false
     Primitive(LiteralEnum),
 
@@ -163,7 +97,7 @@ pub enum SymbolContent {
     Function(Box<FunctionDecl>),
 
     /// a symbol reference  
-    Ref(ISymbol),
+    Ref(Rc<RefCell<ISymbol>>),
 
     // a structure built from a StructDecl such as "let a = B {}"
     Struct(Struct),
@@ -172,11 +106,11 @@ pub enum SymbolContent {
     CrocoType(SymbolType),
 }
 
-impl SymbolContent {
+impl ISymbol {
     /// force cast into a primitive
     pub fn into_primitive(self) -> Result<LiteralEnum, &'static str> {
         match self {
-            SymbolContent::Primitive(p) => Ok(p),
+            ISymbol::Primitive(p) => Ok(p),
             _ => Err("expected a primitive"),
         }
     }
@@ -184,7 +118,7 @@ impl SymbolContent {
     // force cast into a struct
     pub fn into_struct(self) -> Result<Struct, &'static str> {
         match self {
-            SymbolContent::Struct(s) => Ok(s),
+            ISymbol::Struct(s) => Ok(s),
             _ => Err("expected a struct"),
         }
     }
@@ -192,7 +126,7 @@ impl SymbolContent {
     // force cast into an array
     pub fn into_array(self) -> Result<Array, &'static str> {
         match self {
-            SymbolContent::Array(a) => Ok(a),
+            ISymbol::Array(a) => Ok(a),
             _ => Err("expected an array"),
         }
     }
@@ -200,15 +134,15 @@ impl SymbolContent {
     /// force cast into a function
     pub fn into_function(self) -> Result<Box<FunctionDecl>, &'static str> {
         match self {
-            SymbolContent::Function(r) => Ok(r),
+            ISymbol::Function(r) => Ok(r),
             _ => Err("expected a function declaration"),
         }
     }
 
-    /// dereferences a symbol
-    pub fn into_ref(self) -> Result<ISymbol, &'static str> {
+    /// force cast into a symbol reference
+    pub fn into_ref(self) -> Result<Rc<RefCell<ISymbol>>, &'static str> {
         match self {
-            SymbolContent::Ref(r) => Ok(r),
+            ISymbol::Ref(r) => Ok(r),
             _ => Err("expected a reference"),
         }
     }
@@ -216,39 +150,76 @@ impl SymbolContent {
     /// force cast into a croco type
     pub fn into_croco_type(self) -> Result<SymbolType, &'static str> {
         match self {
-            SymbolContent::CrocoType(t) => Ok(t),
+            ISymbol::CrocoType(t) => Ok(t),
             _ => Err("expected a type"),
         }
     }
+}
 
-    pub fn is_void(&self) -> bool {
+/// convenience type
+pub type ISymTable = SymTable<Rc<RefCell<ISymbol>>>;
+
+/// The result returned by a node.  
+/// A symbol value is a ISymbol.  
+/// A symbol in the symtable is RefCell'd so it can be mutated easely.
+pub type INodeResult = NodeResult<ISymbol, Rc<RefCell<ISymbol>>>;
+
+impl INodeResult {
+    /// clone a variable contents into a symbol, or return the symbol value directly
+    pub fn into_symbol(self, code_pos: &CodePos) -> Result<ISymbol, CrocoError> {
         match self {
-            SymbolContent::Primitive(LiteralEnum::Void) => true,
-            _ => false,
+            INodeResult::Variable(var) => Ok(var.borrow().clone()),
+            INodeResult::Value(val) => Ok(val),
+            _ => Err(CrocoError::new(
+                code_pos,
+                "expected a value but got an early-return keyword",
+            )),
+        }
+    }
+
+    /// returns the ISymbol behind a Value, or a transforms a Variable into a Value(ISymbol::Ref())
+    pub fn into_value_or_var_ref(self, code_pos: &CodePos) -> Result<ISymbol, CrocoError> {
+        match self {
+            INodeResult::Variable(var) => Ok(ISymbol::Ref(var)),
+            INodeResult::Value(val) => Ok(val),
+            _ => Err(CrocoError::new(
+                code_pos,
+                "expected a reference to a variable",
+            )),
+        }
+    }
+
+    /// transforms a Variable to a Value(ISymbol::Ref())
+    pub fn into_var_ref(self, code_pos: &CodePos) -> Result<ISymbol, CrocoError> {
+        match self {
+            INodeResult::Variable(var) => Ok(ISymbol::Ref(var)),
+            _ => Err(CrocoError::new(
+                code_pos,
+                "expected a reference to a variable",
+            )),
         }
     }
 }
 
 /// returns the type of a symbol
-pub fn get_symbol_type(symbol: &SymbolContent) -> SymbolType {
+pub fn get_symbol_type(symbol: &ISymbol) -> SymbolType {
     match symbol {
-        SymbolContent::Primitive(LiteralEnum::Bool(_)) => SymbolType::Bool,
-        SymbolContent::Primitive(LiteralEnum::Num(_)) => SymbolType::Num,
-        SymbolContent::Primitive(LiteralEnum::Str(_)) => SymbolType::Str,
-        SymbolContent::Primitive(LiteralEnum::Void) => SymbolType::Void,
-        SymbolContent::Array(arr) => SymbolType::Array(arr.array_type.clone()),
-        SymbolContent::Struct(s) => SymbolType::Struct(s.struct_type.clone()),
-        SymbolContent::Ref(r) => SymbolType::Ref(Box::new(get_symbol_type(&*r.borrow()))),
-        SymbolContent::Function(func) => SymbolType::Function(FunctionType {
+        ISymbol::Primitive(LiteralEnum::Bool(_)) => SymbolType::Bool,
+        ISymbol::Primitive(LiteralEnum::Num(_)) => SymbolType::Num,
+        ISymbol::Primitive(LiteralEnum::Str(_)) => SymbolType::Str,
+        ISymbol::Array(arr) => SymbolType::Array(arr.array_type.clone()),
+        ISymbol::Struct(s) => SymbolType::Struct(s.struct_type.clone()),
+        ISymbol::Ref(r) => SymbolType::Ref(Box::new(get_symbol_type(&*r.borrow()))),
+        ISymbol::Function(func) => SymbolType::Function(FunctionType {
             args: func.args.clone(),
             return_type: Box::new(func.return_type.clone()),
         }),
-        SymbolContent::CrocoType(_) => SymbolType::CrocoType,
+        ISymbol::CrocoType(_) => SymbolType::CrocoType,
     }
 }
 
 /// imports a builtin module in the symtable
-pub fn import_builtin_module(symtable: &mut SymTable<ISymbol>, name: &str) -> bool {
+pub fn import_builtin_module(symtable: &mut ISymTable, name: &str) -> bool {
     if let Some(module) = get_module(name) {
         // the global module doesn't have any namespace
         let namespace = if name == "global" { "" } else { name };

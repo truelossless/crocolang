@@ -1,10 +1,13 @@
 use crate::ast::{AstNode, AstNodeType, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
+use crate::token::CodePos;
+
+#[cfg(feature = "crocoi")]
 use crate::{
-    crocoi::{symbol::SymbolContent, utils::get_number_value, ISymbol},
-    token::{CodePos, LiteralEnum::*},
+    crocoi::{utils::get_number_value, ISymTable, ISymbol},
+    token::LiteralEnum::*,
 };
+
 #[derive(Clone)]
 pub struct UnaryMinusNode {
     bottom: Option<Box<dyn AstNode>>,
@@ -21,15 +24,14 @@ impl UnaryMinusNode {
 }
 
 impl AstNode for UnaryMinusNode {
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         let value = Num(-get_number_value(
             &mut self.bottom,
             symtable,
             &self.code_pos,
         )?);
-        Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-            value,
-        )))
+        Ok(INodeResult::Value(ISymbol::Primitive(value)))
     }
     fn add_child(&mut self, node: Box<dyn AstNode>) {
         if self.bottom.is_none() {

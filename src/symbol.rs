@@ -1,18 +1,9 @@
+use crate::ast::AstNode;
+use crate::builtin::{BuiltinCallback, BuiltinFunction};
 use crate::parser::TypedArg;
-use crate::{ast::AstNode, crocoi::ISymbol};
-use crate::{
-    builtin::{get_module, BuiltinCallback, BuiltinFunction},
-    symbol_type::type_eq,
-};
-use crate::{
-    crocoi::symbol::SymbolContent,
-    symbol_type::{FunctionType, SymbolType},
-    token::{Identifier, LiteralEnum},
-};
-use std::cell::RefCell;
+use crate::{symbol_type::SymbolType, token::Identifier};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
-use std::rc::Rc;
 
 /// Either the function is a classic function or a built-in function
 #[derive(Clone)]
@@ -33,8 +24,8 @@ impl fmt::Debug for FunctionKind {
 #[derive(Clone, Debug)]
 pub struct FunctionDecl {
     pub args: Vec<TypedArg>,
-    pub body: Option<FunctionKind>,
-    pub return_type: SymbolType,
+    pub body: FunctionKind,
+    pub return_type: Option<SymbolType>,
 }
 
 #[derive(Clone)]
@@ -53,15 +44,6 @@ impl fmt::Debug for StructDecl {
     }
 }
 
-/// the abstract trait representing a symbol on any backend.
-// implementations among backends are prefixed with the backend name,
-// such as LSymbol or ISymbol. Tecnhically we could just use namespaces,
-// but it's both easier and shorter like that.
-pub trait Symbol {
-    /// returns the type of a Symbol
-    fn to_type(&self) -> SymbolType;
-}
-
 /// a top-level declaration such as a function declaration or a struct declaration
 #[derive(Clone, Debug)]
 pub enum Decl {
@@ -72,24 +54,6 @@ pub enum Decl {
     StructDecl(StructDecl),
 }
 
-/// returns the type of a symbol
-pub fn get_symbol_type(symbol: &SymbolContent) -> SymbolType {
-    match symbol {
-        SymbolContent::Primitive(LiteralEnum::Bool(_)) => SymbolType::Bool,
-        SymbolContent::Primitive(LiteralEnum::Num(_)) => SymbolType::Num,
-        SymbolContent::Primitive(LiteralEnum::Str(_)) => SymbolType::Str,
-        SymbolContent::Primitive(LiteralEnum::Void) => SymbolType::Void,
-        SymbolContent::Array(arr) => SymbolType::Array(arr.array_type.clone()),
-        SymbolContent::Struct(s) => SymbolType::Struct(s.struct_type.clone()),
-        SymbolContent::Ref(r) => SymbolType::Ref(Box::new(get_symbol_type(&*r.borrow()))),
-        SymbolContent::Function(func) => SymbolType::Function(FunctionType {
-            args: func.args.clone(),
-            return_type: Box::new(func.return_type.clone()),
-        }),
-        SymbolContent::CrocoType(_) => SymbolType::CrocoType,
-    }
-}
-
 /// SymTable represents the symbol tables where all the variables are stored.
 /// The Vec represents the different scopes of variables, introduced by BlockNodes
 /// The Hashmap stores variables by name, and bind them to a value.
@@ -97,12 +61,12 @@ pub fn get_symbol_type(symbol: &SymbolContent) -> SymbolType {
 
 /// The SymTable is a generic struct that can accept any Symbol type, coming from any backend.
 #[derive(Clone, Default, Debug)]
-pub struct SymTable<T: Symbol + Clone> {
+pub struct SymTable<T: Clone> {
     symbols: Vec<HashMap<String, T>>,
     top_level: HashMap<String, Decl>,
 }
 
-impl<T: Symbol + Clone> SymTable<T> {
+impl<T: Clone> SymTable<T> {
     pub fn new() -> Self {
         SymTable {
             symbols: vec![HashMap::new()],
@@ -111,10 +75,10 @@ impl<T: Symbol + Clone> SymTable<T> {
     }
 
     /// return the desired symbol starting from the inner scope
-    pub fn get_symbol(&self, var_name: &str) -> Result<T, String> {
+    pub fn get_symbol<'a>(&'a self, var_name: &str) -> Result<&'a T, String> {
         for table in self.symbols.iter().rev() {
             if let Some(symbol) = table.get(var_name) {
-                return Ok(symbol.clone());
+                return Ok(symbol);
             }
         }
 
@@ -140,9 +104,9 @@ impl<T: Symbol + Clone> SymTable<T> {
     }
 
     /// return the desired struct declaration starting from the inner scope
-    pub fn get_struct_decl(&mut self, struct_type: &str) -> Result<&StructDecl, String> {
+    pub fn get_struct_decl(&self, struct_type: &str) -> Result<&StructDecl, String> {
         match self.top_level.get(struct_type) {
-            Some(Decl::StructDecl(ref struct_decl)) => Ok(struct_decl),
+            Some(Decl::StructDecl(struct_decl)) => Ok(struct_decl),
             Some(_) => Err(format!(
                 "trying to get {} as a struct but it's not",
                 struct_type
@@ -187,57 +151,14 @@ impl<T: Symbol + Clone> SymTable<T> {
         }
     }
 
-    /// modify a symbol already present in the symbol table
-    pub fn modify_symbol(&mut self, name: &str, symbol: T) -> Result<(), String> {
-        for table in self.symbols.iter_mut().rev() {
-            if let Some(old_symbol) = table.get_mut(name) {
-                let old_symbol_type = old_symbol.to_type();
-                let new_symbol_type = symbol.to_type();
-
-                if type_eq(&old_symbol_type, &new_symbol_type) {
-                    *old_symbol = symbol;
-                    return Ok(());
-                } else {
-                    return Err(format!(
-                        "Cannot assign another type to the variable {}",
-                        name
-                    ));
-                }
-            }
-        }
-        Err(format!("Can't assign to undeclared variable {}", name))
-    }
-
     /// register a function or struct declaration
     pub fn register_decl(&mut self, var_name: String, decl: Decl) -> Result<(), String> {
         let res = self.top_level.insert(var_name, decl);
 
         if res.is_some() {
-            Err("symbol already declared in this scope".to_owned())
+            Err("struct of function already declared with the same name".to_owned())
         } else {
             Ok(())
-        }
-    }
-
-    pub fn import_builtin_module(symtable: &mut SymTable<ISymbol>, name: &str) -> bool {
-        if let Some(module) = get_module(name) {
-            // the global module doesn't have any namespace
-            let namespace = if name == "global" { "" } else { name };
-
-            for function in module.functions {
-                symtable.register_builtin_function(function, namespace);
-            }
-
-            for var in module.vars {
-                let namespaced_name =
-                    Identifier::new(var.name, name.to_owned()).get_namespaced_name();
-                symtable
-                    .insert_global_symbol(namespaced_name, Rc::new(RefCell::new(var.value)))
-                    .unwrap();
-            }
-            true
-        } else {
-            false
         }
     }
 
@@ -255,7 +176,7 @@ impl<T: Symbol + Clone> SymTable<T> {
         let builtin = FunctionDecl {
             args: typed_args,
             return_type: function.return_type,
-            body: Some(FunctionKind::Builtin(function.pointer)),
+            body: FunctionKind::Builtin(function.pointer),
         };
 
         let namespaced_name =

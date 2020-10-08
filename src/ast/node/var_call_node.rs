@@ -1,10 +1,9 @@
-use crate::ast::{AstNode, INodeResult};
+use crate::ast::AstNode;
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
 use crate::token::CodePos;
 
 #[cfg(feature = "crocoi")]
-use crate::crocoi::ISymbol;
+use crate::crocoi::{INodeResult, ISymTable};
 
 #[cfg(feature = "crocol")]
 use crate::crocol::{Codegen, LNodeResult};
@@ -23,23 +22,21 @@ impl VarCallNode {
 }
 
 impl AstNode for VarCallNode {
-
     #[cfg(feature = "crocoi")]
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         let symbol = symtable
             .get_symbol(&self.name)
             .map_err(|e| CrocoError::new(&self.code_pos, e))?;
 
-        Ok(INodeResult::Symbol(symbol))
+        Ok(INodeResult::Variable(symbol.clone()))
     }
 
     #[cfg(feature = "crocol")]
     fn crocol<'ctx>(
-            &mut self,
-            codegen: &Codegen<'ctx>,
-        ) -> Result<LNodeResult<'ctx>, CrocoError> {
-        
-        let symbol = codegen.symtable.borrow().get_symbol(&self.name).unwrap();
-        Ok(LNodeResult::Symbol(symbol.pointer.into()))
+        &mut self,
+        codegen: &mut Codegen<'ctx>,
+    ) -> Result<LNodeResult<'ctx>, CrocoError> {
+        let symbol = codegen.symtable.get_symbol(&self.name).unwrap();
+        Ok(LNodeResult::Variable(symbol.clone()))
     }
 }

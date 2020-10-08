@@ -1,16 +1,16 @@
-# Croco lang
+# Crocolang
 
 ![ci](https://github.com/truelossless/crocolang/workflows/ci/badge.svg)
 
-Croco is a small and fun-to-use interpreted language written in Rust.
+Croco is a small and fun-to-use language written in Rust.
 
 You can see some examples of the syntax below :)  
-Simple examples of the syntax can be seen under the `tests` folder.
+Other simple examples can be seen under the `tests` folder.
 For the partial spec and even more examples, see [here](SPEC.md).
 
 PULL REQUESTS ARE WELCOME SO YOU CAN IMPROVE MY MESS !  
 
-The lexer and parser are backend-agnostic, which means it should be easy to add all types of backend support.  
+The lexer and parser are backend-agnostic, which means it should be easy to add all types of backends.  
 Currently there is a interpreter backend (crocoi), and an llvm backend (crocol, WIP)
 
 ## Downloading croco
@@ -28,12 +28,12 @@ cargo build --release
 
 ## Using croco
 
-You probably want to put the croco executable in your path.  
-Once it's done, you can use do `croco myfile.croco` in your favorite shell !
+You probably want to put the crocoi/crocol executable in your path.  
+Once it's done, you can use do `crocoi myfile.croco` in your favorite shell to run your myfile with the croco interpreter !
 
 ```
-$ croco --help
-Usage: croco [OPTIONS]
+$ crocoi --help
+Usage: crocoi [OPTIONS]
 
 Positional arguments:
   input          the .croco file to execute
@@ -41,6 +41,23 @@ Positional arguments:
 Optional arguments:
   -h, --help     show help message
   -v, --version  show croco version
+```
+```
+$ crocol --help
+Usage: crocol [OPTIONS]
+
+Positional arguments:
+  input             the .croco file to execute
+
+Optional arguments:
+  --verbose         verbose output
+  --no-llvm-checks  ignore llvm ir checks
+  -h, --help        show help message
+  -v, --version     show crocol version
+  -S                emit assembly only
+  -c                emit object files only
+  --emit-llvm       emit llvm ir only
+  -o OUTPUT         output file path
 ```
 
 ## Examples
@@ -150,7 +167,7 @@ $ time croco bench_name.croco
 
 |benchmark name     |  node    |python|crocoi|
 |-------------------|----------|------|------|
-|rec fibonacci, n=30|     200ms| 400ms|12s   |
+|rec fibonacci, n=30|     200ms| 400ms|13s   |
 |loop, n=1000000    |     230ms| 236ms|850ms |
 
 We're getting there :D  
@@ -160,9 +177,7 @@ Apparently Python doesn't do any tail call optimization for recursive functions,
 
 ### Where are the performance culprits ?
 
-- Everytime a function is called, the corresponding AST is also cloned, which is very expensive (30-50% of the time is spent cloning). This is why recursive functions are so slow. I've not found a workaround. If you can, prefer using regular loops that doesn't involve that much cloning.  
-
-- Now that croco as pretty error messages, it has to keep track of a few more informations (the file name and line number mapped to each, instruction) and in the fibonacci test we lost 1.5s. I'll try to find a way to avoid some clone() calls on the file name strings.
+- A lot of clone calls :S I plan to further profile performance later.
 
 ## IDE support
 

@@ -1,7 +1,9 @@
 use crate::ast::{AstNode, AstNodeType, INodeResult};
 use crate::error::CrocoError;
-use crate::symbol::SymTable;
-use crate::{crocoi::{ISymbol, symbol::SymbolContent}, token::CodePos};
+use crate::token::CodePos;
+
+#[cfg(feature = "crocoi")]
+use {crate::crocoi::ISymTable, std::cell::RefCell, std::rc::Rc};
 
 /// a node creating a reference to a symbol
 #[derive(Clone)]
@@ -20,15 +22,23 @@ impl RefNode {
 }
 
 impl AstNode for RefNode {
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
+        // it only make sense to create a reference to a reference or a variable, everything else is just
+        // dropping temporary values
+        // e.g &12, &[3, 4] ...
+        // references to variables are handled with VarRefNode, so we just care about
+        // references of references.
+
         let symbol = self
             .symbol
             .as_mut()
             .unwrap()
             .crocoi(symtable)?
-            .into_symbol(&self.code_pos)?;
+            .into_var_ref(&self.code_pos)
+            .map_err(|_| CrocoError::new(&self.code_pos, "dropping a temporary value"))?;
 
-        Ok(INodeResult::construct_symbol(SymbolContent::Ref(symbol)))
+        Ok(INodeResult::Variable(Rc::new(RefCell::new(symbol))))
     }
     fn add_child(&mut self, node: Box<dyn AstNode>) {
         if self.symbol.is_none() {

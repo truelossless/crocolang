@@ -2,22 +2,21 @@ use crate::ast::AstNode;
 use crate::error::CrocoError;
 
 #[cfg(feature = "crocoi")]
-use crate::crocoi::symbol::{INodeResult, ISymTable};
+use crate::crocoi::{INodeResult, ISymTable};
 
-/// a node representing a continue statement
+/// A node returning a Void NodeResult
 #[derive(Clone)]
-pub struct ContinueNode {}
+pub struct VoidNode {}
 
-impl ContinueNode {
+impl VoidNode {
     pub fn new() -> Self {
-        ContinueNode {}
+        VoidNode {}
     }
 }
 
-impl AstNode for ContinueNode {
-
+impl AstNode for VoidNode {
     #[cfg(feature = "crocoi")]
     fn crocoi(&mut self, _symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
-        Ok(INodeResult::Continue)
+        Ok(INodeResult::Void)
     }
 }

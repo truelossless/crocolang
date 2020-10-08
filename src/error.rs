@@ -24,6 +24,7 @@ pub enum CrocoErrorKind {
 /// errors thrown by croco
 pub struct CrocoError {
     kind: CrocoErrorKind,
+    hint: Option<String>,
     pos: Option<CodePos>,
     message: String,
 }
@@ -32,6 +33,7 @@ impl CrocoError {
     pub fn new(pos: &CodePos, message: impl AsRef<str>) -> Self {
         CrocoError {
             kind: CrocoErrorKind::Unknown,
+            hint: None,
             pos: Some(pos.clone()),
             message: message.as_ref().to_owned(),
         }
@@ -40,6 +42,7 @@ impl CrocoError {
     pub fn from_type(message: impl AsRef<str>, error_type: CrocoErrorKind) -> Self {
         CrocoError {
             kind: error_type,
+            hint: None,
             pos: None,
             message: message.as_ref().to_owned(),
         }
@@ -50,6 +53,11 @@ impl CrocoError {
         if let CrocoErrorKind::Unknown = &self.kind {
             self.kind = kind;
         }
+    }
+
+    pub fn hint(mut self, hint: impl AsRef<str>) -> Self {
+        self.hint = Some(hint.as_ref().to_owned());
+        self
     }
 }
 
@@ -103,18 +111,28 @@ impl fmt::Display for CrocoError {
             indicator += "---"
         }
 
+        let hint = match &self.hint {
+            Some(hint) => {
+                format!("\nHint: {}", hint)
+            }
+
+            None => String::new()
+        };
+
         // format the errror message like this:
         // while (a)
         //
         // ^^^^^^^^
         // Syntax Error: unexpected token after while keyword
+        // Hint: do not use parenthesis
         // in mymod.croco at line 45
         write!(
             f,
-            "\n{}\n{}\n\n{}: {}\nin {} at line {}, position {}\n",
+            "\n{}\n{}\n\n{}: {}{}\nin {} at line {}, position {}\n",
             errored_line,
             indicator,
             error_kind,
+            hint,
             self.message,
             pos.file,
             pos.line + 1,       // lines start at 1

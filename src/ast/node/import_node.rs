@@ -1,12 +1,14 @@
 use std::fs;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{ast::{AstNode, BlockScope, INodeResult}, crocoi::symbol::import_builtin_module};
+use crate::ast::{AstNode, BlockScope};
 use crate::error::CrocoError;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
-use crate::symbol::SymTable;
-use crate::{crocoi::{symbol::SymbolContent, ISymbol}, token::{CodePos, LiteralEnum::*}};
+use crate::token::CodePos;
+
+#[cfg(feature = "crocoi")]
+use crate::crocoi::{symbol::import_builtin_module, INodeResult, ISymTable};
 
 /// a node to import code from another module, at runtime.
 #[derive(Clone)]
@@ -27,7 +29,9 @@ impl ImportNode {
 }
 
 impl AstNode for ImportNode {
-    fn crocoi(&mut self, symtable: &mut SymTable<ISymbol>) -> Result<INodeResult, CrocoError> {
+
+    #[cfg(feature = "crocoi")]
+    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         // we have a relative path e.g import "./my_module"
         // look for a file with this name
         if self.name.starts_with('.') {
@@ -62,18 +66,14 @@ impl AstNode for ImportNode {
             bottom.crocoi(symtable)?;
             self.bottom = Some(bottom);
 
-            Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-                Void,
-            )))
+            Ok(INodeResult::Void)
 
         // we have an absolute path e.g import "math"
         // we are looking for a builtin module with this name
         } else {
             // check if the module part of the std library
             if import_builtin_module(symtable, &self.name) {
-                Ok(INodeResult::construct_symbol(SymbolContent::Primitive(
-                    Void,
-                )))
+                Ok(INodeResult::Void)
             } else {
                 Err(CrocoError::new(
                     &self.code_pos,
