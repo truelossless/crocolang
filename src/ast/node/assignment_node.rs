@@ -49,7 +49,11 @@ impl AstNode for AssignmentNode {
     #[cfg(feature = "crocoi")]
     fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         // get a mutable reference to the variable / field to assign to
-        let var = self.var.crocoi(symtable)?.into_var(&self.code_pos)?;
+        let var = self
+            .var
+            .crocoi(symtable)?
+            .into_var(&self.code_pos)
+            .map_err(|_| CrocoError::new(&self.code_pos, "can't assign to this expression"))?;
         let expr = self.expr.crocoi(symtable)?.into_value(&self.code_pos)?;
 
         if !get_symbol_type(&*var.borrow()).eq(&get_symbol_type(&expr)) {

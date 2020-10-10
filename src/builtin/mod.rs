@@ -15,7 +15,7 @@ pub mod math;
 // the os module
 pub mod os;
 
-use crate::{crocoi::symbol::Struct, crocoi::symbol::ISymbol, symbol_type::SymbolType};
+use crate::{crocoi::symbol::Array, crocoi::symbol::ISymbol, crocoi::symbol::Struct, crocoi::utils::auto_deref, symbol_type::SymbolType};
 
 /// callback to a built-in function
 pub type BuiltinCallback = fn(Vec<ISymbol>) -> Option<ISymbol>;
@@ -59,11 +59,19 @@ pub fn get_module(name: &str) -> Option<BuiltinModule> {
 
 // utils to easily get args
 pub fn get_arg_str(args: &mut Vec<ISymbol>) -> String {
-    args.remove(0).into_primitive().unwrap().into_str().unwrap()
+    auto_deref(args.remove(0))
+        .into_primitive()
+        .unwrap()
+        .into_str()
+        .unwrap()
 }
 
-pub fn _get_arg_num(args: &mut Vec<ISymbol>) -> f32 {
-    args.remove(0).into_primitive().unwrap().into_num().unwrap()
+pub fn get_arg_num(args: &mut Vec<ISymbol>) -> f32 {
+    auto_deref(args.remove(0))
+        .into_primitive()
+        .unwrap()
+        .into_num()
+        .unwrap()
 }
 
 pub fn get_arg_bool(args: &mut Vec<ISymbol>) -> bool {
@@ -72,6 +80,12 @@ pub fn get_arg_bool(args: &mut Vec<ISymbol>) -> bool {
         .unwrap()
         .into_bool()
         .unwrap()
+}
+
+pub fn get_arg_array(args: &mut Vec<ISymbol>) -> Array {
+    args.remove(0)
+    .into_array()
+    .unwrap()
 }
 
 pub fn _get_arg_struct(args: &mut Vec<ISymbol>) -> Struct {

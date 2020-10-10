@@ -128,7 +128,7 @@ impl fmt::Display for CrocoError {
         // in mymod.croco at line 45
         write!(
             f,
-            "\n{}\n{}\n\n{}: {}{}\nin {} at line {}, position {}\n",
+            "\n{}\n{}\n\n{}: {}{}\n\nIn file {}:{}:{}\n",
             errored_line,
             indicator,
             error_kind,

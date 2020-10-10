@@ -34,8 +34,6 @@ impl AstNode for DerefNode {
             .crocoi(symtable)?
             .into_var(&self.code_pos)?;
 
-        dbg!(&symbol);
-
         let deref_symbol = match symbol.borrow().clone() {
             ISymbol::Ref(r) => r,
             _ => {

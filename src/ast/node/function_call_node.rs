@@ -65,6 +65,13 @@ impl AstNode for FunctionCallNode {
 
             method_symbol = auto_deref(method_symbol);
 
+            let err_closure = || {
+                CrocoError::new(
+                    &self.code_pos,
+                    &format!("no method called {}", self.fn_name),
+                )
+            };
+
             match method_symbol {
                 // struct methods
                 ISymbol::Struct(s) => {
@@ -74,33 +81,40 @@ impl AstNode for FunctionCallNode {
                         .map_err(|e| CrocoError::new(&self.code_pos, e))?
                         .methods
                         .get(&self.fn_name)
-                        .ok_or_else(|| {
-                            CrocoError::new(
-                                &self.code_pos,
-                                &format!("no method called {}", self.fn_name),
-                            )
-                        })?
+                        .ok_or_else(err_closure)?
                         .clone()
                 }
 
                 // str methods
                 ISymbol::Primitive(LiteralEnum::Str(_s)) => {
-                    todo!();
+                    fn_decl = symtable
+                        .get_function_decl(&format!("_str_{}", &self.fn_name))
+                        .map_err(|_| err_closure())?
+                        .clone()
                 }
 
                 // num methods
                 ISymbol::Primitive(LiteralEnum::Num(_n)) => {
-                    todo!();
+                    fn_decl = symtable
+                        .get_function_decl(&format!("_num_{}", &self.fn_name))
+                        .map_err(|_| err_closure())?
+                        .clone();
                 }
 
                 // bool methods
                 ISymbol::Primitive(LiteralEnum::Bool(_b)) => {
-                    todo!();
+                    fn_decl = symtable
+                        .get_function_decl(&format!("_bool_{}", &self.fn_name))
+                        .map_err(|_| err_closure())?
+                        .clone();
                 }
 
                 // array methods
                 ISymbol::Array(_arr) => {
-                    todo!();
+                    fn_decl = symtable
+                        .get_function_decl(&format!("_array_{}", &self.fn_name))
+                        .map_err(|_| err_closure())?
+                        .clone()
                 }
 
                 _ => unreachable!(),
@@ -111,18 +125,19 @@ impl AstNode for FunctionCallNode {
             fn_decl = symtable
                 .get_function_decl(&self.fn_name)
                 .map_err(|e| CrocoError::new(&self.code_pos, e))?
-                .clone();
+                .clone()
         }
 
         // ensure that the arguments provided and the arguments in the function call match
         if visited_args.len() != fn_decl.args.len() {
             return Err(CrocoError::new(
                 &self.code_pos,
-                &format!(
-                "mismatched number of arguments in function call\n expected {} parameters but got {}",
-                fn_decl.args.len(),
-                visited_args.len()
-            ),
+                format!(
+                    "mismatched number of arguments in function call\nExpected {} parameter{} but got {}",
+                    fn_decl.args.len(),
+                    if fn_decl.args.len() < 2 { "" } else { "s" },
+                    visited_args.len()
+                ),
             ));
         }
 
@@ -193,6 +208,10 @@ impl AstNode for FunctionCallNode {
             }
 
             FunctionKind::Builtin(builtin_call) => {
+                // inject the method argument if there is any
+                if let Some(self_symbol) = self_arg {
+                    visited_args.insert(0, self_symbol);
+                }
                 return_value = builtin_call(visited_args);
             }
         }

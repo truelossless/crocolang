@@ -73,12 +73,20 @@ impl Lexer {
 
                 loop {
                     if let Some(el) = iter.next() {
-                        // escape quotes
+                        self.word_index += 1;
+
                         match el {
+                            // escape special characters
                             "\\" => {
-                                if iter.peek() == Some(&"\"") {
-                                    words_in_quotes.push("\"");
-                                    iter.next();
+                                let escape_chars =
+                                    [("n", "\n"), ("r", "\r"), ("t", "\t"), ("\"", "\"")];
+
+                                if let Some(next) = iter.peek() {
+                                    if let Some(escape) = escape_chars.iter().find(|x| x.0 == *next)
+                                    {
+                                        iter.next();
+                                        words_in_quotes.push(escape.1);
+                                    }
                                 }
                             }
 

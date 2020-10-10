@@ -87,24 +87,20 @@ impl Parser {
             };
 
             match expr_token {
-                Identifier(_) => {
-                    output.push(self.parse_identifier(iter, parse_type)?.0);
+                Identifier(_) | Literal(_) | Separator(LeftSquareBracket) => {
+                    output.push(self.parse_identifier(iter, parse_type)?);
                 }
 
                 Operator(BitwiseAnd) | Operator(Multiplicate) if is_unary => {
-                    output.push(self.parse_identifier(iter, parse_type)?.0);
+                    output.push(self.parse_identifier(iter, parse_type)?);
                     is_next_token_unary = false;
                 }
 
-                Literal(_) | Keyword(Num) | Keyword(Str) | Keyword(Bool) => {
+                Keyword(Num) | Keyword(Str) | Keyword(Bool) => {
                     self.next_token(iter);
                     output.push(self.get_node(expr_token)?)
                 }
 
-                Separator(LeftSquareBracket) => {
-                    self.next_token(iter);
-                    output.push(self.parse_array(iter)?);
-                }
                 Operator(_) => {
                     self.next_token(iter);
                     // if we have an unary operator flag it accordingly
@@ -189,7 +185,7 @@ impl Parser {
                 _ => {
                     return Err(CrocoError::new(
                         &self.token_pos,
-                        "unexpected token in math expression",
+                        "unexpected token in expression",
                     ))
                 }
             }

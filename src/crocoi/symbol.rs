@@ -115,7 +115,7 @@ impl ISymbol {
         }
     }
 
-    // force cast into a struct
+    /// force cast into a struct
     pub fn into_struct(self) -> Result<Struct, &'static str> {
         match self {
             ISymbol::Struct(s) => Ok(s),
@@ -123,8 +123,15 @@ impl ISymbol {
         }
     }
 
-    // force cast into an array
+    /// force cast into an array
     pub fn into_array(self) -> Result<Array, &'static str> {
+        match self {
+            ISymbol::Array(a) => Ok(a),
+            _ => Err("expected an array"),
+        }
+    }
+
+    pub fn mut_array(&mut self) -> Result<&mut Array, &'static str> {
         match self {
             ISymbol::Array(a) => Ok(a),
             _ => Err("expected an array"),

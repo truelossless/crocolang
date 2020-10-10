@@ -14,7 +14,7 @@ use crate::{
 /// a symbol in the checker
 #[derive(Clone)]
 pub struct CheckerSymbol {
-    /// the type of the symbol, None if it's unknown
+    /// the symbol_type, None if it's unknown
     pub symbol_type: Option<SymbolType>,
     /// if it's a variable tracked store its name (used for errors pretty-print)
     pub var: Option<String>,
@@ -25,7 +25,7 @@ pub struct CheckerSymbol {
 /// The result returned by a node.  
 /// A symbol value is a CheckerSymbol.  
 /// A symbol in the symtable is RefCell'd so it can be mutated easely.
-pub type _CNodeResult = NodeResult<CheckerSymbol, Rc<RefCell<CheckerSymbol>>>;
+pub type _CheckerNodeResult = NodeResult<CheckerSymbol, Rc<RefCell<CheckerSymbol>>>;
 
 impl CheckerSymbol {
     /// Tracks a symbol value

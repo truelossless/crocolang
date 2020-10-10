@@ -107,7 +107,7 @@ impl Parser {
 
                 // assigning a new value to a variable / struct field, or calling a function
                 Identifier(_) | Operator(Multiplicate) => {
-                    let lvalue = self.parse_identifier(iter, AllowStructDeclaration)?;
+                    let lvalue_node= self.parse_identifier(iter, AllowStructDeclaration)?;
 
                     if let Operator(op_token) = self.peek_token(iter) {
                         self.next_token(iter);
@@ -122,18 +122,11 @@ impl Parser {
                             | DivideEquals
                             | PowerEquals => {
 
-                                if !lvalue.1 {
-                                    return Err(CrocoError::new(
-                                        &self.token_pos,
-                                        "can't assign to this expression",
-                                    ));
-                                }
-
                                 let expr_node = self.parse_expr(iter, AllowStructDeclaration)?;
 
                                 // add to the root function this statement
                                 if op_token == Assign {
-                                    block.add_child(Box::new(AssignmentNode::new(lvalue.0, expr_node, self.token_pos.clone())));
+                                    block.add_child(Box::new(AssignmentNode::new(lvalue_node, expr_node, self.token_pos.clone())));
                                 } else {
                                     let mut dyn_op_node: Box<dyn AstNode> = match op_token {
                                         PlusEquals => Box::new(PlusNode::new(self.token_pos.clone())),
@@ -146,12 +139,12 @@ impl Parser {
                                         _ => unreachable!(),
                                     };
 
-                                    dyn_op_node.add_child(lvalue.0.clone());
+                                    dyn_op_node.add_child(lvalue_node.clone());
                                     dyn_op_node.add_child(expr_node);
 
                                     self.expect_token(iter, Separator(NewLine), "expected a new line after assignation")?;
 
-                                    block.add_child(Box::new(AssignmentNode::new(lvalue.0, dyn_op_node, self.token_pos.clone())));
+                                    block.add_child(Box::new(AssignmentNode::new(lvalue_node, dyn_op_node, self.token_pos.clone())));
                                 }
                             }
 
@@ -163,7 +156,7 @@ impl Parser {
                             }
                         }
                     } else {
-                        block.add_child(lvalue.0);
+                        block.add_child(lvalue_node);
                     }
                 }
 
