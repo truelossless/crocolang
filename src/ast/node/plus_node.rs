@@ -1,15 +1,10 @@
-#[cfg(feature = "checker")]
-use crate::{
-    checker::{Checker, CheckerSymbol},
-    symbol_type::SymbolType,
-};
-
 #[cfg(feature = "crocoi")]
 use crate::crocoi::{symbol::ISymbol, utils::get_value, INodeResult, ISymTable};
 
 #[cfg(feature = "crocol")]
 use crate::crocol::{Codegen, LNodeResult, LSymbol};
 
+use crate::symbol_type::SymbolType;
 use crate::ast::{AstNode, AstNodeType};
 use crate::error::CrocoError;
 use crate::token::{CodePos, LiteralEnum::*};
@@ -34,60 +29,6 @@ impl PlusNode {
 
 /// node handling additions and concatenations
 impl AstNode for PlusNode {
-    #[cfg(feature = "checker")]
-    fn check(&mut self, checker: &mut Checker) -> Result<CheckerSymbol, CrocoError> {
-        let mut left_val = self.left.as_mut().unwrap().check(checker)?;
-        let mut right_val = self.right.as_mut().unwrap().check(checker)?;
-
-        left_val.set_used(checker, &self.code_pos)?;
-        right_val.set_used(checker, &self.code_pos)?;
-
-        // both variables are unknown, we can't deduce anything
-        let ret = if left_val.is_unknown() && right_val.is_unknown() {
-            CheckerSymbol::new_unknown_value()
-
-        // one variable is unknown
-        } else if left_val.is_unknown() || right_val.is_unknown() {
-            let unknown_symbol;
-            let known_symbol;
-
-            if left_val.is_unknown() {
-                unknown_symbol = left_val;
-                known_symbol = right_val;
-            } else {
-                unknown_symbol = right_val;
-                known_symbol = left_val;
-            }
-
-            // TODO: this will obviously fail on structs
-            if let Some(var_name) = unknown_symbol.var {
-                let variable = checker.symtable.get_symbol(&var_name).unwrap();
-                variable.borrow_mut().symbol_type = known_symbol.symbol_type.clone();
-            }
-
-            CheckerSymbol::new_value(known_symbol.symbol_type.unwrap())
-
-        // both values are known, check if the types match
-        } else {
-            // we can have either an addition or a concatenation
-            match (
-                left_val.symbol_type.unwrap(),
-                right_val.symbol_type.unwrap(),
-            ) {
-                (SymbolType::Num, SymbolType::Num) => CheckerSymbol::new_value(SymbolType::Num),
-                (SymbolType::Str, SymbolType::Str) => CheckerSymbol::new_value(SymbolType::Str),
-                _ => {
-                    return Err(CrocoError::new(
-                        &self.code_pos,
-                        "cannot add these two types together",
-                    ))
-                }
-            }
-        };
-
-        Ok(ret)
-    }
-
     #[cfg(feature = "crocoi")]
     fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         let left_val = get_value(&mut self.left, symtable, &self.code_pos)?;

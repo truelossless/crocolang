@@ -1,8 +1,8 @@
-#[cfg(feature = "checker")]
-use crate::checker::{Checker, CheckerSymbol};
-
 #[cfg(feature = "crocol")]
-use crate::crocol::{Codegen, LNodeResult};
+use {
+    crate::crocol::{Codegen, LNodeResult},
+    inkwell::values::BasicValueEnum,
+};
 
 #[cfg(feature = "crocoi")]
 use crate::crocoi::{symbol::get_symbol_type, INodeResult, ISymTable};
@@ -31,21 +31,6 @@ impl AssignmentNode {
 }
 
 impl AstNode for AssignmentNode {
-    #[cfg(feature = "checker")]
-    fn check(&mut self, checker: &mut Checker) -> Result<CheckerSymbol, CrocoError> {
-        let var = self.var.check(checker)?.into_value(&self.code_pos)?;
-        let expr = self.expr.check(checker)?.into_value(&self.code_pos)?;
-
-        if !var.eq(&expr) {
-            Err(CrocoError::new(
-                &self.code_pos,
-                "cannot change the type of a variable",
-            ))
-        } else {
-            Ok(CheckerSymbol::new_unknown_value())
-        }
-    }
-
     #[cfg(feature = "crocoi")]
     fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         // get a mutable reference to the variable / field to assign to
@@ -57,10 +42,7 @@ impl AstNode for AssignmentNode {
         let expr = self.expr.crocoi(symtable)?.into_value(&self.code_pos)?;
 
         if !get_symbol_type(&*var.borrow()).eq(&get_symbol_type(&expr)) {
-            return Err(CrocoError::new(
-                &self.code_pos,
-                "cannot change the type of a variable",
-            ));
+            return Err(CrocoError::type_change_error(&self.code_pos));
         }
 
         // assign to the variable the content of the expression
@@ -75,11 +57,22 @@ impl AstNode for AssignmentNode {
         codegen: &mut Codegen<'ctx>,
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
         let var_ptr = self.var.crocol(codegen)?.into_var(&self.code_pos)?;
-        let expr = self.expr.crocol(codegen)?.into_value(&self.code_pos)?;
 
-        codegen
-            .builder
-            .build_store(var_ptr.value.into_pointer_value(), expr.value);
+        let expr= self
+            .expr
+            .crocol(codegen)?
+            .into_value(&self.code_pos)?;
+
+        if !expr.symbol_type.eq(&var_ptr.symbol_type) {
+            return Err(CrocoError::type_change_error(&self.code_pos));
+        }
+
+        let expr_value: BasicValueEnum = expr.value;
+
+        codegen.builder.build_store(
+            var_ptr.value.into_pointer_value(),
+            expr_value
+        );
         Ok(LNodeResult::Void)
     }
 }

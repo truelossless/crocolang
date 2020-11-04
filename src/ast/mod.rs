@@ -10,17 +10,9 @@ use crate::crocoi::symbol::{INodeResult, ISymTable};
 #[cfg(feature = "crocol")]
 use crate::crocol::{Codegen, LNodeResult};
 
-#[cfg(feature = "checker")]
-use crate::checker::{Checker, CheckerSymbol};
-
 /// a trait used to build node trait objects
 #[clonable]
 pub trait AstNode: Clone {
-    /// the checker running on compiled backends
-    #[cfg(feature = "checker")]
-    fn check(&mut self, _checker: &mut Checker) -> Result<CheckerSymbol, CrocoError> {
-        unimplemented!();
-    }
 
     /// crocoi backend interpreter
     #[cfg(feature = "crocoi")]

@@ -8,53 +8,46 @@ use crate::{
 use inkwell::{
     context::Context,
     types::IntType,
-    types::{AnyTypeEnum, BasicType, BasicTypeEnum, StructType},
+    types::{BasicType, BasicTypeEnum, StructType},
     values::PointerValue,
     AddressSpace, IntPredicate,
 };
-use std::{convert::TryInto, path::Path};
-
-/// transforms a AnyTypeEnum in a ptr of an AnyTypeEnum
-// not the most beautiful code, but eh it works
-pub fn any_type_ptr(any_type: AnyTypeEnum<'_>) -> AnyTypeEnum<'_> {
-    match any_type {
-        AnyTypeEnum::ArrayType(a) => a.ptr_type(AddressSpace::Generic).into(),
-        AnyTypeEnum::FloatType(f) => f.ptr_type(AddressSpace::Generic).into(),
-        AnyTypeEnum::StructType(s) => s.ptr_type(AddressSpace::Generic).into(),
-        AnyTypeEnum::PointerType(p) => p.ptr_type(AddressSpace::Generic).into(),
-        _ => unreachable!(),
-    }
-}
+use std::path::Path;
 
 /// get the llvm type corresponding to a SymbolType
-pub fn get_llvm_type<'ctx>(symbol_type: &SymbolType, codegen: &Codegen<'ctx>) -> AnyTypeEnum<'ctx> {
+pub fn get_llvm_type<'ctx>(
+    symbol_type: &SymbolType,
+    codegen: &Codegen<'ctx>,
+) -> BasicTypeEnum<'ctx> {
     match symbol_type {
         SymbolType::Num => codegen.context.f32_type().into(),
         SymbolType::Str => codegen.str_type.into(),
         SymbolType::Bool => codegen.context.bool_type().into(),
-        SymbolType::Function(fn_type) => {
-            let return_type: BasicTypeEnum = get_llvm_type(&*fn_type.return_type, codegen)
-                .try_into()
-                .unwrap();
+        SymbolType::Function(_fn_type) => {
+            todo!("transform this to a FunctionPointer");
+            // https://github.com/TheDan64/inkwell/commit/5a793eba3e0c3a903a0c35da7c61b12790d2c009
+            // let return_type: BasicTypeEnum = get_llvm_type(&*fn_type.return_type, codegen);
 
-            let mut arg_types = Vec::new();
+            // let mut arg_types = Vec::with_capacity(fn_type.args);
 
-            for arg in fn_type.args.clone() {
-                arg_types.push(get_llvm_type(&arg.arg_type, codegen).try_into().unwrap());
-            }
+            // for arg in fn_type.args.clone() {
+            //     arg_types.push(get_llvm_type(&arg.arg_type, codegen).try_into().unwrap());
+            // }
 
-            return_type.fn_type(&arg_types, false).into()
+            // return_type.fn_type(&arg_types, false).into()
         }
         SymbolType::Array(_) => array_type(codegen).into(),
-        SymbolType::Ref(ref_type) => any_type_ptr(get_llvm_type(ref_type, codegen)),
+        SymbolType::Ref(ref_type) => get_llvm_type(ref_type, codegen)
+            .ptr_type(AddressSpace::Generic)
+            .into(),
         SymbolType::Map(_, _) => todo!(),
         SymbolType::Struct(s) => {
             let struct_decl = codegen.symtable.get_struct_decl(s).unwrap();
 
-            let mut field_types = Vec::new();
+            let mut field_types = Vec::with_capacity(struct_decl.fields.len());
 
             for field in struct_decl.fields.values() {
-                field_types.push(get_llvm_type(field, codegen).try_into().unwrap());
+                field_types.push(get_llvm_type(field, codegen));
             }
 
             codegen.context.struct_type(&field_types, false).into()
@@ -64,7 +57,6 @@ pub fn get_llvm_type<'ctx>(symbol_type: &SymbolType, codegen: &Codegen<'ctx>) ->
 }
 
 pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) {
-
     // we're guarenteed to have a pointer here
     let ptr = init_symbol.value.into_pointer_value();
 
@@ -78,10 +70,9 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) 
 
         // stack allocation of a bool
         SymbolType::Bool => {
-            codegen.builder.build_store(
-                ptr,
-                codegen.context.bool_type().const_zero(),
-            );
+            codegen
+                .builder
+                .build_store(ptr, codegen.context.bool_type().const_zero());
         }
         // TODO: refcount may be needed ?
         // strs and arrays are tougher because they're heap-allocated
@@ -100,10 +91,7 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) 
             codegen.builder.build_store(heap_ptr, null_ptr);
 
             // both fields defaults to 0
-            let len = codegen
-                .builder
-                .build_struct_gep(ptr, 1, "geplen")
-                .unwrap();
+            let len = codegen.builder.build_struct_gep(ptr, 1, "geplen").unwrap();
             codegen
                 .builder
                 .build_store(len, codegen.ptr_size.const_int(0, false));
@@ -156,7 +144,7 @@ pub fn str_type<'ctx>(context: &'ctx Context, ptr_size: IntType) -> StructType<'
 }
 
 /// set the contents of a str
-// very inefficient because for large batch of text we're allocating every 16 chars.
+// very inefficient because for large batch of text because we're allocating every 16 chars.
 // TODO: in the future, pass a void* ptr and a value ?
 pub fn set_str_text(str_ptr: PointerValue, text: &str, codegen: &Codegen) {
     let add_char_fn = codegen.module.get_function("_str_add_char").unwrap();

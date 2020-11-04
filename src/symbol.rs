@@ -164,7 +164,7 @@ impl<T: Clone> SymTable<T> {
 
     pub fn register_builtin_function(&mut self, function: BuiltinFunction, module_name: &str) {
         // for the builtin functions we don't care about the variable name
-        let mut typed_args = Vec::new();
+        let mut typed_args = Vec::with_capacity(function.args.len());
 
         for el in function.args.into_iter() {
             typed_args.push(TypedArg {

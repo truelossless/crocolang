@@ -13,10 +13,7 @@ pub fn literal_eq(a: &LiteralEnum, b: &LiteralEnum) -> bool {
 
 impl LiteralEnum {
     pub fn is_num(&self) -> bool {
-        match self {
-            LiteralEnum::Num(_) => true,
-            _ => false,
-        }
+        matches!(self, LiteralEnum::Num(_))
     }
 
     pub fn into_bool(self) -> Result<bool, &'static str> {

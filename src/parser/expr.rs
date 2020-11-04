@@ -42,16 +42,16 @@ impl Parser {
         // e.g 3+4 == 4+3
         // but 3^4 != 4^3
         let right_associative = |op: &Token| -> bool {
-            match op {
+            !matches!(
+                op,
                 Operator(Divide)
-                | Operator(Minus)
-                | Operator(Power)
-                | Operator(GreaterOrEqual)
-                | Operator(GreaterThan)
-                | Operator(LowerOrEqual)
-                | Operator(LowerThan) => false,
-                _ => true,
-            }
+                    | Operator(Minus)
+                    | Operator(Power)
+                    | Operator(GreaterOrEqual)
+                    | Operator(GreaterThan)
+                    | Operator(LowerOrEqual)
+                    | Operator(LowerThan)
+            )
         };
 
         // if we encouter a right parenthesis while there's no left parenthesis opened in our expression that
@@ -81,10 +81,8 @@ impl Parser {
                 _ => (),
             }
 
-            let mut is_next_token_unary = match expr_token {
-                Operator(_) | Separator(LeftParenthesis) => true,
-                _ => false,
-            };
+            let mut is_next_token_unary =
+                matches!(expr_token, Operator(_) | Separator(LeftParenthesis));
 
             match expr_token {
                 Identifier(_) | Literal(_) | Separator(LeftSquareBracket) => {

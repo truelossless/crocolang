@@ -22,6 +22,7 @@ extern "C" {
     pub fn free_resources(result: *mut Find_Result) -> c_void;
 }
 
+#[derive(Debug)]
 pub struct FindResult {
     pub windows_sdk_version: i32,
     pub windows_sdk_root: String,

@@ -53,13 +53,16 @@ impl AstNode for ConstantNode {
             // TODO: wacky. we need to initialize right away our string because we then loose the information about
             // the text content.
             // Maybe introduce a strconst type for compiled backends ?
+            // Hopefully LLVM optimizations ease these hacks.
             LiteralEnum::Str(s) => {
                 let alloca =
                     codegen.create_entry_block_alloca(codegen.str_type.into(), "allocastr");
                 set_str_text(alloca, &s, codegen);
 
+                let load = codegen.builder.build_load(alloca, "loadstr");
+
                 LSymbol {
-                    value: alloca.into(),
+                    value: load,
                     symbol_type: SymbolType::Str,
                 }
             }

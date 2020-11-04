@@ -4,15 +4,15 @@ use std::process::{Command, Stdio};
 // this leverages native linkers
 pub struct Linker {
     linker: String,
-    // if the linker is link.exe, give the location of the runtime library
-    has_msvcrt: Option<String>,
+    // if the linker is link.exe, give the location of the runtime libraries
+    msvc_libs: Option<Vec<String>>,
 }
 
 impl Linker {
     pub fn new() -> Self {
         Linker {
             linker: String::new(),
-            has_msvcrt: None,
+            msvc_libs: None,
         }
     }
 
@@ -62,8 +62,14 @@ impl Linker {
             let msvc_result = crate::ms_craziness_bindings::find_msvc();
 
             if msvc_result.windows_sdk_version != 0 {
-                self.linker = format!("{}\\link.exe", msvc_result.vs_exe_path);
-                self.has_msvcrt = Some(msvc_result.vs_library_path);
+                self.linker = format!("{}\\link.exe", &msvc_result.vs_exe_path);
+                self.msvc_libs = Some(vec![
+                    format!("{}/msvcrt.lib", msvc_result.vs_library_path),
+                    format!("{}/vcruntime.lib", msvc_result.vs_library_path),
+                    format!("{}/uuid.lib", msvc_result.windows_sdk_um_library_path),
+                    format!("{}/kernel32.lib", msvc_result.windows_sdk_um_library_path),
+                    format!("{}/ucrt.lib", msvc_result.windows_sdk_ucrt_library_path)
+                ]);
                 return Ok("Linker found: link.exe".to_owned());
             }
         }
@@ -79,8 +85,11 @@ impl Linker {
             command.arg(&object_file);
 
             // if we're using msvc
-            if let Some(msvcrt_path) = &self.has_msvcrt {
-                command.arg(format!("{}\\msvcrt.lib", msvcrt_path));
+            if let Some(libs) = &self.msvc_libs {
+                for lib in libs {
+                    command.arg(lib);
+                }
+
                 command.arg(format!("/OUT:{}", output_file));
                 command.arg("/ENTRY:main");
                 command.arg("/NOLOGO");

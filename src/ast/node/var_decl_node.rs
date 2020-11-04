@@ -11,8 +11,6 @@ use {
         crocol::LSymbol,
         crocol::{utils::get_llvm_type, Codegen, LNodeResult},
     },
-    inkwell::{types::BasicTypeEnum, values::BasicValueEnum},
-    std::convert::TryInto,
 };
 
 #[cfg(feature = "crocoi")]
@@ -60,11 +58,9 @@ impl AstNode for VarDeclNode {
                 // type differs from annotation
                 if let Some(var_type) = &self.var_type {
                     if !get_symbol_type(&var_value).eq(var_type) {
-                        return Err(CrocoError::new(
+                        return Err(CrocoError::type_annotation_error(
                             &self.code_pos,
-                            &format!(
-                            "variable {} has been explicitely given a type but is declared with another one",
-                            &self.left),
+                            &self.left,
                         ));
                     }
                 }
@@ -74,12 +70,7 @@ impl AstNode for VarDeclNode {
 
             // no node, use the defaut value
             None => match &self.var_type {
-                None => {
-                    return Err(CrocoError::new(
-                        &self.code_pos,
-                        &format!("cannot infer the type of the variable {}", self.left),
-                    ))
-                }
+                None => return Err(CrocoError::infer_error(&self.code_pos, &self.left)),
 
                 Some(var_type) => init_default(var_type, symtable, &self.code_pos)?,
             },
@@ -97,35 +88,50 @@ impl AstNode for VarDeclNode {
         &mut self,
         codegen: &mut Codegen<'ctx>,
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
-        // TODO: remove once checker works
-        self.var_type = Some(SymbolType::Str);
-
-        let ty: BasicTypeEnum = get_llvm_type(&self.var_type.as_ref().unwrap(), codegen)
-            .try_into()
-            .unwrap();
-        let alloca = codegen.create_entry_block_alloca(ty, &self.left);
-
-        let symbol = LSymbol {
-            value: alloca.into(),
-            symbol_type: self.var_type.as_ref().unwrap().clone(),
-        };
+        let symbol: LSymbol;
 
         match &mut self.right {
             Some(node) => {
-                let right_val: BasicValueEnum =
-                    node.crocol(codegen)?.into_value(&self.code_pos)?.value;
-                codegen.builder.build_store(alloca, right_val);
+                let right = node.crocol(codegen)?.into_value(&self.code_pos)?;
+
+                if let Some(var_type) = &self.var_type {
+                    if !var_type.eq(&right.symbol_type) {
+                        return Err(CrocoError::type_annotation_error(
+                            &self.code_pos,
+                            &self.left,
+                        ));
+                    }
+                }
+
+                let llvm_type = get_llvm_type(&right.symbol_type, codegen);
+                let alloca = codegen.create_entry_block_alloca(llvm_type, &self.left);
+
+                codegen.builder.build_store(alloca, right.value);
+
+                symbol = LSymbol {
+                    value: alloca.into(),
+                    symbol_type: right.symbol_type,
+                };
             }
 
-            None => {
-                // the checker should ensure that the type is valid
-                // we can just default assign
-                crate::crocol::utils::init_default(&symbol, codegen);
-            }
+            None => match &self.var_type {
+                None => return Err(CrocoError::infer_error(&self.code_pos, &self.left)),
+
+                Some(var_type) => {
+                    let llvm_type = get_llvm_type(&var_type, codegen);
+                    let alloca = codegen.create_entry_block_alloca(llvm_type, &self.left);
+
+                    symbol = LSymbol {
+                        value: alloca.into(),
+                        symbol_type: var_type.clone(),
+                    };
+
+                    crate::crocol::utils::init_default(&symbol, codegen);
+                }
+            },
         }
 
         codegen.symtable.insert_symbol(&self.left, symbol).unwrap();
-
         Ok(LNodeResult::Void)
     }
 }

@@ -45,7 +45,7 @@ impl AstNode for FunctionCallNode {
     #[cfg(feature = "crocoi")]
     fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         // resolve the function arguments
-        let mut visited_args = Vec::new();
+        let mut visited_args = Vec::with_capacity(self.args.len());
         for arg in &mut self.args {
             let value = arg.crocoi(symtable)?.into_symbol(&self.code_pos)?;
             visited_args.push(value);

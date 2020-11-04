@@ -12,9 +12,6 @@ mod crocoi;
 #[cfg(feature = "crocoi")]
 pub use self::crocoi::Crocoi;
 
-#[cfg(feature = "checker")]
-mod checker;
-
 mod ast;
 mod builtin;
 mod error;

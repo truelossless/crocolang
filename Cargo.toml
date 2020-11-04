@@ -17,9 +17,8 @@ unicode-segmentation = "1.6.0"
 ureq = {version = "*", default-features = false, features = ["native-tls"]} # lighter alternative to reqwest  
 
 [features]
-checker = [] # the checker for compiled backends
 crocoi = [] # the croco interpreter backend
-crocol = ["checker", "inkwell", "libc", "cc"] # the croco llvm backend
+crocol = ["inkwell", "libc", "cc"] # the croco llvm backend
 default = ["crocol", "crocoi"]
 
 [lib]

@@ -22,7 +22,6 @@ use inkwell::{
     OptimizationLevel,
 };
 use utils::{register_str_add_char, str_type, strip_ext};
-
 #[derive(PartialEq)]
 enum OutputFormat {
     LlvmIr,
@@ -90,7 +89,7 @@ impl Crocol {
                 },
                 &format!("file not found: {}", file_path),
             );
-            err.set_kind(CrocoErrorKind::IO);
+            err.set_kind(CrocoErrorKind::Io);
             err
         })?;
 
@@ -174,7 +173,7 @@ impl Crocol {
             return Err(e);
         }
 
-        // this should never fail if our nodes are right
+        // this should never fail if our nodes are right (but this fails everytime obviously)
         if !self.no_llvm_checks_flag {
             codegen.module.verify().unwrap();
         }
@@ -199,7 +198,7 @@ impl Crocol {
                 .module
                 .print_to_file(llvm_output_filename)
                 .map_err(|_| {
-                    CrocoError::from_type("cannot write llvm ir to disk", CrocoErrorKind::IO)
+                    CrocoError::from_type("cannot write llvm ir to disk", CrocoErrorKind::Io)
                 })?;
             return Ok(());
         }
@@ -249,7 +248,7 @@ impl Crocol {
 
         // we can now remove the unwanted object file
         fs::remove_file(llvm_output_filename).map_err(|_| {
-            CrocoError::from_type("cannot remove temporary object file", CrocoErrorKind::IO)
+            CrocoError::from_type("cannot remove temporary object file", CrocoErrorKind::Io)
         })?;
 
         Ok(())

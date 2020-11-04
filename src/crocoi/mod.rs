@@ -28,8 +28,8 @@ impl Crocoi {
     pub fn exec_file(&mut self, file_path: &str) -> Result<(), CrocoError> {
         let contents = fs::read_to_string(file_path).map_err(|_| {
             let mut err =
-                CrocoError::from_type(format!("file not found: {}", file_path), CrocoErrorKind::IO);
-            err.set_kind(CrocoErrorKind::IO);
+                CrocoError::from_type(format!("file not found: {}", file_path), CrocoErrorKind::Io);
+            err.set_kind(CrocoErrorKind::Io);
             err
         })?;
 

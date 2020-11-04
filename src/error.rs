@@ -8,7 +8,7 @@ use unicode_segmentation::UnicodeSegmentation;
 pub enum CrocoErrorKind {
     // global
     Unknown,
-    IO,     // when a file failed to open
+    Io,     // when a file failed to open
     Syntax, // thrown by the lexer
     Parse,  // thrown by the parser
 
@@ -59,6 +59,28 @@ impl CrocoError {
         self.hint = Some(hint.as_ref().to_owned());
         self
     }
+
+    // convenient error constructors to avoid code reuse across backends
+    pub fn infer_error(code_pos: &CodePos, var_name: &str) -> CrocoError {
+        CrocoError::new(
+            code_pos,
+            format!("cannot infer the type of the variable {}", var_name),
+        )
+    }
+
+    pub fn type_annotation_error(code_pos: &CodePos, var_name: &str) -> CrocoError {
+        CrocoError::new(
+            &code_pos,
+            format!(
+                "variable {} has been explicitely given a type but is declared with another one",
+                var_name
+            ),
+        )
+    }
+
+    pub fn type_change_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot change the type of a variable")
+    }
 }
 
 impl fmt::Display for CrocoError {
@@ -67,7 +89,7 @@ impl fmt::Display for CrocoError {
             CrocoErrorKind::Syntax => "Syntax error",
             CrocoErrorKind::Parse => "Parse error",
             CrocoErrorKind::Runtime => "Runtime error",
-            CrocoErrorKind::IO => "File error",
+            CrocoErrorKind::Io => "File error",
             CrocoErrorKind::CompileTarget => "Compile error",
             CrocoErrorKind::Malloc => "Allocation error",
             CrocoErrorKind::Linker => "Linker error",
@@ -112,11 +134,9 @@ impl fmt::Display for CrocoError {
         }
 
         let hint = match &self.hint {
-            Some(hint) => {
-                format!("\nHint: {}", hint)
-            }
+            Some(hint) => format!("\nHint: {}", hint),
 
-            None => String::new()
+            None => String::new(),
         };
 
         // format the errror message like this:
