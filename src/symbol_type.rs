@@ -32,7 +32,6 @@ impl SymbolType {
             (SymbolType::Map(a, b), SymbolType::Map(c, d)) => a.eq(b) && c.eq(d),
             (SymbolType::Array(a), SymbolType::Array(b)) => a.eq(b),
             (SymbolType::Ref(a), SymbolType::Ref(b)) => a.eq(b),
-            (SymbolType::CrocoType, SymbolType::CrocoType) => true,
             (SymbolType::Function(a), SymbolType::Function(b)) => {
                 if a.args.len() != b.args.len() {
                     return false;

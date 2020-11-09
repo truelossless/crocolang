@@ -31,9 +31,8 @@ impl Parser {
                 | Operator(LowerThan) => 4,
                 Operator(Plus) | Operator(Minus) => 5,
                 Operator(Multiplicate) | Operator(Divide) => 6,
-                Operator(As) => 7,
-                Operator(UnaryMinus) => 8,
-                Operator(Power) => 9,
+                Operator(UnaryMinus) => 7,
+                Operator(Power) => 8,
                 _ => unreachable!(),
             }
         };
@@ -189,9 +188,6 @@ impl Parser {
             }
 
             is_unary = is_next_token_unary;
-
-            // println!("stack: {:?}", stack);
-            // println!("output: {:?}", output);
         }
 
         while let Some(popped) = stack.pop() {

@@ -93,6 +93,8 @@ impl AstNode for BlockNode {
                 .context
                 .append_basic_block(codegen.current_fn, "entry");
 
+                codegen.builder.position_at_end(block);
+
             let mut early_return = false;
 
             for node in &mut self.body {

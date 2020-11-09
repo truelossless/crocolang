@@ -1,27 +1,27 @@
 pub mod symbol;
+pub mod utils;
 
 pub use self::symbol::Codegen;
 pub use self::symbol::LNodeResult;
 pub use self::symbol::LSymbol;
 
-pub mod utils;
-
 use std::fs;
-use std::rc::Rc;
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
+use crate::symbol::SymTable;
 use crate::{
     error::{CrocoError, CrocoErrorKind},
     linker::Linker,
 };
-use crate::{symbol::SymTable, token::CodePos};
 use inkwell::{
     context::Context,
+    module::Module,
+    passes::{PassManager, PassManagerBuilder},
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
     OptimizationLevel,
 };
-use utils::{register_str_add_char, str_type, strip_ext};
+use utils::strip_ext;
 #[derive(PartialEq)]
 enum OutputFormat {
     LlvmIr,
@@ -29,13 +29,13 @@ enum OutputFormat {
     Assembly,
     Executable,
 }
-
 pub struct Crocol {
     file_path: String,
     output_format: OutputFormat,
     output_flag: String,
     no_llvm_checks_flag: bool,
     verbose_flag: bool,
+    optimization_flag: OptimizationLevel,
 }
 
 impl Default for Crocol {
@@ -52,6 +52,7 @@ impl Crocol {
             output_flag: String::new(),
             no_llvm_checks_flag: false,
             verbose_flag: false,
+            optimization_flag: OptimizationLevel::Default,
         }
     }
 
@@ -79,18 +80,13 @@ impl Crocol {
         self.output_flag = output;
     }
 
+    pub fn set_optimization_level(&mut self, opt_level: OptimizationLevel) {
+        self.optimization_flag = opt_level;
+    }
+
     pub fn exec_file(&mut self, file_path: &str) -> Result<(), CrocoError> {
         let contents = fs::read_to_string(file_path).map_err(|_| {
-            let mut err = CrocoError::new(
-                &CodePos {
-                    file: Rc::from(file_path),
-                    line: 0,
-                    word: 0,
-                },
-                &format!("file not found: {}", file_path),
-            );
-            err.set_kind(CrocoErrorKind::Io);
-            err
+            CrocoError::from_type(format!("file not found: {}", file_path), CrocoErrorKind::Io)
         })?;
 
         self.file_path = file_path.to_owned();
@@ -125,6 +121,15 @@ impl Crocol {
         let context = Context::create();
         let module = context.create_module("main");
 
+        // import our standard library
+        let std = Module::parse_bitcode_from_path("src/crocol/std/global.bc", &context)
+            .map_err(|e| CrocoError::from_type(e.to_str().unwrap(), CrocoErrorKind::Io))?;
+
+        module.link_in_module(std).map_err(|_| {
+            CrocoError::from_type("cannot link croco std library", CrocoErrorKind::Linker)
+                .hint("Make sure crocol/std/global.bc exists")
+        })?;
+
         // initialize the target from this machine's specs
         // https://gitter.im/inkwell-rs/Lobby?at=5ef469846c06cd1bf452d3d3
         Target::initialize_all(&InitializationConfig::default());
@@ -138,7 +143,7 @@ impl Crocol {
                 &target_triple,
                 "generic",
                 "",
-                OptimizationLevel::Default,
+                self.optimization_flag,
                 RelocMode::Default,
                 CodeModel::Default,
             )
@@ -156,27 +161,42 @@ impl Crocol {
         let ptr_size = context.ptr_sized_int_type(&target_machine.get_target_data(), None);
 
         let mut codegen = Codegen {
+            str_type: module.get_struct_type("struct.CrocoStr").unwrap(),
             context: &context,
             module,
             builder: context.create_builder(),
             symtable: SymTable::new(),
-            str_type: str_type(&context, ptr_size),
             ptr_size,
             current_fn: main_fn,
         };
 
-        // register built-in functions
-        register_str_add_char(&codegen)?;
-
         if let Err(mut e) = tree.crocol(&mut codegen) {
-            e.set_kind(CrocoErrorKind::Runtime);
+            e.set_kind(CrocoErrorKind::CompilationError);
             return Err(e);
         }
 
         // this should never fail if our nodes are right (but this fails everytime obviously)
         if !self.no_llvm_checks_flag {
-            codegen.module.verify().unwrap();
+            if let Err(e) = codegen.module.verify() {
+                eprintln!(
+                    "An LLVM error has occured, this should never happen !\n{}",
+                    e
+                );
+            }
         }
+
+        // run the optimization passes (for some reason this does nothing lol)
+        let pass_manager_builder = PassManagerBuilder::create();
+        pass_manager_builder.set_optimization_level(self.optimization_flag);
+
+        let mpm = PassManager::create(());
+        pass_manager_builder.populate_module_pass_manager(&mpm);
+        mpm.run_on(&codegen.module);
+
+        let lpm = PassManager::create(());
+        pass_manager_builder.populate_lto_pass_manager(&lpm, false, false);
+        lpm.run_on(&codegen.module);
+
 
         // emit an executable if we don't specifically want to emit assembly, object files, llvm ir
         // get the llvm file output name
@@ -250,7 +270,6 @@ impl Crocol {
         fs::remove_file(llvm_output_filename).map_err(|_| {
             CrocoError::from_type("cannot remove temporary object file", CrocoErrorKind::Io)
         })?;
-
         Ok(())
     }
 }

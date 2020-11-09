@@ -27,10 +27,7 @@ impl Crocoi {
 
     pub fn exec_file(&mut self, file_path: &str) -> Result<(), CrocoError> {
         let contents = fs::read_to_string(file_path).map_err(|_| {
-            let mut err =
-                CrocoError::from_type(format!("file not found: {}", file_path), CrocoErrorKind::Io);
-            err.set_kind(CrocoErrorKind::Io);
-            err
+            CrocoError::from_type(format!("file not found: {}", file_path), CrocoErrorKind::Io)
         })?;
 
         self.file_path = file_path.to_owned();
@@ -46,7 +43,7 @@ impl Crocoi {
         match lexer.process(code) {
             Ok(t) => tokens = t,
             Err(mut e) => {
-                e.set_kind(CrocoErrorKind::Syntax);
+                e.set_kind_if_unknown(CrocoErrorKind::Syntax);
                 return Err(e);
             }
         }
@@ -56,7 +53,7 @@ impl Crocoi {
         match parser.process(tokens) {
             Ok(root_node) => tree = root_node,
             Err(mut e) => {
-                e.set_kind(CrocoErrorKind::Parse);
+                e.set_kind_if_unknown(CrocoErrorKind::Parse);
                 return Err(e);
             }
         }
@@ -67,7 +64,7 @@ impl Crocoi {
 
         // println!("symbol tables: {:?}", self.symtable);
         if let Err(mut e) = tree.crocoi(&mut symtable) {
-            e.set_kind(CrocoErrorKind::Runtime);
+            e.set_kind_if_unknown(CrocoErrorKind::Runtime);
             return Err(e);
         }
 

@@ -128,7 +128,7 @@ fn print(mut args: Vec<ISymbol>) -> Option<ISymbol> {
 
 /// Prints to stdout the first argument, with a line feed
 fn println(mut args: Vec<ISymbol>) -> Option<ISymbol> {
-    let msg = dbg!(get_arg_str(&mut args));
+    let msg = get_arg_str(&mut args);
     println!("{}", msg);
     None
 }

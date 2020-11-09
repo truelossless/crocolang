@@ -38,7 +38,6 @@ impl Parser {
             Operator(LowerOrEqual) => Ok(Box::new(CompareNode::new(LowerOrEqual, code_pos))),
             Operator(LowerThan) => Ok(Box::new(CompareNode::new(LowerThan, code_pos))),
             Operator(Bang) => Ok(Box::new(NotNode::new(code_pos))),
-            Operator(As) => Ok(Box::new(AsNode::new(code_pos))),
             _ => Err(CrocoError::new(
                 &self.token_pos,
                 &format!("can't evaluate token in expression: {:?}", token),

@@ -172,27 +172,21 @@ pub type ISymTable = SymTable<Rc<RefCell<ISymbol>>>;
 pub type INodeResult = NodeResult<ISymbol, Rc<RefCell<ISymbol>>>;
 
 impl INodeResult {
-    /// clone a variable contents into a symbol, or return the symbol value directly
+    /// Clones a variable contents into a symbol, or return the symbol value directly
     pub fn into_symbol(self, code_pos: &CodePos) -> Result<ISymbol, CrocoError> {
         match self {
             INodeResult::Variable(var) => Ok(var.borrow().clone()),
             INodeResult::Value(val) => Ok(val),
-            _ => Err(CrocoError::new(
-                code_pos,
-                "expected a value but got an early-return keyword",
-            )),
+            _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)) 
         }
     }
 
-    /// returns the ISymbol behind a Value, or a transforms a Variable into a Value(ISymbol::Ref())
+    /// Returns the ISymbol behind a Value, or a transforms a Variable into a Value(ISymbol::Ref())
     pub fn into_value_or_var_ref(self, code_pos: &CodePos) -> Result<ISymbol, CrocoError> {
         match self {
             INodeResult::Variable(var) => Ok(ISymbol::Ref(var)),
             INodeResult::Value(val) => Ok(val),
-            _ => Err(CrocoError::new(
-                code_pos,
-                "expected a reference to a variable",
-            )),
+            _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)),
         }
     }
 

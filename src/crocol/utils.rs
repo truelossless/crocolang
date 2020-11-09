@@ -6,8 +6,6 @@ use crate::{
 };
 
 use inkwell::{
-    context::Context,
-    types::IntType,
     types::{BasicType, BasicTypeEnum, StructType},
     values::PointerValue,
     AddressSpace, IntPredicate,
@@ -52,7 +50,7 @@ pub fn get_llvm_type<'ctx>(
 
             codegen.context.struct_type(&field_types, false).into()
         }
-        SymbolType::CrocoType => todo!(),
+        SymbolType::CrocoType => unreachable!(),
     }
 }
 
@@ -136,17 +134,17 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) 
 //     max_len: isize
 // }
 // this uses a different size depending on the host's architecture, for performance reasons
-pub fn str_type<'ctx>(context: &'ctx Context, ptr_size: IntType) -> StructType<'ctx> {
-    let void_ptr = context.i8_type().ptr_type(AddressSpace::Generic).into();
-    let isize_type = ptr_size.into();
+// pub fn str_type<'ctx>(context: &'ctx Context, ptr_size: IntType) -> StructType<'ctx> {
+//     let void_ptr = context.i8_type().ptr_type(AddressSpace::Generic).into();
+//     let isize_type = ptr_size.into();
 
-    context.struct_type(&[void_ptr, isize_type, isize_type], false)
-}
+//     context.struct_type(&[void_ptr, isize_type, isize_type], false)
+// }
 
 /// set the contents of a str
 // very inefficient because for large batch of text because we're allocating every 16 chars.
 // TODO: in the future, pass a void* ptr and a value ?
-pub fn set_str_text(str_ptr: PointerValue, text: &str, codegen: &Codegen) {
+pub fn _set_str_text(str_ptr: PointerValue, text: &str, codegen: &Codegen) {
     let add_char_fn = codegen.module.get_function("_str_add_char").unwrap();
 
     for el in text.chars() {
@@ -157,9 +155,9 @@ pub fn set_str_text(str_ptr: PointerValue, text: &str, codegen: &Codegen) {
     }
 }
 
-/// a function to add a character to a str
+/// A function to add a character to a str
 // TODO: less naive impl, with less allocations and growth factor
-pub fn register_str_add_char(codegen: &Codegen) -> Result<(), CrocoError> {
+pub fn _register_str_add_char(codegen: &Codegen) -> Result<(), CrocoError> {
     let add_char_ty = codegen.context.void_type().fn_type(
         &[
             codegen.str_type.ptr_type(AddressSpace::Generic).into(),

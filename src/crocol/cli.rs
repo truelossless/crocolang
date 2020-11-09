@@ -1,10 +1,23 @@
 use croco::Crocol;
 use gumdrop::Options;
+use inkwell::OptimizationLevel;
 
 #[derive(Options)]
 struct MyOptions {
     #[options(free, help = "the .croco file to execute")]
     input: Vec<String>,
+
+    #[options(help = "build without optimization")]
+    o0: bool,
+
+    #[options(help = "build with few optimizations")]
+    o1: bool,
+    
+    #[options(help = "build with optimizations")]
+    o2: bool,
+
+    #[options(help = "build with aggressive optimizations")]
+    o3: bool,
 
     #[options(no_short, help = "verbose output")]
     verbose: bool,
@@ -33,6 +46,8 @@ struct MyOptions {
 }
 
 pub fn main() {
+    let mut crocol = Crocol::new();
+
     let opts = MyOptions::parse_args_default_or_exit();
 
     if opts.version {
@@ -45,21 +60,52 @@ pub fn main() {
         std::process::exit(1);
     }
 
-    let mut output_flat_count = 0;
+    let mut output_count = 0;
+    let mut opt_count = 0;
+
+    if opts.o0 {
+        opt_count+=1;
+        crocol.set_optimization_level(OptimizationLevel::None);
+    }
+
+    if opts.o1 {
+        opt_count+=1;
+        crocol.set_optimization_level(OptimizationLevel::Less);
+    }
+
+
+    if opts.o2 {
+        opt_count+=1;
+        crocol.set_optimization_level(OptimizationLevel::Default);
+    }
+
+
+    if opts.o3 {
+        opt_count+=1;
+        crocol.set_optimization_level(OptimizationLevel::Aggressive);
+    }
 
     if opts.assembly {
-        output_flat_count += 1;
+        output_count += 1;
+        crocol.emit_assembly();
     }
 
     if opts.object {
-        output_flat_count += 1;
+        output_count += 1;
+        crocol.emit_object_file();
     }
 
     if opts.emit_llvm {
-        output_flat_count += 1;
+        output_count += 1;
+        crocol.emit_llvm()
     }
 
-    if output_flat_count > 1 {
+    if opt_count > 1 {
+        eprintln!("Conflicting optimization flags");
+        std::process::exit(1);
+    }
+
+    if output_count > 1 {
         eprintln!("Conflicting output flags");
         std::process::exit(1);
     }
@@ -70,7 +116,6 @@ pub fn main() {
         &opts.input[0]
     };
 
-    let mut crocol = Crocol::new();
 
     if opts.assembly {
         crocol.emit_assembly();

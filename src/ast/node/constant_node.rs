@@ -3,7 +3,7 @@ use crate::crocoi::{INodeResult, ISymTable, ISymbol};
 
 #[cfg(feature = "crocol")]
 use {
-    crate::crocol::{utils::set_str_text, Codegen, LNodeResult, LSymbol},
+    crate::crocol::{Codegen, LNodeResult, LSymbol},
     crate::symbol_type::SymbolType,
 };
 
@@ -50,19 +50,12 @@ impl AstNode for ConstantNode {
                 symbol_type: SymbolType::Num,
             },
 
-            // TODO: wacky. we need to initialize right away our string because we then loose the information about
-            // the text content.
-            // Maybe introduce a strconst type for compiled backends ?
-            // Hopefully LLVM optimizations ease these hacks.
             LiteralEnum::Str(s) => {
-                let alloca =
-                    codegen.create_entry_block_alloca(codegen.str_type.into(), "allocastr");
-                set_str_text(alloca, &s, codegen);
 
-                let load = codegen.builder.build_load(alloca, "loadstr");
+                let alloca = codegen.alloc_str(s);
 
                 LSymbol {
-                    value: load,
+                    value: alloca.into(),
                     symbol_type: SymbolType::Str,
                 }
             }

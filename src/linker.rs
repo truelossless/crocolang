@@ -18,7 +18,7 @@ impl Linker {
 
     pub fn find_linker(&mut self) -> Result<String, String> {
         // common linkers that can be found on the machine
-        let linkers = vec!["lld", "cc", "clang", "gcc", "ld"];
+        let linkers = vec!["cc", "clangg", "gcc", "ld"];
 
         // we are going to locate the linker
         for linker in linkers {
@@ -68,7 +68,7 @@ impl Linker {
                     format!("{}/vcruntime.lib", msvc_result.vs_library_path),
                     format!("{}/uuid.lib", msvc_result.windows_sdk_um_library_path),
                     format!("{}/kernel32.lib", msvc_result.windows_sdk_um_library_path),
-                    format!("{}/ucrt.lib", msvc_result.windows_sdk_ucrt_library_path)
+                    format!("{}/ucrt.lib", msvc_result.windows_sdk_ucrt_library_path),
                 ]);
                 return Ok("Linker found: link.exe".to_owned());
             }

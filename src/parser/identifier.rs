@@ -109,9 +109,7 @@ impl Parser {
             }
 
             // array literal
-            Separator(LeftSquareBracket) => {
-                chain_nodes.push(self.parse_array(iter)?)
-            }
+            Separator(LeftSquareBracket) => chain_nodes.push(self.parse_array(iter)?),
 
             _ => {
                 return Err(CrocoError::new(
@@ -173,6 +171,18 @@ impl Parser {
         {
             node.add_child(out_node);
             out_node = node;
+        }
+
+        // check if we have a type cast right after
+        // the as keyword is always followed by a type, because the cast must be known at compile-time.
+        // supporting variables as a cast type would be supporting reflection.
+        if let Operator(As) = self.peek_token(iter) {
+            self.next_token(iter);
+            let as_type = self.parse_var_type(iter)?;
+            let mut as_node = AsNode::new(as_type, self.token_pos.clone());
+            as_node.add_child(out_node);
+
+            out_node = Box::new(as_node);
         }
 
         Ok(out_node)

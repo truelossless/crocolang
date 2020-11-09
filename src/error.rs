@@ -8,17 +8,16 @@ use unicode_segmentation::UnicodeSegmentation;
 pub enum CrocoErrorKind {
     // global
     Unknown,
-    Io,     // when a file failed to open
-    Syntax, // thrown by the lexer
-    Parse,  // thrown by the parser
-
-    // crocoi-specific
-    Runtime, // thrown by the interpreter
+    Io,      // when a file failed to open
+    Syntax,  // thrown by the lexer
+    Parse,   // thrown by the parser
+    Runtime, // thrown when an error occurs at runtime
 
     // crocol-specific
-    CompileTarget, // thrown when no compilation is possible on this target
-    Malloc,        // thrown when the OS has no default allocator
-    Linker,        // thrown when there isn't a linker available
+    CompilationError, // thrown when the compilation failed
+    CompileTarget,    // thrown when no compilation is possible on this target
+    Malloc,           // thrown when the OS has no default allocator
+    Linker,           // thrown when there isn't a linker available
 }
 
 /// errors thrown by croco
@@ -48,11 +47,16 @@ impl CrocoError {
         }
     }
 
-    /// sets the kind of error, ONLY IF IT HASN'T BEEN SET BEFORE.
-    pub fn set_kind(&mut self, kind: CrocoErrorKind) {
+    /// Sets the kind of error if it wasn't set before
+    pub fn set_kind_if_unknown(&mut self, kind: CrocoErrorKind) {
         if let CrocoErrorKind::Unknown = &self.kind {
             self.kind = kind;
         }
+    }
+
+    /// Sets the kind of error
+    pub fn set_kind(&mut self, kind: CrocoErrorKind) {
+        self.kind = kind;
     }
 
     pub fn hint(mut self, hint: impl AsRef<str>) -> Self {
@@ -61,6 +65,18 @@ impl CrocoError {
     }
 
     // convenient error constructors to avoid code reuse across backends
+    pub fn cast_non_primitive_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "can only cast primitives together")
+    }
+
+    pub fn cast_redundant_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "redundant cast")
+    }
+
+    pub fn expected_value_got_early_return_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "expected a value but got an early-return keyword")
+    }
+
     pub fn infer_error(code_pos: &CodePos, var_name: &str) -> CrocoError {
         CrocoError::new(
             code_pos,
@@ -70,7 +86,7 @@ impl CrocoError {
 
     pub fn type_annotation_error(code_pos: &CodePos, var_name: &str) -> CrocoError {
         CrocoError::new(
-            &code_pos,
+            code_pos,
             format!(
                 "variable {} has been explicitely given a type but is declared with another one",
                 var_name
@@ -93,6 +109,7 @@ impl fmt::Display for CrocoError {
             CrocoErrorKind::CompileTarget => "Compile error",
             CrocoErrorKind::Malloc => "Allocation error",
             CrocoErrorKind::Linker => "Linker error",
+            CrocoErrorKind::CompilationError => "Compilation error",
             CrocoErrorKind::Unknown => unreachable!(),
         };
 
