@@ -61,7 +61,7 @@ impl AstNode for AssignmentNode {
         let expr= self
             .expr
             .crocol(codegen)?
-            .into_value(&self.code_pos)?;
+            .into_symbol(codegen, &self.code_pos)?;
 
         if !expr.symbol_type.eq(&var_ptr.symbol_type) {
             return Err(CrocoError::type_change_error(&self.code_pos));

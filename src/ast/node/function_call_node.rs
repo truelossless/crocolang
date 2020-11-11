@@ -242,7 +242,7 @@ impl AstNode for FunctionCallNode {
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
         let mut visited_args = Vec::with_capacity(self.args.len());
         for arg in &mut self.args {
-            let mut value = arg.crocol(codegen)?.into_value(&self.code_pos)?;
+            let mut value = arg.crocol(codegen)?.into_symbol(codegen, &self.code_pos)?;
 
             // when passing structs to a function it's better to pass pointers, and then
             // if we want to pass the struct by value we can just stack allocate the fields in the function body.

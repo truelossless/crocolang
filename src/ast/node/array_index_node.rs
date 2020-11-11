@@ -35,7 +35,7 @@ impl AstNode for ArrayIndexNode {
 
     fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
         // visit the index node to get the number of the element to access
-        let index_symbol = self.index.crocoi(symtable)?.into_value(&self.code_pos)?;
+        let index_symbol = self.index.crocoi(symtable)?.into_symbol(&self.code_pos)?;
 
         let index = index_symbol
             .into_primitive()

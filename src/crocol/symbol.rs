@@ -124,6 +124,7 @@ impl<'ctx> LNodeResult<'ctx> {
     ) -> Result<LSymbol<'ctx>, CrocoError> {
         match self {
             LNodeResult::Variable(var) => {
+                dbg!(&var);
                 let value = codegen
                     .builder
                     .build_load(var.value.into_pointer_value(), "loadvar");

@@ -11,6 +11,7 @@ use {
         crocol::LSymbol,
         crocol::{utils::get_llvm_type, Codegen, LNodeResult},
     },
+    inkwell::{types::BasicType, AddressSpace},
 };
 
 #[cfg(feature = "crocoi")]
@@ -92,7 +93,7 @@ impl AstNode for VarDeclNode {
 
         match &mut self.right {
             Some(node) => {
-                let right = node.crocol(codegen)?.into_value(&self.code_pos)?;
+                let right = node.crocol(codegen)?.into_symbol(codegen, &self.code_pos)?;
 
                 if let Some(var_type) = &self.var_type {
                     if !var_type.eq(&right.symbol_type) {
@@ -103,7 +104,14 @@ impl AstNode for VarDeclNode {
                     }
                 }
 
-                let llvm_type = get_llvm_type(&right.symbol_type, codegen);
+                let mut llvm_type = get_llvm_type(&right.symbol_type, codegen);
+
+                // str is a bit special and has already been stack allocated
+                llvm_type = match &right.symbol_type {
+                    SymbolType::Str => llvm_type.ptr_type(AddressSpace::Generic).into(),
+                    _ => llvm_type,
+                };
+
                 let alloca = codegen.create_entry_block_alloca(llvm_type, &self.left);
 
                 codegen.builder.build_store(alloca, right.value);

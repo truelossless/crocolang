@@ -64,6 +64,10 @@ impl CrocoError {
         self
     }
 
+    pub fn add_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot add these two types together")
+    }
+
     // convenient error constructors to avoid code reuse across backends
     pub fn cast_non_primitive_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "can only cast primitives together")
