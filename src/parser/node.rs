@@ -1,7 +1,7 @@
 use super::Parser;
 
-use crate::ast::node::*;
-use crate::ast::{AstNode, AstNodeType};
+use crate::ast::AstNodeType;
+use crate::ast::{node::*, BackendNode};
 use crate::error::CrocoError;
 use crate::{
     symbol_type::SymbolType,
@@ -10,7 +10,7 @@ use crate::{
 
 impl Parser {
     /// util to build a node from a token
-    pub fn get_node(&self, token: Token) -> Result<Box<dyn AstNode>, CrocoError> {
+    pub fn get_node(&self, token: Token) -> Result<Box<dyn BackendNode>, CrocoError> {
         // println!("got token {:?}", token);
 
         let code_pos = self.token_pos.clone();
@@ -48,7 +48,7 @@ impl Parser {
     /// util to add a node to the output
     pub fn add_node(
         &mut self,
-        output: &mut Vec<Box<dyn AstNode>>,
+        output: &mut Vec<Box<dyn BackendNode>>,
         token: Token,
     ) -> Result<(), CrocoError> {
         let pos = self.token_pos.clone();

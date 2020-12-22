@@ -2,4 +2,6 @@ fn a(b str, c bool, d num) str {
     return b + (c as str) + (d as str) 
 }
 
-assert(a("croco", true, 42) == "crocotrue42")
+fn main() {
+    assert(a("croco", true, 42) == "crocotrue42")
+}

@@ -1,15 +1,11 @@
-use crate::ast::{AstNode, AstNodeType};
-use crate::error::CrocoError;
-use crate::token::{CodePos, LiteralEnum::*};
-
-#[cfg(feature = "crocoi")]
-use crate::crocoi::{utils::get_number_value, INodeResult, ISymTable, ISymbol};
+use crate::ast::{AstNode, AstNodeType, BackendNode};
+use crate::token::CodePos;
 
 #[derive(Clone)]
 pub struct PowerNode {
-    left: Option<Box<dyn AstNode>>,
-    right: Option<Box<dyn AstNode>>,
-    code_pos: CodePos,
+    pub left: Option<Box<dyn BackendNode>>,
+    pub right: Option<Box<dyn BackendNode>>,
+    pub code_pos: CodePos,
 }
 
 impl PowerNode {
@@ -23,7 +19,7 @@ impl PowerNode {
 }
 
 impl AstNode for PowerNode {
-    fn add_child(&mut self, node: Box<dyn AstNode>) {
+    fn add_child(&mut self, node: Box<dyn BackendNode>) {
         if self.left.is_none() {
             self.left = Some(node);
         } else if self.right.is_none() {
@@ -33,13 +29,9 @@ impl AstNode for PowerNode {
         }
     }
 
-    #[cfg(feature = "crocoi")]
-    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
-        let value = Num(get_number_value(&mut self.left, symtable, &self.code_pos)?
-            .powf(get_number_value(&mut self.right, symtable, &self.code_pos)?));
-        Ok(INodeResult::Value(ISymbol::Primitive(value)))
-    }
     fn get_type(&self) -> AstNodeType {
         AstNodeType::BinaryNode
     }
 }
+
+impl BackendNode for PowerNode {}

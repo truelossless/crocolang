@@ -64,17 +64,21 @@ impl CrocoError {
         self
     }
 
+    // convenient error constructors to avoid code reuse across backends
     pub fn add_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "cannot add these two types together")
     }
 
-    // convenient error constructors to avoid code reuse across backends
     pub fn cast_non_primitive_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "can only cast primitives together")
     }
 
     pub fn cast_redundant_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "redundant cast")
+    }
+
+    pub fn condition_not_bool_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "expected a bool for the condition")
     }
 
     pub fn expected_value_got_early_return_error(code_pos: &CodePos) -> CrocoError {
@@ -86,6 +90,10 @@ impl CrocoError {
             code_pos,
             format!("cannot infer the type of the variable {}", var_name),
         )
+    }
+
+    pub fn invalid_return_value(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "expected a valid return value")
     }
 
     pub fn type_annotation_error(code_pos: &CodePos, var_name: &str) -> CrocoError {
@@ -166,18 +174,18 @@ impl fmt::Display for CrocoError {
         // ^^^^^^^^
         // Syntax Error: unexpected token after while keyword
         // Hint: do not use parenthesis
-        // in mymod.croco at line 45
+        // in mymod.croco:45:6
         write!(
             f,
-            "\n{}\n{}\n\n{}: {}{}\n\nIn file {}:{}:{}\n",
-            errored_line,
-            indicator,
-            error_kind,
-            hint,
-            self.message,
-            pos.file,
-            pos.line + 1,       // lines start at 1
-            errored_word.0 + 1  // cols start at 1
+            "\n{errored_line}\n{indicator}\n\n{error_kind}: {error_message}{hint}\n\nIn file {file_name}:{line_number}:{col_number}\n",
+            errored_line = errored_line,
+            indicator = indicator,
+            error_kind = error_kind,
+            error_message = self.message,
+            hint = hint,
+            file_name = pos.file,
+            line_number = pos.line + 1,         // lines start at 1
+            col_number = errored_word.0 + 1     // cols start at 1
         )
     }
 }

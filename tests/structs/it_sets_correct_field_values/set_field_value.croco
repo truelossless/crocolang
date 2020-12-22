@@ -6,8 +6,10 @@ let person = Person {
     name: "Karl"
 }
 
-assert(person.name == "Karl")
+fn main() {
+    assert(person.name == "Karl")
 
-person.name = "Mike"
+    person.name = "Mike"
 
-assert(person.name == "Mike")
+    assert(person.name == "Mike")
+}

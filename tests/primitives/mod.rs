@@ -1,79 +1,86 @@
 // Primitive tests
 
-use croco::Crocoi;
+use crate::ALL_BACKENDS;
+
+use super::{test_file_err, test_file_ok, CROCOI};
 
 #[test]
 fn it_assigns_correct_values() {
-    let mut interpreter = Crocoi::new();
-
     // num assignment
-    assert!(interpreter
-        .exec_file("tests/primitives/it_assigns_correct_values/num_assignment.croco")
-        .is_ok());
-    assert!(interpreter
-        .exec_file("tests/primitives/it_assigns_correct_values/num_default_assignment.croco")
-        .is_ok());
+    test_file_ok(
+        "tests/primitives/it_assigns_correct_values/num_assignment.croco",
+        CROCOI,
+    );
+    test_file_ok(
+        "tests/primitives/it_assigns_correct_values/num_default_assignment.croco",
+        CROCOI,
+    );
 
     // str assignment
-    assert!(interpreter
-        .exec_file("tests/primitives/it_assigns_correct_values/str_assignment.croco")
-        .is_ok());
-    assert!(interpreter
-        .exec_file("tests/primitives/it_assigns_correct_values/str_default_assignment.croco")
-        .is_ok());
+    test_file_ok(
+        "tests/primitives/it_assigns_correct_values/str_assignment.croco",
+        CROCOI,
+    );
+
+    test_file_ok(
+        "tests/primitives/it_assigns_correct_values/str_default_assignment.croco",
+        CROCOI,
+    );
 
     // bool assignment
-    assert!(interpreter
-        .exec_file("tests/primitives/it_assigns_correct_values/bool_assignment.croco")
-        .is_ok());
-    assert!(interpreter
-        .exec_file("tests/primitives/it_assigns_correct_values/bool_default_assignment.croco")
-        .is_ok());
+    test_file_ok(
+        "tests/primitives/it_assigns_correct_values/bool_assignment.croco",
+        CROCOI,
+    );
+
+    test_file_ok(
+        "tests/primitives/it_assigns_correct_values/bool_default_assignment.croco",
+        CROCOI,
+    );
 }
 
 #[test]
 fn it_shadows_correctly() {
-    let mut interpreter = Crocoi::new();
+    test_file_err(
+        "tests/primitives/it_shadows_correctly/shadow_err.croco",
+        CROCOI,
+    );
 
-    assert!(interpreter
-        .exec_file("tests/primitives/it_shadows_correctly/shadow_err.croco")
-        .is_err());
-
-    assert!(interpreter
-        .exec_file("tests/primitives/it_shadows_correctly/shadow_ok.croco")
-        .is_ok());
+    test_file_ok(
+        "tests/primitives/it_shadows_correctly/shadow_ok.croco",
+        CROCOI,
+    );
 }
 
 #[test]
 fn it_does_not_change_type() {
-    let mut interpreter = Crocoi::new();
+    test_file_err(
+        "tests/primitives/it_does_not_change_type/str_to_num_err.croco",
+        CROCOI,
+    );
 
-    assert!(interpreter
-        .exec_file("tests/primitives/it_does_not_change_type/str_to_num_err.croco")
-        .is_err());
-
-    assert!(interpreter
-        .exec_file("tests/primitives/it_does_not_change_type/num_to_bool_err.croco")
-        .is_err());
+    test_file_err(
+        "tests/primitives/it_does_not_change_type/num_to_bool_err.croco",
+        CROCOI,
+    );
 }
 
 #[test]
 fn it_calculates_correctly() {
-    let mut interpreter = Crocoi::new();
-
-    assert!(interpreter
-        .exec_file("tests/primitives/it_calculates_correctly/priority.croco")
-        .is_ok());
-
-    assert!(interpreter
-        .exec_file("tests/primitives/it_calculates_correctly/floating_point.croco")
-        .is_ok());
-
-    assert!(interpreter
-        .exec_file("tests/primitives/it_calculates_correctly/unary.croco")
-        .is_ok());
-
-    assert!(interpreter
-        .exec_file("tests/primitives/it_calculates_correctly/parenthesis.croco")
-        .is_ok());
+    test_file_ok(
+        "tests/primitives/it_calculates_correctly/priority.croco",
+        CROCOI,
+    );
+    test_file_ok(
+        "tests/primitives/it_calculates_correctly/floating_point.croco",
+        CROCOI,
+    );
+    test_file_ok(
+        "tests/primitives/it_calculates_correctly/unary.croco",
+        CROCOI,
+    );
+    test_file_ok(
+        "tests/primitives/it_calculates_correctly/parenthesis.croco",
+        CROCOI,
+    );
 }

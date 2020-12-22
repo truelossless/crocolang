@@ -1,9 +1,8 @@
-use crate::builtin::{BuiltinModule, BuiltinVar};
+use crate::crocoi::stdlib::{BuiltinModule, BuiltinVar};
 use crate::crocoi::symbol::ISymbol::*;
 use crate::token::LiteralEnum::*;
 
 // module definition
-#[allow(clippy::unreadable_literal)]
 pub fn get_module() -> BuiltinModule {
     let functions = Vec::new();
 

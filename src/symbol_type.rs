@@ -1,5 +1,3 @@
-use crate::parser::TypedArg;
-
 /// the type of a symbol, which is backend-agnostic
 #[derive(Clone, Debug)]
 pub enum SymbolType {
@@ -17,7 +15,7 @@ pub enum SymbolType {
 
 #[derive(Clone, Debug)]
 pub struct FunctionType {
-    pub args: Vec<TypedArg>,
+    pub args: Vec<SymbolType>,
     pub return_type: Box<SymbolType>,
 }
 
@@ -45,7 +43,7 @@ impl SymbolType {
                 a.args
                     .iter()
                     .zip(b.args.iter())
-                    .find(|(c, d)| !c.arg_type.eq(&d.arg_type))
+                    .find(|(c, d)| !c.eq(d))
                     .is_none()
             }
             _ => false,

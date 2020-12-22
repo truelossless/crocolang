@@ -1,7 +1,9 @@
-let cond = false
+fn main() {
+    let cond = false
 
-if !cond {
-    cond = true
+    if !cond {
+        cond = true
+    }
+
+    assert(cond)
 }
-
-assert(cond)

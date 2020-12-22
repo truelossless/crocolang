@@ -4,6 +4,9 @@
 #include <string.h>
 #include <vcruntime.h>
 
+/**
+ Representation of a croco str
+*/
 typedef struct {
   char *ptr;
   size_t len;
@@ -11,11 +14,20 @@ typedef struct {
 } CrocoStr;
 
 /**
+  Representation of a croco array
+*/
+typedef struct {
+  void *ptr;
+  size_t len;
+  size_t max_len;
+} CrocoArray;
+
+/**
   Resizes a CrocoStr if needed
 */
 void _croco_str_resize(CrocoStr *string, size_t new_len) {
 
-  if(new_len <= string->max_len) {
+  if (new_len <= string->max_len) {
     return;
   }
 
@@ -36,7 +48,7 @@ float _as_str_num(CrocoStr *string) {
 
   int success = sscanf_s(tmp_str, "%f", &res);
 
-  if(!success) {
+  if (!success) {
     fprintf(stderr, "Runtime error: cannot convert %s to num", tmp_str);
     exit(1);
   }
@@ -47,7 +59,7 @@ float _as_str_num(CrocoStr *string) {
 /**
   Casts a `num` into a `str`
 */
-void _as_num_str(float num, CrocoStr* string_res) {
+void _as_num_str(float num, CrocoStr *string_res) {
   _croco_str_resize(string_res, 100);
 
   // this is going to null terminate our string but this doesn't really matter.

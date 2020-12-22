@@ -5,6 +5,8 @@ struct A {
     }
 }
 
-let a A
 
-assert(a.hello() == "hello")
+fn main() {
+    let a A
+    assert(a.hello() == "hello")
+}

@@ -8,7 +8,7 @@ You can see some examples of the syntax below :)
 Other simple examples can be seen under the `tests` folder.
 For the partial spec and even more examples, see [here](SPEC.md).
 
-PULL REQUESTS ARE WELCOME SO YOU CAN IMPROVE MY MESS !  
+PULL REQUESTS ARE WELCOME SO YOU CAN IMPROVE MY MESS !
 
 The lexer and parser are backend-agnostic, which means it should be easy to add all types of backends.  
 Currently there is a interpreter backend (crocoi), and an llvm backend (crocol, WIP)
@@ -22,6 +22,7 @@ Croco is automatically built for Windows, MacOS and Linux, for each Git commit.
 
 You can also build Croco by yourself easely.  
 Make sure Rust is installed and run in the main directory
+
 ```bash
 cargo build --release
 ```
@@ -42,6 +43,7 @@ Optional arguments:
   -h, --help     show help message
   -v, --version  show croco version
 ```
+
 ```
 $ crocol --help
 Usage: crocol [OPTIONS]
@@ -50,6 +52,7 @@ Positional arguments:
   input             the .croco file to execute
 
 Optional arguments:
+  -O OPTIMIZATION   optimization level (O0, O1, O2, O3)
   --verbose         verbose output
   --no-llvm-checks  ignore llvm ir checks
   -h, --help        show help message
@@ -63,6 +66,7 @@ Optional arguments:
 ## Examples
 
 Fibonacci (quite slow but it works !!!)
+
 ```croco
 fn fib(n num) num {
 
@@ -75,11 +79,13 @@ fn fib(n num) num {
 
 println(fib(20) as str)
 ```
+
 ```
 6765
 ```
 
 Function return
+
 ```croco
 fn divide_by_6(n num) num {
     return n/6
@@ -87,15 +93,18 @@ fn divide_by_6(n num) num {
 
 println(divide_by_6(24) as str)
 ```
+
 ```
 4
 ```
 
 Arrays
+
 ```
 let arr = [[2, 1], [3, 4, 5]]
 println(arr[1][2])
 ```
+
 ```
 5
 ```
@@ -108,6 +117,7 @@ let operator_precedence = 12+4*2^8/4
 println(this_is_12_squared as str)
 println(operator_precedence as str)
 ```
+
 ```
 -144
 268
@@ -141,6 +151,7 @@ println(http.get("https://www.twitter.com/robots.txt"))
 
 assert(true == false)
 ```
+
 ```
 nice
 git version 2.25.0.windows.1
@@ -157,7 +168,7 @@ Assertion failed !
 The code for the benchmarks can be found under `benchmarks/`
 
 The interesting bits is the relative performance to other languages.  
-*Processor: i7 6700HQ, released in September 2015*
+_Processor: i7 6700HQ, released in September 2015_
 
 ```
 $ time node bench_name.js
@@ -165,10 +176,10 @@ $ time python bench_name.py
 $ time croco bench_name.croco
 ```
 
-|benchmark name     |  node    |python|crocoi|
-|-------------------|----------|------|------|
-|rec fibonacci, n=30|     200ms| 400ms|13s   |
-|loop, n=1000000    |     230ms| 236ms|850ms |
+| benchmark name      | node  | python | crocoi |
+| ------------------- | ----- | ------ | ------ |
+| rec fibonacci, n=30 | 200ms | 400ms  | 13s    |
+| loop, n=1000000     | 230ms | 236ms  | 850ms  |
 
 We're getting there :D  
 Croco is fully interpreted, so it's normal that it's way slower than Node, which is basically a VM.  

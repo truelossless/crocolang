@@ -6,4 +6,6 @@ let croco = Croco {
     a: "croco"
 }
 
-assert(croco.a == "croco")
+fn main() {
+    assert(croco.a == "croco")
+}

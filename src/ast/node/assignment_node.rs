@@ -1,27 +1,17 @@
-#[cfg(feature = "crocol")]
-use {
-    crate::crocol::{Codegen, LNodeResult},
-    inkwell::values::BasicValueEnum,
-};
-
-#[cfg(feature = "crocoi")]
-use crate::crocoi::{symbol::get_symbol_type, INodeResult, ISymTable};
-
-use crate::ast::AstNode;
-use crate::error::CrocoError;
+use crate::ast::{AstNode, BackendNode};
 use crate::token::CodePos;
-/// a node to assign a variable to a certain value
+/// A node to assign a variable to a certain value
 #[derive(Clone)]
 pub struct AssignmentNode {
     // variable to assign to (a VarRefNode)
-    var: Box<dyn AstNode>,
+    pub var: Box<dyn BackendNode>,
     // expr assigned
-    expr: Box<dyn AstNode>,
-    code_pos: CodePos,
+    pub expr: Box<dyn BackendNode>,
+    pub code_pos: CodePos,
 }
 
 impl AssignmentNode {
-    pub fn new(var: Box<dyn AstNode>, expr: Box<dyn AstNode>, code_pos: CodePos) -> Self {
+    pub fn new(var: Box<dyn BackendNode>, expr: Box<dyn BackendNode>, code_pos: CodePos) -> Self {
         AssignmentNode {
             var,
             expr,
@@ -30,49 +20,5 @@ impl AssignmentNode {
     }
 }
 
-impl AstNode for AssignmentNode {
-    #[cfg(feature = "crocoi")]
-    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
-        // get a mutable reference to the variable / field to assign to
-        let var = self
-            .var
-            .crocoi(symtable)?
-            .into_var(&self.code_pos)
-            .map_err(|_| CrocoError::new(&self.code_pos, "can't assign to this expression"))?;
-        let expr = self.expr.crocoi(symtable)?.into_value(&self.code_pos)?;
-
-        if !get_symbol_type(&*var.borrow()).eq(&get_symbol_type(&expr)) {
-            return Err(CrocoError::type_change_error(&self.code_pos));
-        }
-
-        // assign to the variable the content of the expression
-        *var.borrow_mut() = expr;
-
-        Ok(INodeResult::Void)
-    }
-
-    #[cfg(feature = "crocol")]
-    fn crocol<'ctx>(
-        &mut self,
-        codegen: &mut Codegen<'ctx>,
-    ) -> Result<LNodeResult<'ctx>, CrocoError> {
-        let var_ptr = self.var.crocol(codegen)?.into_var(&self.code_pos)?;
-
-        let expr= self
-            .expr
-            .crocol(codegen)?
-            .into_symbol(codegen, &self.code_pos)?;
-
-        if !expr.symbol_type.eq(&var_ptr.symbol_type) {
-            return Err(CrocoError::type_change_error(&self.code_pos));
-        }
-
-        let expr_value: BasicValueEnum = expr.value;
-
-        codegen.builder.build_store(
-            var_ptr.value.into_pointer_value(),
-            expr_value
-        );
-        Ok(LNodeResult::Void)
-    }
-}
+impl AstNode for AssignmentNode {}
+impl BackendNode for AssignmentNode {}

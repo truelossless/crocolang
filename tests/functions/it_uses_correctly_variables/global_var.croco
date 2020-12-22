@@ -1,0 +1,10 @@
+let a = 3
+
+fn func() {
+    a += 1
+}
+
+fn main() {
+    func()
+    assert(a == 4)
+}

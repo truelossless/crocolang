@@ -1,4 +1,6 @@
 let hello = "hello"
 let ref = *&hello
 
-assert(ref == "hello")
+fn main() {
+    assert(ref == "hello")
+}

@@ -7,8 +7,11 @@ struct Hello {
     }
 }
 
-let a = Hello {
-    hello_txt: "hello world"
-}
 
-assert(a.hello() == "hello world")
+fn main() {
+    let a = Hello {
+        hello_txt: "hello world"
+    }
+    
+    assert(a.hello() == "hello world")
+}

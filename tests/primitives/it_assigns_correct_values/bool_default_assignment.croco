@@ -1,2 +1,4 @@
-let a bool
-assert(a == false)
+fn main() {
+    let a bool
+    assert(a == false)
+}

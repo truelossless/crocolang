@@ -1,47 +1,55 @@
 // Function tests
-
-use croco::Crocoi;
+use super::{test_file_err, test_file_ok, ALL_BACKENDS, CROCOI};
 #[test]
 fn it_is_called() {
-    let mut interpreter = Crocoi::new();
-
     // function call
-    assert!(interpreter
-        .exec_file("tests/functions/it_is_called/call.croco")
-        .is_ok());
+    test_file_ok("tests/functions/it_is_called/call.croco", CROCOI);
 
     // function call with multiple arguments
-    assert!(interpreter
-        .exec_file("tests/functions/it_is_called/multiple_arguments.croco")
-        .is_ok());
+    test_file_ok(
+        "tests/functions/it_is_called/multiple_arguments.croco",
+        CROCOI,
+    );
 }
 
 #[test]
 fn it_returns_values() {
-    let mut interpreter = Crocoi::new();
-
     // num value
-    assert!(interpreter
-        .exec_file("tests/functions/it_returns_values/num_value.croco")
-        .is_ok());
+    test_file_ok("tests/functions/it_returns_values/num_value.croco", CROCOI);
 
     // str value
-    assert!(interpreter
-        .exec_file("tests/functions/it_returns_values/str_value.croco")
-        .is_ok());
+    test_file_ok("tests/functions/it_returns_values/str_value.croco", CROCOI);
 
     // bool value
-    assert!(interpreter
-        .exec_file("tests/functions/it_returns_values/bool_value.croco")
-        .is_ok());
+    test_file_ok("tests/functions/it_returns_values/bool_value.croco", CROCOI);
 
     // void value and early return
-    assert!(interpreter
-        .exec_file("tests/functions/it_returns_values/void_value.croco")
-        .is_ok());
+    test_file_ok("tests/functions/it_returns_values/void_value.croco", CROCOI);
 
     // struct value
-    assert!(interpreter
-        .exec_file("tests/functions/it_returns_values/struct_value.croco")
-        .is_ok());
+    test_file_ok(
+        "tests/functions/it_returns_values/struct_value.croco",
+        CROCOI,
+    );
+}
+
+#[test]
+fn it_uses_correctly_variables() {
+    // block leaking a variable to the function
+    test_file_err(
+        "tests/functions/it_uses_correcly_variables/outside_var_err.croco",
+        CROCOI,
+    );
+
+    // using a global variable in a function
+    test_file_ok(
+        "tests/functions/it_uses_correctly_variables/global_var.croco",
+        CROCOI,
+    );
+
+    // if the variables are correctly restored after function calls
+    test_file_ok(
+        "tests/functions/it_uses_correctly_variables/var_restored.croco",
+        CROCOI,
+    );
 }

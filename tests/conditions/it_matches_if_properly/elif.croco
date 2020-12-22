@@ -1,12 +1,14 @@
-let cond = false
-let number = 1
+fn main() {
+    let cond = false
+    let number = 1
 
-if number == 0 {
-    assert(false)
-} elif number == 1 {
-    cond = true
-} elif number == 2 {
-    assert(false)
+    if number == 0 {
+        assert(false)
+    } elif number == 1 {
+        cond = true
+    } elif number == 2 {
+        assert(false)
+    }
+
+    assert(cond)
 }
-
-assert(cond)

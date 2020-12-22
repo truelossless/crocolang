@@ -2,4 +2,7 @@ fn a() {
     return
     assert(false)
 }
-a()
+
+fn main() {
+    a()
+}

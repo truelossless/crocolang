@@ -3,3 +3,5 @@ struct Croco {
     version num,
     ready_for_production bool
 }
+
+fn main() {}

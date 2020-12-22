@@ -1,21 +1,21 @@
 use crate::{
-    crocol::{Codegen, LSymbol},
-    error::CrocoError,
-    error::CrocoErrorKind,
+    crocol::{symbol::LSymTable, LCodegen, LSymbol},
+    parser::TypedArg,
+    symbol::Decl,
+    symbol::FunctionDecl,
     symbol_type::SymbolType,
 };
 
 use inkwell::{
     types::{BasicType, BasicTypeEnum, StructType},
-    values::PointerValue,
-    AddressSpace, IntPredicate,
+    AddressSpace,
 };
 use std::path::Path;
 
 /// get the llvm type corresponding to a SymbolType
 pub fn get_llvm_type<'ctx>(
     symbol_type: &SymbolType,
-    codegen: &Codegen<'ctx>,
+    codegen: &LCodegen<'ctx>,
 ) -> BasicTypeEnum<'ctx> {
     match symbol_type {
         SymbolType::Num => codegen.context.f32_type().into(),
@@ -54,7 +54,7 @@ pub fn get_llvm_type<'ctx>(
     }
 }
 
-pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) {
+pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &LCodegen<'ctx>) {
     // we're guarenteed to have a pointer here
     let ptr = init_symbol.value.into_pointer_value();
 
@@ -141,131 +141,6 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &Codegen<'ctx>) 
 //     context.struct_type(&[void_ptr, isize_type, isize_type], false)
 // }
 
-/// set the contents of a str
-// very inefficient because for large batch of text because we're allocating every 16 chars.
-// TODO: in the future, pass a void* ptr and a value ?
-pub fn _set_str_text(str_ptr: PointerValue, text: &str, codegen: &Codegen) {
-    let add_char_fn = codegen.module.get_function("_str_add_char").unwrap();
-
-    for el in text.chars() {
-        let llvm_char = codegen.context.i8_type().const_int(el as u64, false);
-        codegen
-            .builder
-            .build_call(add_char_fn, &[str_ptr.into(), llvm_char.into()], "");
-    }
-}
-
-/// A function to add a character to a str
-// TODO: less naive impl, with less allocations and growth factor
-pub fn _register_str_add_char(codegen: &Codegen) -> Result<(), CrocoError> {
-    let add_char_ty = codegen.context.void_type().fn_type(
-        &[
-            codegen.str_type.ptr_type(AddressSpace::Generic).into(),
-            codegen.context.i8_type().into(),
-        ],
-        false,
-    );
-    let add_char_fn = codegen
-        .module
-        .add_function("_str_add_char", add_char_ty, None);
-
-    let str_ptr = add_char_fn.get_first_param().unwrap().into_pointer_value();
-    let character = add_char_fn.get_last_param().unwrap().into_int_value();
-
-    // entry block of the function
-    let entry_block = codegen.context.append_basic_block(add_char_fn, "entry");
-    // block if we need to malloc
-    let malloc_block = codegen.context.append_basic_block(add_char_fn, "malloc");
-    // return block of the function
-    let ret_block = codegen.context.append_basic_block(add_char_fn, "end");
-
-    codegen.builder.position_at_end(entry_block);
-
-    let heap_ptr_ptr = codegen
-        .builder
-        .build_struct_gep(str_ptr, 0, "gepheapptr")
-        .unwrap();
-    let heap_ptr = codegen
-        .builder
-        .build_load(heap_ptr_ptr, "loadheapptr")
-        .into_pointer_value();
-
-    let len_ptr = codegen
-        .builder
-        .build_struct_gep(str_ptr, 1, "geplen")
-        .unwrap();
-    let mut len = codegen
-        .builder
-        .build_load(len_ptr, "loadlen")
-        .into_int_value();
-
-    let max_len_ptr = codegen
-        .builder
-        .build_struct_gep(str_ptr, 2, "gepmaxlen")
-        .unwrap();
-    let mut max_len = codegen
-        .builder
-        .build_load(max_len_ptr, "loadmaxlen")
-        .into_int_value();
-
-    // if len and max_len are equal then len+1 will overflow, check this
-    let cmp = codegen
-        .builder
-        .build_int_compare(IntPredicate::EQ, len, max_len, "cmplen");
-
-    codegen
-        .builder
-        .build_conditional_branch(cmp, malloc_block, ret_block);
-
-    // if we need to allocate more space
-    codegen.builder.position_at_end(malloc_block);
-
-    // add to max_len the required space
-    let growth_factor = codegen.ptr_size.const_int(16, false);
-    max_len = codegen
-        .builder
-        .build_int_add(max_len, growth_factor, "addgrowth");
-
-    // update our ptr
-    codegen.builder.build_store(max_len_ptr, max_len);
-
-    // alloc the new size
-    codegen.builder.position_at_end(malloc_block);
-    let new_heap_ptr = codegen
-        .builder
-        .build_array_malloc(codegen.context.i8_type(), max_len, "malloclen")
-        .map_err(|_| CrocoError::from_type("heap allocation failed", CrocoErrorKind::Malloc))?;
-
-    // copy heap_ptr into new_heap_ptr
-    codegen
-        .builder
-        .build_memcpy(new_heap_ptr, 8, heap_ptr, 8, len)
-        .map_err(|_| CrocoError::from_type("memcpy failed", CrocoErrorKind::Malloc))?;
-
-    // free heap_ptr: if it was a nullptr this shouldn't do anything
-    codegen.builder.build_free(heap_ptr);
-
-    // replace heap_ptr by our new_heap_ptr in our string
-    codegen.builder.build_store(heap_ptr_ptr, new_heap_ptr);
-
-    // store our new character in the array, we should now have 1 to 16 empty slots
-    let new_char_ptr = unsafe { codegen.builder.build_gep(new_heap_ptr, &[len], "gepchar") };
-    codegen.builder.build_store(new_char_ptr, character);
-
-    // end the branch
-    codegen.builder.build_unconditional_branch(ret_block);
-    codegen.builder.position_at_end(ret_block);
-
-    // update our string to our new len
-    len = codegen
-        .builder
-        .build_int_add(len, codegen.ptr_size.const_int(1, false), "addlen");
-    codegen.builder.build_store(len_ptr, len);
-
-    codegen.builder.build_return(None);
-    Ok(())
-}
-
 /// llvm repr of the array type
 // defined the same way as a str for now
 // {
@@ -274,7 +149,7 @@ pub fn _register_str_add_char(codegen: &Codegen) -> Result<(), CrocoError> {
 //     max_len: isize
 // }
 #[inline]
-pub fn array_type<'ctx>(codegen: &Codegen<'ctx>) -> StructType<'ctx> {
+pub fn array_type<'ctx>(codegen: &LCodegen<'ctx>) -> StructType<'ctx> {
     codegen.str_type
 }
 
@@ -284,5 +159,20 @@ pub fn strip_ext(file: &str) -> &str {
         .file_stem()
         .unwrap_or_else(|| file.as_ref())
         .to_str()
+        .unwrap()
+}
+
+/// Inserts all the function definitions from the crocol std
+pub fn insert_builtin_functions<'ctx>(symtable: &mut LSymTable<'ctx>) {
+    let println_decl = FunctionDecl {
+        args: vec![TypedArg {
+            arg_name: String::new(),
+            arg_type: SymbolType::Str,
+        }],
+        return_type: None,
+    };
+
+    symtable
+        .register_decl("println".to_owned(), Decl::FunctionDecl(println_decl))
         .unwrap()
 }

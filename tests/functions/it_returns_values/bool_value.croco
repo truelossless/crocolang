@@ -1,4 +1,7 @@
 fn a() bool {
     return true
 }
-assert(a())
+
+fn main() {
+    assert(a())
+}

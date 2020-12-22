@@ -1,10 +1,6 @@
-use crate::ast::AstNode;
-use crate::error::CrocoError;
+use crate::ast::{AstNode, BackendNode};
 
-#[cfg(feature = "crocoi")]
-use crate::crocoi::symbol::{INodeResult, ISymTable};
-
-/// a node representing a continue statement
+/// A node representing a continue statement
 #[derive(Clone)]
 pub struct ContinueNode {}
 
@@ -14,10 +10,5 @@ impl ContinueNode {
     }
 }
 
-impl AstNode for ContinueNode {
-
-    #[cfg(feature = "crocoi")]
-    fn crocoi(&mut self, _symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
-        Ok(INodeResult::Continue)
-    }
-}
+impl AstNode for ContinueNode {}
+impl BackendNode for ContinueNode {}

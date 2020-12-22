@@ -1,2 +1,4 @@
-let a = true
-assert(a == true)
+fn main() {
+    let a = true
+    assert(a == true)
+}

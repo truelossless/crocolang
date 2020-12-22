@@ -6,7 +6,9 @@ struct Second {
     b num
 }
 
-let first First
-let second Second
+fn main() {
+    let first First
+    let second Second
 
-let c = [first, second]
+    let c = [first, second]
+}

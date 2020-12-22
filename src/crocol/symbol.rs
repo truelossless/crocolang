@@ -9,39 +9,35 @@ use inkwell::{
     AddressSpace,
 };
 
-use crate::error::CrocoError;
 use crate::token::CodePos;
-use crate::{ast::NodeResult, symbol::SymTable, symbol_type::SymbolType};
+use crate::{ast::NodeResult, symbol_type::SymbolType};
+use crate::{error::CrocoError, symbol::SymTable};
 
 // I'll be using a simple struct as in the README example for now
 // https://github.com/TheDan64/inkwell/blob/master/README.md
 /// a codegen unit
-pub struct Codegen<'ctx> {
+pub struct LCodegen<'ctx> {
     pub context: &'ctx Context,
     pub module: Module<'ctx>,
     pub builder: Builder<'ctx>,
-    pub symtable: SymTable<LSymbol<'ctx>>,
+    pub symtable: LSymTable<'ctx>,
     pub str_type: StructType<'ctx>,
     pub ptr_size: IntType<'ctx>, // this platform's isize width
-    pub current_fn: FunctionValue<'ctx>,
+    pub current_fn: Option<FunctionValue<'ctx>>,
 }
 
-impl<'ctx> Codegen<'ctx> {
+impl<'ctx> LCodegen<'ctx> {
     /// Creates a variable at the start of a block
-    pub fn create_entry_block_alloca(
-        &self,
-        ty: BasicTypeEnum<'ctx>,
-        name: &str,
-    ) -> PointerValue<'ctx> {
-        let entry = self.current_fn.get_first_basic_block().unwrap();
+    pub fn create_block_alloca(&self, ty: BasicTypeEnum<'ctx>, name: &str) -> PointerValue<'ctx> {
+        let block = self.builder.get_insert_block().unwrap();
 
-        match entry.get_first_instruction() {
+        match block.get_first_instruction() {
             Some(first_instr) => self.builder.position_before(&first_instr),
-            None => self.builder.position_at_end(entry),
+            None => self.builder.position_at_end(block),
         }
 
         let alloca = self.builder.build_alloca(ty, name);
-        self.builder.position_at_end(entry);
+        self.builder.position_at_end(block);
 
         alloca
     }
@@ -50,7 +46,7 @@ impl<'ctx> Codegen<'ctx> {
         // get the string as an llvm i8 array
         let char_array = self.context.const_string(text.as_bytes(), false);
 
-        let alloca = self.create_entry_block_alloca(self.str_type.into(), "allocastr");
+        let alloca = self.create_block_alloca(self.str_type.into(), "allocastr");
         // since the size of the str is known we can directly malloc() the right amount
         let heap_ptr_ptr = self
             .builder
@@ -88,11 +84,6 @@ impl<'ctx> Codegen<'ctx> {
         alloca
     }
 
-    pub fn get_ptr_value(&self, any_value: BasicValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
-        self.builder
-            .build_load(any_value.into_pointer_value(), "load")
-    }
-
     /// Dereferences a pointer if needed, or returns the corresponding enum
     pub fn auto_deref(&self, value: BasicValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
         match value {
@@ -115,16 +106,18 @@ pub struct LSymbol<'ctx> {
 /// A symbol in the symtable is also a LSymbol but the value is always guarenteed a pointer.
 pub type LNodeResult<'ctx> = NodeResult<LSymbol<'ctx>, LSymbol<'ctx>>;
 
+/// The symtable with the crocol-specific types.
+pub type LSymTable<'ctx> = SymTable<LSymbol<'ctx>>;
+
 impl<'ctx> LNodeResult<'ctx> {
     /// Loads a variable, or return the value directly
     pub fn into_symbol(
         self,
-        codegen: &Codegen<'ctx>,
+        codegen: &LCodegen<'ctx>,
         code_pos: &CodePos,
     ) -> Result<LSymbol<'ctx>, CrocoError> {
         match self {
             LNodeResult::Variable(var) => {
-                dbg!(&var);
                 let value = codegen
                     .builder
                     .build_load(var.value.into_pointer_value(), "loadvar");
@@ -141,13 +134,13 @@ impl<'ctx> LNodeResult<'ctx> {
     /// Returns a variable, or store a value to get a PointerValue
     pub fn into_pointer(
         self,
-        codegen: &Codegen<'ctx>,
+        codegen: &LCodegen<'ctx>,
         code_pos: &CodePos,
     ) -> Result<PointerValue<'ctx>, CrocoError> {
         match self {
             LNodeResult::Variable(var) => Ok(var.value.into_pointer_value()),
             LNodeResult::Value(val) => {
-                Ok(codegen.create_entry_block_alloca(val.value.get_type(), "storeval"))
+                Ok(codegen.create_block_alloca(val.value.get_type(), "storeval"))
             }
             _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)),
         }

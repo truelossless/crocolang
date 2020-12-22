@@ -1,10 +1,13 @@
-let a = "youpi !"
-let b = a
-b = "yay !"
+fn main() {
+    let a = "youpi !"
+    let b = a
 
-assert(a == "youpi !")
+    b = "yay !"
 
-let c = &a
-*c = "yeehaw !"
+    assert(a == "youpi !")
 
-assert(a == "yeehaw !")
+    let c = &a
+    *c = "yeehaw !"
+
+    assert(a == "yeehaw !")
+}

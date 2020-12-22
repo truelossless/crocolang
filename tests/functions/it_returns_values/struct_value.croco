@@ -10,4 +10,6 @@ fn a() Wow {
     }
 }
 
-assert(a().b == "incredible")
+fn main() {
+    assert(a().b == "incredible")
+}

@@ -1,6 +1,6 @@
 use super::{ExprParsingType::*, Parser};
 
-use crate::ast::node::*;
+use crate::ast::{node::*, BackendNode};
 use crate::ast::{AstNode, BlockScope};
 use crate::error::CrocoError;
 use crate::symbol::FunctionDecl;
@@ -18,7 +18,7 @@ impl Parser {
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         scope: BlockScope,
         is_top_level: bool,
-    ) -> Result<Box<dyn AstNode>, CrocoError> {
+    ) -> Result<Box<dyn BackendNode>, CrocoError> {
         let mut block = BlockNode::new(scope);
         // loop until we have no token remaining
         loop {
@@ -37,7 +37,7 @@ impl Parser {
                 // declaring a new number variable
                 Keyword(Let) => {
                     self.next_token(iter);
-                    let mut out_node: Option<Box<dyn AstNode>> = None;
+                    let mut out_node: Option<Box<dyn BackendNode>> = None;
 
                     // we're expecting a variable name
                     let identifier = self.expect_identifier(
@@ -107,7 +107,7 @@ impl Parser {
 
                 // assigning a new value to a variable / struct field, or calling a function
                 Identifier(_) | Operator(Multiplicate) => {
-                    let lvalue_node= self.parse_identifier(iter, AllowStructDeclaration)?;
+                    let lvalue_node = self.parse_identifier(iter, AllowStructDeclaration)?;
 
                     if let Operator(op_token) = self.peek_token(iter) {
                         self.next_token(iter);
@@ -128,7 +128,7 @@ impl Parser {
                                 if op_token == Assign {
                                     block.add_child(Box::new(AssignmentNode::new(lvalue_node, expr_node, self.token_pos.clone())));
                                 } else {
-                                    let mut dyn_op_node: Box<dyn AstNode> = match op_token {
+                                    let mut dyn_op_node: Box<dyn BackendNode> = match op_token {
                                         PlusEquals => Box::new(PlusNode::new(self.token_pos.clone())),
                                         MinusEquals => Box::new(MinusNode::new(self.token_pos.clone())),
                                         MultiplicateEquals => {
@@ -183,7 +183,8 @@ impl Parser {
                     )?;
 
                     let mut fields: BTreeMap<String, SymbolType> = BTreeMap::new();
-                    let mut methods: HashMap<String, FunctionDecl> = HashMap::new();
+                    let mut methods: HashMap<String, (FunctionDecl, Box<dyn BackendNode>)> =
+                        HashMap::new();
 
                     loop {
                         self.discard_newlines(iter);
@@ -191,7 +192,8 @@ impl Parser {
                         match self.next_token(iter) {
                             // struct method
                             Keyword(Function) => {
-                                let (method, method_name) = self.parse_function_decl(iter)?;
+                                let (method_name, method_decl, method_body) =
+                                    self.parse_function_decl(iter)?;
 
                                 // check if the method name isn't already a field name
                                 if methods.contains_key(&method_name) {
@@ -201,7 +203,10 @@ impl Parser {
                                     ));
                                 }
 
-                                if methods.insert(method_name.clone(), method).is_some() {
+                                if methods
+                                    .insert(method_name.clone(), (method_decl, method_body))
+                                    .is_some()
+                                {
                                     return Err(CrocoError::new(
                                         &self.token_pos,
                                         &format!("duplicate field {} in struct", method_name),
@@ -259,12 +264,14 @@ impl Parser {
                         ));
                     }
 
-                    let (fn_decl, fn_name) = self.parse_function_decl(iter)?;
+                    let (fn_name, fn_decl, fn_body) = self.parse_function_decl(iter)?;
 
                     let fn_decl_node =
-                        FunctionDeclNode::new(fn_name, fn_decl, self.token_pos.clone());
+                        FunctionDeclNode::new(fn_name, fn_decl, fn_body, self.token_pos.clone());
 
-                    block.prepend_child(Box::new(fn_decl_node));
+                    // we can't use `prepend_child()` for now because it is hard for crocol
+                    // to use forward dedclarations.
+                    block.add_child(Box::new(fn_decl_node));
                 }
 
                 // returning a value
@@ -290,10 +297,18 @@ impl Parser {
                 Keyword(If) => {
                     self.next_token(iter);
 
-                    // we can have multiple conditions in an if  elif construct, we use an array to keep track of all of them
-                    let mut conditions: Vec<Box<dyn AstNode>> = Vec::new();
+                    if is_top_level {
+                        return Err(CrocoError::new(
+                            &self.token_pos,
+                            "cannot use a if outside a function",
+                        )
+                        .hint("add a main function"));
+                    }
+
+                    // we can have multiple conditions in an if elif construct, we use an array to keep track of all of them
+                    let mut conditions: Vec<Box<dyn BackendNode>> = Vec::new();
                     // same for the statements inside the if / elif / else
-                    let mut bodies: Vec<Box<dyn AstNode>> = Vec::new();
+                    let mut bodies: Vec<Box<dyn BackendNode>> = Vec::new();
 
                     conditions.push(self.parse_expr(iter, DenyStructDeclaration)?);
 
@@ -351,6 +366,14 @@ impl Parser {
                 Keyword(While) => {
                     self.next_token(iter);
 
+                    if is_top_level {
+                        return Err(CrocoError::new(
+                            &self.token_pos,
+                            "cannot use a while outside a function",
+                        )
+                        .hint("add a main function"));
+                    }
+
                     let cond = self.parse_expr(iter, DenyStructDeclaration)?;
 
                     self.expect_token(
@@ -366,11 +389,27 @@ impl Parser {
                 // break from a loop
                 Keyword(Break) => {
                     self.next_token(iter);
+
+                    if is_top_level {
+                        return Err(CrocoError::new(
+                            &self.token_pos,
+                            "cannot break outside a loop",
+                        ));
+                    }
+
                     block.add_child(Box::new(BreakNode::new()))
                 }
                 // continue from a loop
                 Keyword(Continue) => {
                     self.next_token(iter);
+
+                    if is_top_level {
+                        return Err(CrocoError::new(
+                            &self.token_pos,
+                            "cannot continue outside a loop",
+                        ));
+                    }
+
                     block.add_child(Box::new(ContinueNode::new()));
                 }
                 // importing a package

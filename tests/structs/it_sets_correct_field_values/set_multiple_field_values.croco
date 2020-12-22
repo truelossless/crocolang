@@ -8,5 +8,7 @@ struct Second {
 
 let second Second
 
-second.first.a = 12
-assert(second.first.a == 12)
+fn main() {
+    second.first.a = 12
+    assert(second.first.a == 12)
+}

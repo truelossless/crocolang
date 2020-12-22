@@ -17,6 +17,7 @@ use crate::{
 };
 use std::rc::Rc;
 
+/// The croco parser
 pub struct Parser {
     scope: BlockScope,
     token_pos: CodePos,
@@ -33,7 +34,7 @@ impl Parser {
         };
 
         Parser {
-            scope: BlockScope::New,
+            scope: BlockScope::Keep,
             token_pos,
             current_token: Token::Discard,
             next_token: Token::Discard,
@@ -48,7 +49,7 @@ impl Parser {
     pub fn process(
         &mut self,
         tokens: Vec<(Token, CodePos)>,
-    ) -> Result<Box<dyn AstNode>, CrocoError> {
+    ) -> Result<Box<dyn BackendNode>, CrocoError> {
         // iterator which returns a movable and peekable token iterator
         let mut iter = tokens.into_iter().peekable();
         let root = self.parse_block(&mut iter, self.scope.clone(), true)?;
@@ -56,12 +57,12 @@ impl Parser {
     }
 }
 
+/// An argument type and its name
 #[derive(Clone, Debug)]
 pub struct TypedArg {
     pub arg_name: String,
     pub arg_type: SymbolType,
 }
-
 /// defines if a struct declaration can be present in an expression
 #[derive(PartialEq, Copy, Clone)]
 pub enum ExprParsingType {

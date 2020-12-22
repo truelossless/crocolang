@@ -1,4 +1,7 @@
 fn a() num {
     return 42
 }
-assert(a() == 42)
+
+fn main() {
+    assert(a() == 42)
+}

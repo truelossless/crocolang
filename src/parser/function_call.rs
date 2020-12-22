@@ -1,5 +1,5 @@
 use super::{ExprParsingType::*, Parser};
-use crate::ast::{node::FunctionCallNode, AstNode};
+use crate::ast::{node::FunctionCallNode, BackendNode};
 use crate::error::CrocoError;
 use crate::token::SeparatorEnum::*;
 use crate::token::{CodePos, Token, Token::*};
@@ -11,8 +11,8 @@ impl Parser {
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         identifier_name: String,
-    ) -> Result<Box<dyn AstNode>, CrocoError> {
-        let mut fn_args: Vec<Box<dyn AstNode>> = Vec::new();
+    ) -> Result<Box<dyn BackendNode>, CrocoError> {
+        let mut fn_args: Vec<Box<dyn BackendNode>> = Vec::new();
 
         let mut first_arg = false;
 
@@ -27,10 +27,7 @@ impl Parser {
                 }
 
                 Separator(Comma) => {
-                    return Err(CrocoError::new(
-                        &self.token_pos,
-                        "no argument before comma",
-                    ))
+                    return Err(CrocoError::new(&self.token_pos, "no argument before comma"))
                 }
 
                 _ if !first_arg => (),

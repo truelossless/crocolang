@@ -24,19 +24,19 @@ jobs:
     steps:
       - name: Clone project
         uses: actions/checkout@v2
-      
-      # we cannot set the sys_prefix on windows with bash because it constructs a /d/ path instead of d:/
+
+      # we cannot set the sys_prefix on windows with Bash because it constructs a /d/ path instead of d:/
       # which later conduces in a cache miss
       - name: set LLVM_SYS_PREFIX [windows]
         if: matrix.os == 'windows-latest'
         shell: powershell
         run: |
-          echo "::set-env name=LLVM_SYS_100_PREFIX::$PWD/llvm"
-          
+          echo "LLVM_SYS_100_PREFIX=$PWD/llvm" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: set LLVM_SYS_PREFIX [unix]
         if: matrix.os != 'windows-latest'
         run: |
-          echo "::set-env name=LLVM_SYS_100_PREFIX::$PWD/llvm"
+          echo "LLVM_SYS_100_PREFIX=$PWD/llvm" >> $GITHUB_ENV
 
       - name: Cache LLVM
         id: cache-llvm
@@ -48,7 +48,7 @@ jobs:
       - name: Download LLVM
         if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: curl -O -L https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0-rc2/llvm-11.0.0rc2.src.tar.xz
-          
+
       - name: Unzip LLVM
         # windows tar doesn't support xz files, so we use 7z instead in two steps
         if: steps.cache-llvm.outputs.cache-hit != 'true'
@@ -59,7 +59,7 @@ jobs:
 
       - uses: seanmiddleditch/gha-setup-ninja@v2
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
-      
+
       - name: Prepare LLVM [unix]
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
         run: |
@@ -67,7 +67,7 @@ jobs:
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release -G Ninja ..
-        
+
       # we can't use ninja on windows because it's outputting lib*.a files where we need *.lib for llvm-sys
       - name: Prepare LLVM [windows]
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
@@ -76,7 +76,7 @@ jobs:
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release ..
-          
+
       - name: Build LLVM
         if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: |
@@ -86,7 +86,6 @@ jobs:
 
       - name: Build Croco release
         run: |
-          cd $GITHUB_WORKSPACE
           cargo build --release
 
       - name: Run tests

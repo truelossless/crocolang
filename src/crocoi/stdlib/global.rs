@@ -2,9 +2,10 @@ use std::{cell::RefCell, rc::Rc};
 
 use unicode_segmentation::UnicodeSegmentation;
 
+use crate::crocoi::stdlib::*;
+use crate::crocoi::symbol::Array;
 use crate::crocoi::symbol::ISymbol;
 use crate::token::LiteralEnum::*;
-use crate::{builtin::*, crocoi::symbol::Array};
 
 /// module definition
 pub fn get_module() -> BuiltinModule {
@@ -46,9 +47,8 @@ pub fn get_module() -> BuiltinModule {
             name: "_array_join".to_owned(),
             args: vec![SymbolType::Str],
             return_type: Some(SymbolType::Str),
-            pointer: _array_join
+            pointer: _array_join,
         },
-
         BuiltinFunction {
             name: "_array_len".to_owned(),
             args: Vec::new(),

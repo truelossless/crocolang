@@ -1,38 +1,20 @@
-use crate::{ast::AstNode, builtin::get_module, symbol::SymTable, token::Identifier};
-use crate::{ast::NodeResult, builtin::BuiltinCallback};
-use crate::{error::CrocoError, parser::TypedArg, token::CodePos};
 use crate::{
-    symbol_type::{FunctionType, SymbolType},
-    token::LiteralEnum,
+    ast::{BackendNode, NodeResult},
+    crocoi::stdlib::BuiltinCallback,
+    parser::TypedArg,
+    symbol::FunctionDecl,
 };
+use crate::{error::CrocoError, token::CodePos};
+use crate::{symbol::Decl, symbol::SymTable, token::Identifier};
+use crate::{symbol_type::SymbolType, token::LiteralEnum};
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-// Either the function is a classic function or a built-in function
-#[derive(Clone)]
-pub enum FunctionKind {
-    Regular(Box<dyn AstNode>),
-    Builtin(BuiltinCallback),
-}
 
-impl fmt::Debug for FunctionKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            FunctionKind::Regular(_) => write!(f, "Regular"),
-            FunctionKind::Builtin(_) => write!(f, "Builtin"),
-        }
-    }
-}
+use super::stdlib::{get_module, BuiltinFunction};
 
-#[derive(Clone, Debug)]
-pub struct FunctionDecl {
-    pub args: Vec<TypedArg>,
-    pub body: Option<FunctionKind>,
-    pub return_type: SymbolType,
-}
-
-/// representation of a built struct
+/// Struct representation in the crocoi backend
 #[derive(Clone, Debug)]
 pub struct Struct {
     // the fields, populated with values
@@ -43,22 +25,14 @@ pub struct Struct {
     pub struct_type: String,
 }
 
+/// Function representation in the crocoi backend
 #[derive(Clone)]
-pub struct StructDecl {
-    // in crocol struct fields are order dependant.
-    // to guarentee that our map is sorted, use a BTreeMap
-    pub fields: BTreeMap<String, SymbolType>,
-    // TODO: generate global functions instead of this
-    // and desugar struct.call(foo) to struct_call(&struct, foo)
-    pub methods: HashMap<String, FunctionDecl>,
+pub enum Function {
+    Regular(Box<dyn BackendNode>),
+    Builtin(BuiltinCallback),
 }
 
-impl fmt::Debug for StructDecl {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "StructDecl, fields: {:?}", self.fields)
-    }
-}
-
+/// Map representation in the crocoi backend
 #[derive(Clone)]
 pub struct Map {
     pub contents: HashMap<ISymbol, ISymbol>,
@@ -72,6 +46,7 @@ impl fmt::Debug for Map {
     }
 }
 
+/// Array repressentation in the crocoi backend
 #[derive(Clone, Debug)]
 pub struct Array {
     pub contents: Vec<Rc<RefCell<ISymbol>>>,
@@ -92,10 +67,6 @@ pub enum ISymbol {
 
     // a pointer to a function such as let "a = b" where b is a FunctionDecl
     // Function(FunctionPointer),
-
-    // a function, local to this scope (will be useful for struct methods)
-    Function(Box<FunctionDecl>),
-
     /// a symbol reference  
     Ref(Rc<RefCell<ISymbol>>),
 
@@ -131,21 +102,6 @@ impl ISymbol {
         }
     }
 
-    pub fn mut_array(&mut self) -> Result<&mut Array, &'static str> {
-        match self {
-            ISymbol::Array(a) => Ok(a),
-            _ => Err("expected an array"),
-        }
-    }
-
-    /// force cast into a function
-    pub fn into_function(self) -> Result<Box<FunctionDecl>, &'static str> {
-        match self {
-            ISymbol::Function(r) => Ok(r),
-            _ => Err("expected a function declaration"),
-        }
-    }
-
     /// force cast into a symbol reference
     pub fn into_ref(self) -> Result<Rc<RefCell<ISymbol>>, &'static str> {
         match self {
@@ -166,6 +122,41 @@ impl ISymbol {
 /// convenience type
 pub type ISymTable = SymTable<Rc<RefCell<ISymbol>>>;
 
+pub struct ICodegen {
+    pub symtable: ISymTable,
+    pub functions: HashMap<String, Function>,
+}
+
+impl ICodegen {
+    /// Registers a built-in function
+    pub fn register_builtin_function(&mut self, function: BuiltinFunction, module_name: &str) {
+        // for the builtin functions we don't care about the variable name
+        let typed_args = function
+            .args
+            .into_iter()
+            .map(|arg| TypedArg {
+                arg_name: String::new(),
+                arg_type: arg,
+            })
+            .collect();
+
+        let builtin = FunctionDecl {
+            args: typed_args,
+            return_type: function.return_type,
+        };
+
+        let namespaced_name =
+            Identifier::new(function.name.clone(), module_name.to_owned()).get_namespaced_name();
+
+        self.symtable
+            .register_decl(namespaced_name, Decl::FunctionDecl(builtin))
+            .unwrap();
+
+        self.functions
+            .insert(function.name, Function::Builtin(function.pointer));
+    }
+}
+
 /// The result returned by a node.  
 /// A symbol value is a ISymbol.  
 /// A symbol in the symtable is RefCell'd so it can be mutated easely.
@@ -177,7 +168,7 @@ impl INodeResult {
         match self {
             INodeResult::Variable(var) => Ok(var.borrow().clone()),
             INodeResult::Value(val) => Ok(val),
-            _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)) 
+            _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)),
         }
     }
 
@@ -211,28 +202,28 @@ pub fn get_symbol_type(symbol: &ISymbol) -> SymbolType {
         ISymbol::Array(arr) => SymbolType::Array(arr.array_type.clone()),
         ISymbol::Struct(s) => SymbolType::Struct(s.struct_type.clone()),
         ISymbol::Ref(r) => SymbolType::Ref(Box::new(get_symbol_type(&*r.borrow()))),
-        ISymbol::Function(func) => SymbolType::Function(FunctionType {
-            args: func.args.clone(),
-            return_type: Box::new(func.return_type.clone()),
-        }),
         ISymbol::CrocoType(_) => SymbolType::CrocoType,
     }
 }
 
 /// imports a builtin module in the symtable
-pub fn import_builtin_module(symtable: &mut ISymTable, name: &str) -> bool {
+pub fn import_builtin_module(codegen: &mut ICodegen, name: &str) -> bool {
     if let Some(module) = get_module(name) {
         // the global module doesn't have any namespace
         let namespace = if name == "global" { "" } else { name };
 
         for function in module.functions {
-            symtable.register_builtin_function(function, namespace);
+            codegen.register_builtin_function(function, namespace);
         }
 
         for var in module.vars {
             let namespaced_name = Identifier::new(var.name, name.to_owned()).get_namespaced_name();
-            symtable
-                .insert_global_symbol(namespaced_name, Rc::new(RefCell::new(var.value)))
+            codegen
+                .symtable
+                .register_decl(
+                    namespaced_name,
+                    Decl::GlobalVariable(Rc::new(RefCell::new(var.value))),
+                )
                 .unwrap();
         }
         true

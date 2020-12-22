@@ -4,8 +4,10 @@ struct Croco {
     c bool
 }
 
-let croco Croco
+fn main() {
+    let croco Croco
 
-assert(croco.a == "")
-assert(croco.b == 0)
-assert(croco.c == false)
+    assert(croco.a == "")
+    assert(croco.b == 0)
+    assert(croco.c == false)
+}

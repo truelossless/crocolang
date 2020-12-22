@@ -15,7 +15,10 @@ pub mod math;
 // the os module
 pub mod os;
 
-use crate::{crocoi::symbol::Array, crocoi::symbol::ISymbol, crocoi::symbol::Struct, crocoi::utils::auto_deref, symbol_type::SymbolType};
+use crate::{
+    crocoi::symbol::Array, crocoi::symbol::ISymbol, crocoi::symbol::Struct,
+    crocoi::utils::auto_deref, symbol_type::SymbolType,
+};
 
 /// callback to a built-in function
 pub type BuiltinCallback = fn(Vec<ISymbol>) -> Option<ISymbol>;
@@ -83,9 +86,7 @@ pub fn get_arg_bool(args: &mut Vec<ISymbol>) -> bool {
 }
 
 pub fn get_arg_array(args: &mut Vec<ISymbol>) -> Array {
-    args.remove(0)
-    .into_array()
-    .unwrap()
+    args.remove(0).into_array().unwrap()
 }
 
 pub fn _get_arg_struct(args: &mut Vec<ISymbol>) -> Struct {

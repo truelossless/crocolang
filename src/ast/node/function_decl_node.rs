@@ -1,40 +1,30 @@
-use crate::ast::{AstNode, INodeResult};
-use crate::symbol::{Decl, FunctionDecl};
-use crate::token::CodePos;
+use crate::{ast::AstNode, symbol::FunctionDecl};
+use crate::{ast::BackendNode, token::CodePos};
 
-use crate::error::CrocoError;
-
-#[cfg(feature = "crocoi")]
-use crate::crocoi::ISymTable;
-
-/// function declaration node
+/// Function declaration node
 #[derive(Clone)]
 pub struct FunctionDeclNode {
-    name: String,
-    fn_decl: Option<FunctionDecl>,
-    code_pos: CodePos,
+    pub name: String,
+    pub fn_decl: Option<FunctionDecl>,
+    pub fn_body: Option<Box<dyn BackendNode>>,
+    pub code_pos: CodePos,
 }
 
 impl FunctionDeclNode {
-    pub fn new(name: String, fn_decl: FunctionDecl, code_pos: CodePos) -> Self {
+    pub fn new(
+        name: String,
+        fn_decl: FunctionDecl,
+        fn_body: Box<dyn BackendNode>,
+        code_pos: CodePos,
+    ) -> Self {
         FunctionDeclNode {
             name,
             fn_decl: Some(fn_decl),
+            fn_body: Some(fn_body),
             code_pos,
         }
     }
 }
 
-impl AstNode for FunctionDeclNode {
-
-    #[cfg(feature = "crocoi")]
-    fn crocoi(&mut self, symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
-        // once the function is declared we can move out its content since this node is not going to be used again
-        let fn_decl = std::mem::replace(&mut self.fn_decl, None).unwrap();
-
-        symtable
-            .register_decl(self.name.clone(), Decl::FunctionDecl(fn_decl))
-            .map_err(|e| CrocoError::new(&self.code_pos, &e))?;
-        Ok(INodeResult::Void)
-    }
-}
+impl AstNode for FunctionDeclNode {}
+impl BackendNode for FunctionDeclNode {}

@@ -1,2 +1,4 @@
-let a str
-assert(a == "")
+fn main() {
+    let a str
+    assert(a == "")
+}

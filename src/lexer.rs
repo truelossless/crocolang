@@ -38,16 +38,23 @@ impl Lexer {
         }
     }
 
+    /// Sets the namespace of the current file
     pub fn set_namespace(&mut self, namespace: String) {
         self.namespace = namespace;
     }
 
+    /// Sets the file to parse
     pub fn set_file(&mut self, file: &str) {
         self.file = Rc::from(file);
     }
 
+    /// Gets a Rc<str> of the current file
+    pub fn get_file(&self) -> Rc<str> {
+        self.file.clone()
+    }
+
     // TODO: remove complexity and indentation
-    /// consume one loop of the iter and push to the queue the correspoonding tokens
+    /// Consumes one loop of the iter and push to the queue the corresponding tokens
     fn process_token(&mut self, iter: &mut Peekable<UWordBounds>) -> Result<bool, CrocoError> {
         // get the next iterator value
         let el_opt = iter.next();
@@ -348,7 +355,7 @@ impl Lexer {
         Ok(true)
     }
 
-    // returns an array of tokens
+    /// Returns an array of tokens
     pub fn process(&mut self, code: &str) -> Result<Vec<(Token, CodePos)>, CrocoError> {
         let mut iter = code.split_word_bounds().peekable();
 

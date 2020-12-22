@@ -1,0 +1,8 @@
+fn main() {
+    let a = 31
+    func()
+}
+
+fn func() {
+    a += 1
+}

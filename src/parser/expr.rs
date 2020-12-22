@@ -1,7 +1,6 @@
 use super::{ExprParsingType, Parser};
 
-use crate::ast::node::*;
-use crate::ast::AstNode;
+use crate::ast::{node::*, BackendNode};
 use crate::error::CrocoError;
 use crate::token::{CodePos, KeywordEnum::*, OperatorEnum::*, SeparatorEnum::*, Token, Token::*};
 
@@ -14,10 +13,10 @@ impl Parser {
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         parse_type: ExprParsingType,
-    ) -> Result<Box<dyn AstNode>, CrocoError> {
+    ) -> Result<Box<dyn BackendNode>, CrocoError> {
         // and an expression to finish.
         let mut stack: Vec<Token> = Vec::new(); // == operand stack
-        let mut output: Vec<Box<dyn AstNode>> = Vec::new(); // == operator stack
+        let mut output: Vec<Box<dyn BackendNode>> = Vec::new(); // == operator stack
 
         // util to know which operator has the highest priority (higher value is higher priority)
         let get_precedence = |op: &Token| -> u8 {

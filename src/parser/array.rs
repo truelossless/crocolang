@@ -1,7 +1,6 @@
 use super::Parser;
 
-use crate::ast::node::*;
-use crate::ast::AstNode;
+use crate::ast::{node::*, BackendNode};
 use crate::error::CrocoError;
 use crate::parser::ExprParsingType::*;
 use crate::token::{CodePos, SeparatorEnum::*, Token, Token::*};
@@ -13,8 +12,8 @@ impl Parser {
     pub fn parse_array(
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
-    ) -> Result<Box<dyn AstNode>, CrocoError> {
-        let mut symbols: Vec<Box<dyn AstNode>> = Vec::new();
+    ) -> Result<Box<dyn BackendNode>, CrocoError> {
+        let mut symbols: Vec<Box<dyn BackendNode>> = Vec::new();
 
         loop {
             if let Separator(RightSquareBracket) = self.peek_token(iter) {

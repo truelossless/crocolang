@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use super::{ExprParsingType, Parser};
 
-use crate::ast::node::*;
 use crate::ast::AstNode;
+use crate::ast::{node::*, BackendNode};
 use crate::error::CrocoError;
 use crate::parser::ExprParsingType::*;
 use crate::token::{CodePos, OperatorEnum::*, SeparatorEnum::*, Token, Token::*};
@@ -16,12 +16,12 @@ impl Parser {
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
         parse_type: ExprParsingType,
         // also returns if it's lvalue compatible, with a bool
-    ) -> Result<Box<dyn AstNode>, CrocoError> {
+    ) -> Result<Box<dyn BackendNode>, CrocoError> {
         // nodes to chain to
-        let mut chain_nodes: Vec<Box<dyn AstNode>> = Vec::new();
+        let mut chain_nodes: Vec<Box<dyn BackendNode>> = Vec::new();
 
         // refs / derefs happens after that
-        let mut chain_ref_nodes: Vec<Box<dyn AstNode>> = Vec::new();
+        let mut chain_ref_nodes: Vec<Box<dyn BackendNode>> = Vec::new();
 
         // wether or not the expression is assignable
 
@@ -59,7 +59,7 @@ impl Parser {
                         self.next_token(iter);
                         self.discard_newlines(iter);
 
-                        let mut fields: HashMap<String, Box<dyn AstNode>> = HashMap::new();
+                        let mut fields: HashMap<String, Box<dyn BackendNode>> = HashMap::new();
 
                         loop {
                             self.discard_newlines(iter);

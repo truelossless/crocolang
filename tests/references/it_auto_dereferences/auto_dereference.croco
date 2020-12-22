@@ -1,5 +1,4 @@
 struct A {
-    
     a str
 
     fn foo() str {
@@ -7,11 +6,14 @@ struct A {
     }
 }
 
-let a_inst = A {
-    a: "yolo"
+
+fn main() {
+    let a_inst = A {
+        a: "yolo"
+    }
+
+    let a_ref = &a_inst
+    
+    assert(a_ref.a == "yolo")
+    assert(a_ref.foo() == "foo")
 }
-
-let a_ref = &a_inst
-
-assert(a_ref.a == "yolo")
-assert(a_ref.foo() == "foo")

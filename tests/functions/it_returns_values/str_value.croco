@@ -1,4 +1,7 @@
 fn a() str {
     return "croco"
 }
-assert(a() == "croco")
+
+fn main() {
+    assert(a() == "croco")
+}

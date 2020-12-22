@@ -32,20 +32,19 @@ pub struct FindResult {
     pub vs_library_path: String,
 }
 
-
 // https://stackoverflow.com/questions/48586816/converting-raw-pointer-to-16-bit-unicode-character-to-file-path-in-rust
 // since this is only ran on windows machines, we can assume that wchar_t is 16bit wide.
-unsafe fn u16_ptr_to_string(ptr: *const u16) -> OsString {
+unsafe fn u16_ptr_to_string(ptr: *const u16) -> String {
     let len = (0..).take_while(|&i| *ptr.offset(i) != 0).count();
     let slice = std::slice::from_raw_parts(ptr, len);
 
-    OsString::from_wide(slice)
+    OsString::from_wide(slice).to_string_lossy().into()
 }
 
 // this is marked as unsafe as one SysFreeString() call has been commented out in the C source - it was throwing an unresolved symbol error.
 // this memory leak doesn't matter that much since after the linker step the program will exit and the OS free itself all the allocated memory.
-pub fn find_msvc() -> FindResult {
-    let mut c_find_result = unsafe { find_visual_studio_and_windows_sdk() };
+pub unsafe fn find_msvc() -> FindResult {
+    let mut c_find_result = find_visual_studio_and_windows_sdk();
 
     let mut find_result = FindResult {
         windows_sdk_version: c_find_result.windows_sdk_version,
@@ -60,27 +59,15 @@ pub fn find_msvc() -> FindResult {
         return find_result;
     }
 
-    find_result.vs_exe_path = unsafe { u16_ptr_to_string(c_find_result.vs_exe_path) }
-        .to_string_lossy()
-        .into();
-    find_result.windows_sdk_root = unsafe { u16_ptr_to_string(c_find_result.windows_sdk_root) }
-        .to_string_lossy()
-        .into();
+    find_result.vs_exe_path = u16_ptr_to_string(c_find_result.vs_exe_path);
+    find_result.windows_sdk_root = u16_ptr_to_string(c_find_result.windows_sdk_root);
     find_result.windows_sdk_ucrt_library_path =
-        unsafe { u16_ptr_to_string(c_find_result.windows_sdk_ucrt_library_path) }
-            .to_string_lossy()
-            .into();
+        u16_ptr_to_string(c_find_result.windows_sdk_ucrt_library_path);
     find_result.windows_sdk_um_library_path =
-        unsafe { u16_ptr_to_string(c_find_result.windows_sdk_um_library_path) }
-            .to_string_lossy()
-            .into();
-    find_result.vs_library_path = unsafe { u16_ptr_to_string(c_find_result.vs_library_path) }
-        .to_string_lossy()
-        .into();
+        u16_ptr_to_string(c_find_result.windows_sdk_um_library_path);
+    find_result.vs_library_path = u16_ptr_to_string(c_find_result.vs_library_path);
 
-    unsafe {
-        free_resources(&mut c_find_result);
-    }
+    free_resources(&mut c_find_result);
 
     find_result
 }

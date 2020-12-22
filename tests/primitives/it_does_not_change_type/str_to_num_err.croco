@@ -1,2 +1,4 @@
-let a = "croco"
-a = 42
+fn main() {
+    let a = "croco"
+    a = 42
+}

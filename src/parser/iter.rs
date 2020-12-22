@@ -1,5 +1,4 @@
 use super::Parser;
-
 use crate::token::{CodePos, Token};
 
 impl Parser {

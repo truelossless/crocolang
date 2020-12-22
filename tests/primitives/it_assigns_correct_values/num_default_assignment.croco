@@ -1,2 +1,4 @@
-let a num
-assert(a == 0)
+fn main() {
+    let a num
+    assert(a == 0)
+}

@@ -1,4 +1,4 @@
-use crate::builtin::*;
+use crate::crocoi::stdlib::*;
 use crate::crocoi::symbol::{ISymbol, ISymbol::*};
 use crate::symbol_type::SymbolType;
 use crate::token::LiteralEnum::*;
@@ -6,7 +6,7 @@ use crate::token::LiteralEnum::*;
 use std::fs;
 use std::path::Path;
 
-// module definition
+// Module definition
 pub fn get_module() -> BuiltinModule {
     let functions = vec![
         BuiltinFunction {

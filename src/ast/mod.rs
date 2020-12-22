@@ -1,52 +1,46 @@
 pub mod node;
 
-use crate::error::CrocoError;
 use crate::token::CodePos;
+use crate::{crocoi::CrocoiNode, crocol::CrocolNode, error::CrocoError};
 use dyn_clonable::*;
 
-#[cfg(feature = "crocoi")]
-use crate::crocoi::symbol::{INodeResult, ISymTable};
-
-#[cfg(feature = "crocol")]
-use crate::crocol::{Codegen, LNodeResult};
-
-/// a trait used to build node trait objects
+/// A trait used to build node trait objects
 #[clonable]
 pub trait AstNode: Clone {
-
-    /// crocoi backend interpreter
-    #[cfg(feature = "crocoi")]
-    fn crocoi(&mut self, _symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
+    /// Adds a child before the existing children
+    fn prepend_child(&mut self, _node: Box<dyn BackendNode>) {
         unimplemented!();
     }
 
-    /// crocol backend code generation, using llvm
-    // we could also return a Box<dyn AnyType>, but enum performance should be better
-    #[cfg(feature = "crocol")]
-    fn crocol<'ctx>(
-        &mut self,
-        _codegen: &mut Codegen<'ctx>,
-    ) -> Result<LNodeResult<'ctx>, CrocoError> {
+    /// Adds a child after the existing children
+    fn add_child(&mut self, _node: Box<dyn BackendNode>) {
         unimplemented!();
     }
 
-    /// add a child before the existing children
-    fn prepend_child(&mut self, _node: Box<dyn AstNode>) {
-        unimplemented!();
-    }
-
-    /// add a child after the existing children
-    fn add_child(&mut self, _node: Box<dyn AstNode>) {
-        unimplemented!();
-    }
-
-    /// returns the arity of the node
+    /// Returns the arity of the node
     fn get_type(&self) -> AstNodeType {
         unimplemented!();
     }
 }
 
+/// A node implementing all backends
+// This adds one layer of indirection (additional pointer in a vtable)
+// but it's needed since trait objects don't support multiple traits yet
+// relevant issue: https://github.com/rust-lang/rfcs/issues/2035
+#[cfg(all(feature = "crocoi", feature = "crocol"))]
+#[clonable]
+pub trait BackendNode: CrocoiNode + CrocolNode + Clone {}
+
+#[cfg(all(feature = "crocoi", not(feature = "crocol")))]
+#[clonable]
+pub trait BackendNode: CrocoiNode + Clone {}
+
+#[cfg(all(feature = "crocol", not(feature = "crocoi")))]
+#[clonable]
+pub trait BackendNode: CrocolNode + Clone {}
+
 #[derive(Clone, Debug)]
+/// The result of a node
 pub enum NodeResult<T, U> {
     /// a break statement
     Break,
@@ -109,7 +103,7 @@ impl<T, U> NodeResult<T, U> {
     }
 }
 
-// this is mostly used by the shunting yard algorithm to provide more info on what we're working with.
+// This is mostly used by the shunting yard algorithm to provide more info on what we're working with.
 pub enum AstNodeType {
     LeafNode,
     UnaryNode,
@@ -117,8 +111,8 @@ pub enum AstNodeType {
     NaryNode,
 }
 
-/// wether a block node should create a new scope or keep the old one
-#[derive(Clone)]
+/// Wether a block node should create a new scope or keep the old one
+#[derive(Clone, PartialEq)]
 pub enum BlockScope {
     New,
     Keep,

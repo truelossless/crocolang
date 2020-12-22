@@ -3,7 +3,9 @@ struct Simple {
     b str
 }
 
-let a = Simple {
-    a: 12
-    b: "hello world"
+fn main() {
+    let a = Simple {
+        a: 12
+        b: "hello world"
+    }
 }

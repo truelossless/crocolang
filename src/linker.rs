@@ -59,7 +59,7 @@ impl Linker {
         // if we are on windows we can try to locate MSVC tools
         #[cfg(windows)] // using cfg! here yields an error regarding the crate import on unix
         {
-            let msvc_result = crate::ms_craziness_bindings::find_msvc();
+            let msvc_result = unsafe { crate::ms_craziness_bindings::find_msvc() };
 
             if msvc_result.windows_sdk_version != 0 {
                 self.linker = format!("{}\\link.exe", &msvc_result.vs_exe_path);

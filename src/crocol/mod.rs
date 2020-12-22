@@ -1,21 +1,24 @@
+pub mod node;
 pub mod symbol;
 pub mod utils;
 
-pub use self::symbol::Codegen;
+pub use self::symbol::LCodegen;
 pub use self::symbol::LNodeResult;
 pub use self::symbol::LSymbol;
+use self::utils::insert_builtin_functions;
 
 use std::fs;
 
 use crate::lexer::Lexer;
-use crate::parser::Parser;
 use crate::symbol::SymTable;
+use crate::{ast::AstNode, parser::Parser};
 use crate::{
     error::{CrocoError, CrocoErrorKind},
     linker::Linker,
 };
 use inkwell::{
     context::Context,
+    memory_buffer::MemoryBuffer,
     module::Module,
     passes::{PassManager, PassManagerBuilder},
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
@@ -29,6 +32,18 @@ enum OutputFormat {
     Assembly,
     Executable,
 }
+
+/// crocol backend code generation, using llvm
+// we could also return a Box<dyn AnyType>, but enum performance should be better
+pub trait CrocolNode: AstNode {
+    fn crocol<'ctx>(
+        &mut self,
+        _codegen: &mut LCodegen<'ctx>,
+    ) -> Result<LNodeResult<'ctx>, CrocoError> {
+        unimplemented!();
+    }
+}
+
 pub struct Crocol {
     file_path: String,
     output_format: OutputFormat,
@@ -107,7 +122,6 @@ impl Crocol {
             }
         }
 
-        // println!("tokens: {:?}", &tokens);
         let mut parser = Parser::new();
         match parser.process(tokens) {
             Ok(root_node) => tree = root_node,
@@ -122,12 +136,12 @@ impl Crocol {
         let module = context.create_module("main");
 
         // import our standard library
-        let std = Module::parse_bitcode_from_path("src/crocol/std/global.bc", &context)
-            .map_err(|e| CrocoError::from_type(e.to_str().unwrap(), CrocoErrorKind::Io))?;
+        let std_contents =
+            MemoryBuffer::create_from_memory_range(include_bytes!("stdlib/global.bc"), "std");
+        let std = Module::parse_bitcode_from_buffer(&std_contents, &context).unwrap();
 
         module.link_in_module(std).map_err(|_| {
             CrocoError::from_type("cannot link croco std library", CrocoErrorKind::Linker)
-                .hint("Make sure crocol/std/global.bc exists")
         })?;
 
         // initialize the target from this machine's specs
@@ -154,21 +168,20 @@ impl Crocol {
                 )
             })?;
 
-        // append the basic entry block
-        let fn_return = context.void_type().fn_type(&[], false);
-        let main_fn = module.add_function("main", fn_return, None);
-
         let ptr_size = context.ptr_sized_int_type(&target_machine.get_target_data(), None);
 
-        let mut codegen = Codegen {
+        let mut codegen = LCodegen {
             str_type: module.get_struct_type("struct.CrocoStr").unwrap(),
             context: &context,
             module,
             builder: context.create_builder(),
             symtable: SymTable::new(),
             ptr_size,
-            current_fn: main_fn,
+            current_fn: None,
         };
+
+        // insert all the built-in functions from the std
+        insert_builtin_functions(&mut codegen.symtable);
 
         if let Err(mut e) = tree.crocol(&mut codegen) {
             e.set_kind(CrocoErrorKind::CompilationError);
@@ -196,7 +209,6 @@ impl Crocol {
         let lpm = PassManager::create(());
         pass_manager_builder.populate_lto_pass_manager(&lpm, false, false);
         lpm.run_on(&codegen.module);
-
 
         // emit an executable if we don't specifically want to emit assembly, object files, llvm ir
         // get the llvm file output name

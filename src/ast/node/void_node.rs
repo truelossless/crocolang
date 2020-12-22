@@ -1,8 +1,4 @@
-use crate::ast::AstNode;
-use crate::error::CrocoError;
-
-#[cfg(feature = "crocoi")]
-use crate::crocoi::{INodeResult, ISymTable};
+use crate::ast::{AstNode, BackendNode};
 
 /// A node returning a Void NodeResult
 #[derive(Clone)]
@@ -14,9 +10,5 @@ impl VoidNode {
     }
 }
 
-impl AstNode for VoidNode {
-    #[cfg(feature = "crocoi")]
-    fn crocoi(&mut self, _symtable: &mut ISymTable) -> Result<INodeResult, CrocoError> {
-        Ok(INodeResult::Void)
-    }
-}
+impl AstNode for VoidNode {}
+impl BackendNode for VoidNode {}

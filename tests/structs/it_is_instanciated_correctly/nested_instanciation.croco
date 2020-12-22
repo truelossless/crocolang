@@ -9,11 +9,13 @@ struct Second {
     b str
 }
 
-let a = First {
-    a: 12
-    b: "hello world"
-    c: Second {
-        a: -5
-        b: "hi"
+fn main() {
+    let a = First {
+        a: 12
+        b: "hello world"
+        c: Second {
+            a: -5
+            b: "hi"
+        }
     }
 }

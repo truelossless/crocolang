@@ -1,4 +1,10 @@
 let a = 4
-if true {
-    let a = 0
+
+fn main() {
+
+    let a = 2
+
+    if true {
+        let a = 0
+    }
 }

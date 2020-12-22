@@ -1,7 +1,7 @@
 use super::{Parser, TypedArg};
-use crate::ast::BlockScope;
+use crate::ast::{BackendNode, BlockScope};
 use crate::error::CrocoError;
-use crate::symbol::{FunctionDecl, FunctionKind};
+use crate::symbol::FunctionDecl;
 use crate::token::{CodePos, SeparatorEnum::*, Token, Token::*};
 
 impl Parser {
@@ -10,7 +10,7 @@ impl Parser {
     pub fn parse_function_decl(
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
-    ) -> Result<(FunctionDecl, String), CrocoError> {
+    ) -> Result<(String, FunctionDecl, Box<dyn BackendNode>), CrocoError> {
         let identifier = self.expect_identifier(
             iter,
             "expected the function name after function declaration",
@@ -90,14 +90,15 @@ impl Parser {
             "expected a left bracket after function declaration",
         )?;
 
+        let fn_body = self.parse_block(iter, BlockScope::New, false)?;
+
         // get the namespaced name of the function
         // let fn_name = identifier.get_namespaced_name();
         let fn_decl = FunctionDecl {
             args: typed_args,
             return_type,
-            body: FunctionKind::Regular(self.parse_block(iter, BlockScope::New, false)?),
         };
 
-        Ok((fn_decl, identifier.name))
+        Ok((identifier.name, fn_decl, fn_body))
     }
 }
