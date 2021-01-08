@@ -35,7 +35,7 @@ impl CrocoiNode for ArrayCreateNode {
         for el in visited.into_iter() {
             let el_type = get_symbol_type(&el);
 
-            if !el_type.eq(&array_type) {
+            if el_type != array_type {
                 return Err(CrocoError::new(
                     &self.code_pos,
                     "array elements must be of the same type",

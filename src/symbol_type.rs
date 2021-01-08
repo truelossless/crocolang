@@ -20,22 +20,32 @@ pub struct FunctionType {
 }
 
 impl SymbolType {
+    /// Transforms a Ref(SymbolType) into a SymbolType
+    pub fn deref(self) -> SymbolType {
+        match self {
+            SymbolType::Ref(s) => *s,
+            _ => panic!("did not get a reference"),
+        }
+    }
+}
+
+impl PartialEq for SymbolType {
     /// compare if two symbols are of the same type
-    pub fn eq(&self, b: &SymbolType) -> bool {
-        match (self, b) {
+    fn eq(&self, other: &SymbolType) -> bool {
+        match (self, other) {
             (SymbolType::Bool, SymbolType::Bool)
             | (SymbolType::Str, SymbolType::Str)
             | (SymbolType::Num, SymbolType::Num) => true,
             (SymbolType::Struct(a), SymbolType::Struct(b)) => a == b,
-            (SymbolType::Map(a, b), SymbolType::Map(c, d)) => a.eq(b) && c.eq(d),
-            (SymbolType::Array(a), SymbolType::Array(b)) => a.eq(b),
-            (SymbolType::Ref(a), SymbolType::Ref(b)) => a.eq(b),
+            (SymbolType::Map(a, b), SymbolType::Map(c, d)) => a == b && c == d,
+            (SymbolType::Array(a), SymbolType::Array(b)) => a == b,
+            (SymbolType::Ref(a), SymbolType::Ref(b)) => a == b,
             (SymbolType::Function(a), SymbolType::Function(b)) => {
                 if a.args.len() != b.args.len() {
                     return false;
                 }
 
-                if !a.return_type.eq(&*b.return_type) {
+                if a.return_type != b.return_type {
                     return false;
                 }
 
@@ -43,18 +53,10 @@ impl SymbolType {
                 a.args
                     .iter()
                     .zip(b.args.iter())
-                    .find(|(c, d)| !c.eq(d))
+                    .find(|(c, d)| c != d)
                     .is_none()
             }
             _ => false,
-        }
-    }
-
-    /// Transforms a Ref(SymbolType) into a SymbolType
-    pub fn deref(self) -> SymbolType {
-        match self {
-            SymbolType::Ref(s) => *s,
-            _ => panic!("did not get a reference"),
         }
     }
 }

@@ -77,6 +77,14 @@ impl CrocoError {
         CrocoError::new(code_pos, "redundant cast")
     }
 
+    pub fn compare_different_types_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot compare different types")
+    }
+
+    pub fn compare_numbers_only_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "can compare only numbers")
+    }
+
     pub fn condition_not_bool_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "expected a bool for the condition")
     }

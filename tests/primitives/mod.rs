@@ -9,7 +9,7 @@ fn it_assigns_correct_values() {
     // num assignment
     test_file_ok(
         "tests/primitives/it_assigns_correct_values/num_assignment.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
     test_file_ok(
         "tests/primitives/it_assigns_correct_values/num_default_assignment.croco",

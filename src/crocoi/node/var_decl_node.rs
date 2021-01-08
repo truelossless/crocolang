@@ -15,7 +15,7 @@ impl CrocoiNode for VarDeclNode {
 
                 // type differs from annotation
                 if let Some(var_type) = &self.var_type {
-                    if !get_symbol_type(&var_value).eq(var_type) {
+                    if get_symbol_type(&var_value) != *var_type {
                         return Err(CrocoError::type_annotation_error(
                             &self.code_pos,
                             &self.left,

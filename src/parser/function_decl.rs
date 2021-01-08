@@ -90,7 +90,7 @@ impl Parser {
             "expected a left bracket after function declaration",
         )?;
 
-        let fn_body = self.parse_block(iter, BlockScope::New, false)?;
+        let fn_body = self.parse_block(iter, BlockScope::Function, false)?;
 
         // get the namespaced name of the function
         // let fn_name = identifier.get_namespaced_name();

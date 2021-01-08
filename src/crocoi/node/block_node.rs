@@ -7,7 +7,7 @@ impl CrocoiNode for BlockNode {
     fn crocoi(&mut self, codegen: &mut ICodegen) -> Result<INodeResult, CrocoError> {
         // push a new scope if needed
         match self.scope {
-            BlockScope::New => codegen.symtable.add_scope(),
+            BlockScope::New | BlockScope::Function => codegen.symtable.add_scope(),
             BlockScope::Keep => (),
         }
 
@@ -38,7 +38,7 @@ impl CrocoiNode for BlockNode {
 
         // we're done with this scope, drop it
         match self.scope {
-            BlockScope::New => codegen.symtable.drop_scope(),
+            BlockScope::New | BlockScope::Function => codegen.symtable.drop_scope(),
             BlockScope::Keep => (),
         }
 

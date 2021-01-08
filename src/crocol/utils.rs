@@ -7,10 +7,10 @@ use crate::{
 };
 
 use inkwell::{
-    types::{BasicType, BasicTypeEnum, StructType},
+    types::{BasicType, BasicTypeEnum},
     AddressSpace,
 };
-use std::path::Path;
+use std::{path::Path, vec};
 
 /// get the llvm type corresponding to a SymbolType
 pub fn get_llvm_type<'ctx>(
@@ -34,7 +34,7 @@ pub fn get_llvm_type<'ctx>(
 
             // return_type.fn_type(&arg_types, false).into()
         }
-        SymbolType::Array(_) => array_type(codegen).into(),
+        SymbolType::Array(_) => codegen.str_type.into(),
         SymbolType::Ref(ref_type) => get_llvm_type(ref_type, codegen)
             .ptr_type(AddressSpace::Generic)
             .into(),
@@ -126,34 +126,7 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &LCodegen<'ctx>)
     };
 }
 
-/// llvm repr of the str type
-// https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/appendix-a-how-to-implement-a-string-type-in-llvm/
-// {
-//     ptr: i8*,
-//     len: isize,
-//     max_len: isize
-// }
-// this uses a different size depending on the host's architecture, for performance reasons
-// pub fn str_type<'ctx>(context: &'ctx Context, ptr_size: IntType) -> StructType<'ctx> {
-//     let void_ptr = context.i8_type().ptr_type(AddressSpace::Generic).into();
-//     let isize_type = ptr_size.into();
-
-//     context.struct_type(&[void_ptr, isize_type, isize_type], false)
-// }
-
-/// llvm repr of the array type
-// defined the same way as a str for now
-// {
-//     ptr: i8*,
-//     len: isize,
-//     max_len: isize
-// }
-#[inline]
-pub fn array_type<'ctx>(codegen: &LCodegen<'ctx>) -> StructType<'ctx> {
-    codegen.str_type
-}
-
-/// removes the extension of a file if possible
+/// Removes the extension of a file if possible
 pub fn strip_ext(file: &str) -> &str {
     Path::new(file)
         .file_stem()
@@ -164,7 +137,19 @@ pub fn strip_ext(file: &str) -> &str {
 
 /// Inserts all the function definitions from the crocol std
 pub fn insert_builtin_functions<'ctx>(symtable: &mut LSymTable<'ctx>) {
-    let println_decl = FunctionDecl {
+    let assert_decl = FunctionDecl {
+        args: vec![TypedArg {
+            arg_name: String::new(),
+            arg_type: SymbolType::Bool,
+        }],
+        return_type: None,
+    };
+
+    symtable
+        .register_decl("assert".to_owned(), Decl::FunctionDecl(assert_decl))
+        .unwrap();
+
+    let print_decl = FunctionDecl {
         args: vec![TypedArg {
             arg_name: String::new(),
             arg_type: SymbolType::Str,
@@ -173,6 +158,21 @@ pub fn insert_builtin_functions<'ctx>(symtable: &mut LSymTable<'ctx>) {
     };
 
     symtable
-        .register_decl("println".to_owned(), Decl::FunctionDecl(println_decl))
+        .register_decl("eprint".to_owned(), Decl::FunctionDecl(print_decl.clone()))
+        .unwrap();
+
+    symtable
+        .register_decl(
+            "eprintln".to_owned(),
+            Decl::FunctionDecl(print_decl.clone()),
+        )
+        .unwrap();
+
+    symtable
+        .register_decl("print".to_owned(), Decl::FunctionDecl(print_decl.clone()))
+        .unwrap();
+
+    symtable
+        .register_decl("println".to_owned(), Decl::FunctionDecl(print_decl))
         .unwrap()
 }

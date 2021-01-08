@@ -8,10 +8,10 @@ You can see some examples of the syntax below :)
 Other simple examples can be seen under the `tests` folder.
 For the partial spec and even more examples, see [here](SPEC.md).
 
-PULL REQUESTS ARE WELCOME SO YOU CAN IMPROVE MY MESS !
+Feel free to fill issues and open pull requests !!
 
 The lexer and parser are backend-agnostic, which means it should be easy to add all types of backends.  
-Currently there is a interpreter backend (crocoi), and an llvm backend (crocol, WIP)
+Currently there is a interpreter backend (crocoi), and an LLVM backend (crocol).
 
 ## Downloading croco
 
@@ -20,12 +20,15 @@ Croco is automatically built for Windows, MacOS and Linux, for each Git commit.
 
 ## Building croco
 
-You can also build Croco by yourself easely.  
-Make sure Rust is installed and run in the main directory
+Building Croco can be a little bit tough because it relies on LLVM.  
+Build LLVM from source and set the environment variable `LLVM_SYS_100_PREFIX` to your LLVM folder.  
+Clone this repository and then run
 
 ```bash
 cargo build --release
 ```
+
+If you still have some trouble, you can look at the CI file `.github/workflows/ci.yml` for a step by step walktrough on MacOS, Ubuntun and Windows.
 
 ## Using croco
 
@@ -102,7 +105,7 @@ Arrays
 
 ```
 let arr = [[2, 1], [3, 4, 5]]
-println(arr[1][2])
+println(arr[1][2] as str)
 ```
 
 ```
@@ -173,7 +176,7 @@ _Processor: i7 6700HQ, released in September 2015_
 ```
 $ time node bench_name.js
 $ time python bench_name.py
-$ time croco bench_name.croco
+$ time crocoi bench_name.croco
 ```
 
 | benchmark name      | node  | python | crocoi |
@@ -182,7 +185,7 @@ $ time croco bench_name.croco
 | loop, n=1000000     | 230ms | 236ms  | 850ms  |
 
 We're getting there :D  
-Croco is fully interpreted, so it's normal that it's way slower than Node, which is basically a VM.  
+Crocoi is fully interpreted, so it's normal that it's way slower than Node, which is basically a VM.  
 However, it should be closer to python performance, but it's clear that there's still a long way to go !
 Apparently Python doesn't do any tail call optimization for recursive functions, so it's weird that croco is THAT slow with fibonacci. Actually Python is jitted so that's probably why.
 

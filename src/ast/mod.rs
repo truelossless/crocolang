@@ -116,6 +116,7 @@ pub enum AstNodeType {
 pub enum BlockScope {
     New,
     Keep,
+    Function,
 }
 
 impl Default for BlockScope {

@@ -5,16 +5,16 @@ mod primitives;
 mod references;
 mod structs;
 
-use std::process::Command;
 use croco::{Crocoi, Crocol};
+use std::process::Command;
 
 pub enum Backend {
     Crocoi,
     Crocol,
 }
 
-pub static CROCOI: &[Backend] = &[Backend::Crocoi];
-pub static ALL_BACKENDS: &[Backend] = &[Backend::Crocoi, Backend::Crocol];
+pub const CROCOI: &[Backend] = &[Backend::Crocoi];
+pub const ALL_BACKENDS: &[Backend] = &[Backend::Crocoi, Backend::Crocol];
 
 pub fn test_file_ok(path: &str, backends: &[Backend]) {
     test_file(path, backends, true);
@@ -53,9 +53,12 @@ fn test_file(path: &str, backends: &[Backend], should_succeed: bool) {
                     std::fs::remove_file(tmp_exe_path).unwrap();
 
                     if should_succeed {
-                        assert!(runtime_res.success());
+                        // for now we don't return any exit code on success.
+                        // the exit code is therefore random, and there's a small chance
+                        // that we stumble into the error code (1) while doing so ...
+                        assert!(runtime_res.code() != Some(1));
                     } else {
-                        assert!(!runtime_res.success());
+                        assert!(runtime_res.code() == Some(1));
                     }
                 }
             }

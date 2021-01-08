@@ -29,17 +29,22 @@ pub struct LCodegen<'ctx> {
 impl<'ctx> LCodegen<'ctx> {
     /// Creates a variable at the start of a block
     pub fn create_block_alloca(&self, ty: BasicTypeEnum<'ctx>, name: &str) -> PointerValue<'ctx> {
-        let block = self.builder.get_insert_block().unwrap();
+        // local variable
+        if let Some(block) = self.builder.get_insert_block() {
+            match block.get_first_instruction() {
+                Some(first_instr) => self.builder.position_before(&first_instr),
+                None => self.builder.position_at_end(block),
+            }
 
-        match block.get_first_instruction() {
-            Some(first_instr) => self.builder.position_before(&first_instr),
-            None => self.builder.position_at_end(block),
+            let alloca = self.builder.build_alloca(ty, name);
+            self.builder.position_at_end(block);
+
+            alloca
+
+        // global variable
+        } else {
+            todo!("handle global variables !");
         }
-
-        let alloca = self.builder.build_alloca(ty, name);
-        self.builder.position_at_end(block);
-
-        alloca
     }
 
     pub fn alloc_str(&self, text: &str) -> PointerValue<'ctx> {

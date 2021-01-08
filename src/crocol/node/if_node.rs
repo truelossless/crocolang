@@ -85,13 +85,13 @@ impl CrocolNode for IfNode {
             codegen.builder.build_unconditional_branch(endif_block);
 
             // populate the new if block
+            codegen.builder.position_at_end(if_block);
             let cmp = codegen.builder.build_int_compare(
                 IntPredicate::EQ,
                 cond_ok.value.into_int_value(),
                 true_value,
                 "cmpif",
             );
-            codegen.builder.position_at_end(if_block);
             codegen
                 .builder
                 .build_conditional_branch(cmp, then_block, next_block);

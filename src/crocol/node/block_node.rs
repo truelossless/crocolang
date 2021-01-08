@@ -11,7 +11,7 @@ impl CrocolNode for BlockNode {
         codegen: &mut LCodegen<'ctx>,
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
         match self.scope {
-            BlockScope::New => codegen.symtable.add_scope(),
+            BlockScope::New | BlockScope::Function => codegen.symtable.add_scope(),
             BlockScope::Keep => (),
         }
 
@@ -34,13 +34,13 @@ impl CrocolNode for BlockNode {
         }
 
         // if there is no early return the function returns void
-        if !early_return && self.scope == BlockScope::New {
+        if !early_return && self.scope == BlockScope::Function {
             codegen.builder.build_return(None);
         }
 
         // we're done with this scope, drop it
         match self.scope {
-            BlockScope::New => codegen.symtable.drop_scope(),
+            BlockScope::New | BlockScope::Function => codegen.symtable.drop_scope(),
             BlockScope::Keep => (),
         }
 

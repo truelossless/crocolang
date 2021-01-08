@@ -12,8 +12,7 @@ impl CrocolNode for FunctionDeclNode {
         &mut self,
         codegen: &mut LCodegen<'ctx>,
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
-        let mut fn_decl = self.fn_decl.take().unwrap();
-        let return_type = fn_decl.return_type.take();
+        let fn_decl = self.fn_decl.take().unwrap();
 
         // convert the arguments to llvm
         let llvm_args: Vec<_> = fn_decl
@@ -22,7 +21,7 @@ impl CrocolNode for FunctionDeclNode {
             .map(|x| get_llvm_type(&x.arg_type, codegen))
             .collect();
 
-        let fn_ty = if let Some(return_type) = &return_type {
+        let fn_ty = if let Some(return_type) = &fn_decl.return_type {
             get_llvm_type(return_type, codegen).fn_type(&llvm_args, false)
         } else {
             codegen.context.void_type().fn_type(&llvm_args, false)

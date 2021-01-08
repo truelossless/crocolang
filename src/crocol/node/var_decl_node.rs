@@ -21,7 +21,7 @@ impl CrocolNode for VarDeclNode {
                 let right = node.crocol(codegen)?.into_symbol(codegen, &self.code_pos)?;
 
                 if let Some(var_type) = &self.var_type {
-                    if !var_type.eq(&right.symbol_type) {
+                    if var_type != &right.symbol_type {
                         return Err(CrocoError::type_annotation_error(
                             &self.code_pos,
                             &self.left,

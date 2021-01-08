@@ -77,7 +77,7 @@ impl CrocoiNode for FunctionCallNode {
         }
 
         for (i, arg) in visited_args.iter().enumerate() {
-            if !get_symbol_type(arg).eq(&fn_decl.args[i].arg_type) {
+            if get_symbol_type(arg) != fn_decl.args[i].arg_type {
                 // if we have a method, we don't want to show the self parameter as
                 // a true parameter
                 let errored_param = if self.method.is_some() { i } else { i + 1 };
@@ -143,7 +143,7 @@ impl CrocoiNode for FunctionCallNode {
 
         // if this is false then both return types are void
         if let (Some(ret_ty), Some(ret_val)) = (&fn_decl.return_type, &return_value) {
-            if !ret_ty.eq(&get_symbol_type(ret_val)) {
+            if *ret_ty != get_symbol_type(ret_val) {
                 return Err(CrocoError::new(
                     &self.code_pos,
                     "function returned a wrong type",
