@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vcruntime.h>
 
 /**
  Representation of a croco str
@@ -101,7 +100,7 @@ float _as_str_num(CrocoStr *string)
   char tmp_str[100];
   sprintf(tmp_str, "%.*s", (int)string->len, string->ptr);
 
-  int success = sscanf_s(tmp_str, "%f", &res);
+  int success = sscanf(tmp_str, "%f", &res);
 
   if (!success)
   {

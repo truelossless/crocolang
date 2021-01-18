@@ -217,8 +217,8 @@ impl Crocol {
                 self.output_flag.clone()
             } else {
                 let ext = match self.output_format {
-                    OutputFormat::Assembly | OutputFormat::Executable => "asm",
-                    OutputFormat::ObjectFile => "o",
+                    OutputFormat::Assembly => "s",
+                    OutputFormat::ObjectFile | OutputFormat::Executable => "o",
                     OutputFormat::LlvmIr => "ll",
                 };
                 format!("{}.{}", strip_ext(&self.file_path), ext)
@@ -265,9 +265,10 @@ impl Crocol {
 
         let exe_output_filename = if !self.output_flag.is_empty() {
             self.output_flag.clone()
+        } else if cfg!(windows) {
+            format!("{}.exe", strip_ext(&self.file_path))
         } else {
-            let ext = if cfg!(windows) { "exe" } else { "" };
-            format!("{}.{}", strip_ext(&self.file_path), ext)
+            strip_ext(&self.file_path).to_owned()
         };
 
         let link_stage = linker

@@ -18,7 +18,9 @@ impl Linker {
 
     pub fn find_linker(&mut self) -> Result<String, String> {
         // common linkers that can be found on the machine
-        let linkers = vec!["cc", "clangg", "gcc", "ld"];
+        // while clang will work out of the box, gcc and ld aren't smart enough to figure includes
+        // Later we could only rely on ld with the right arguments, as clang does.
+        let linkers = vec!["clang", "lld", "cc", "gcc", "ld"];
 
         // we are going to locate the linker
         for linker in linkers {
@@ -97,7 +99,7 @@ impl Linker {
                 command.args(&["-o", output_file]);
             }
         } else {
-            let link_command = format!("{} \"{}\" \"{}\"", self.linker, object_file, output_file);
+            let link_command = format!("{} \"{}\" -o \"{}\"", self.linker, object_file, output_file);
             command = Command::new("sh");
             command.args(&["-c", &link_command]);
         }

@@ -6,5 +6,6 @@ fn fib(n num) num {
 
     return fib(n - 1) + fib(n - 2)
 }
-
-println(fib(30) as str)
+fn main() {
+    println(fib(30) as str)
+}
