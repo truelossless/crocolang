@@ -1,6 +1,6 @@
-use crate::crocoi::CrocoiNode;
-use crate::token::{literal_eq, LiteralEnum::*, OperatorEnum};
+use crate::token::{LiteralEnum::*, OperatorEnum};
 use crate::{ast::node::CompareNode, error::CrocoError};
+use crate::{crocoi::CrocoiNode, token::literal_eq};
 
 use crate::crocoi::{utils::get_value, ICodegen, INodeResult, ISymbol};
 
@@ -17,7 +17,6 @@ impl CrocoiNode for CompareNode {
             && self.compare_kind != OperatorEnum::NotEquals)
             && !left_val.is_num()
         {
-            dbg!(&self.compare_kind);
             return Err(CrocoError::compare_numbers_only_error(&self.code_pos));
         }
 

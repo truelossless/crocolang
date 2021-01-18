@@ -16,7 +16,7 @@ impl CrocolNode for FunctionCallNode {
             // if we want to pass the struct by value we can just stack allocate the fields in the function body.
             // this prevents quirks when passing large values, and it is also used by clang.
             value = match value.symbol_type {
-                SymbolType::Struct(_) | SymbolType::Str => {
+                SymbolType::Struct(_) => {
                     let alloca = codegen.create_block_alloca(value.value.get_type(), "tmpstruct");
                     codegen.builder.build_store(alloca, value.value);
 

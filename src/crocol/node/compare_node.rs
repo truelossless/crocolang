@@ -31,79 +31,67 @@ impl CrocolNode for CompareNode {
             return Err(CrocoError::compare_different_types_error(&self.code_pos));
         }
 
-        if (self.compare_kind != OperatorEnum::Equals
-            && self.compare_kind != OperatorEnum::NotEquals)
-            && left_value.symbol_type != SymbolType::Num
-        {
-            return Err(CrocoError::compare_numbers_only_error(&self.code_pos));
-        }
+        let bool_res = match left_value.symbol_type {
+            SymbolType::Num => {
+                let op = match self.compare_kind {
+                    OperatorEnum::Equals => FloatPredicate::OEQ,
+                    OperatorEnum::NotEquals => FloatPredicate::ONE,
+                    OperatorEnum::GreaterThan => FloatPredicate::OGT,
+                    OperatorEnum::GreaterOrEqual => FloatPredicate::OGE,
+                    OperatorEnum::LowerThan => FloatPredicate::OLT,
+                    OperatorEnum::LowerOrEqual => FloatPredicate::OLE,
+                    _ => unreachable!(),
+                };
 
-        let bool_res = match self.compare_kind {
-            OperatorEnum::Equals | OperatorEnum::NotEquals => match left_value.symbol_type {
-                SymbolType::Num => {
-                    if self.compare_kind == OperatorEnum::Equals {
-                        codegen.builder.build_float_compare(
-                            FloatPredicate::UEQ,
-                            left_value.value.into_float_value(),
-                            right_value.value.into_float_value(),
-                            "cmpnumeq",
-                        )
-                    } else {
-                        codegen.builder.build_float_compare(
-                            FloatPredicate::UNE,
-                            left_value.value.into_float_value(),
-                            right_value.value.into_float_value(),
-                            "cmpnumne",
-                        )
-                    }
-                }
+                codegen.builder.build_float_compare(
+                    op,
+                    left_value.value.into_float_value(),
+                    right_value.value.into_float_value(),
+                    "cmpnum",
+                )
+            }
 
-                SymbolType::Bool => {
-                    if self.compare_kind == OperatorEnum::Equals {
-                        codegen.builder.build_int_compare(
-                            inkwell::IntPredicate::EQ,
-                            left_value.value.into_int_value(),
-                            right_value.value.into_int_value(),
-                            "cmpbooleq",
-                        )
-                    } else {
-                        codegen.builder.build_int_compare(
-                            IntPredicate::NE,
-                            left_value.value.into_int_value(),
-                            right_value.value.into_int_value(),
-                            "cmpboolne",
-                        )
-                    }
-                }
+            SymbolType::Bool => {
+                let op = match self.compare_kind {
+                    OperatorEnum::Equals => IntPredicate::EQ,
+                    OperatorEnum::NotEquals => IntPredicate::NE,
+                    _ => return Err(CrocoError::compare_numbers_only_error(&self.code_pos)),
+                };
 
-                SymbolType::Str => {
-                    let cmp_fn = codegen.module.get_function("_croco_str_cmp").unwrap();
-                    let cmp_res = codegen
-                        .builder
-                        .build_call(cmp_fn, &[left_value.value, right_value.value], "cmpstr")
-                        .try_as_basic_value()
-                        .left()
-                        .unwrap();
+                codegen.builder.build_int_compare(
+                    op,
+                    left_value.value.into_int_value(),
+                    right_value.value.into_int_value(),
+                    "cmpbool",
+                )
+            }
 
-                    if self.compare_kind == OperatorEnum::Equals {
-                        codegen.builder.build_int_compare(
-                            IntPredicate::EQ,
-                            codegen.context.i8_type().const_zero(),
-                            cmp_res.into_int_value(),
-                            "cmpstreq",
-                        )
-                    } else {
-                        codegen.builder.build_int_compare(
-                            IntPredicate::NE,
-                            codegen.context.i8_type().const_zero(),
-                            cmp_res.into_int_value(),
-                            "cmpstrne",
-                        )
-                    }
-                }
+            SymbolType::Str => {
+                let cmp_fn = codegen.module.get_function("_croco_str_cmp").unwrap();
+                let cmp_res = codegen
+                    .builder
+                    .build_call(cmp_fn, &[left_value.value, right_value.value], "cmpstr")
+                    .try_as_basic_value()
+                    .left()
+                    .unwrap();
 
-                _ => return Err(CrocoError::compare_numbers_only_error(&self.code_pos)),
-            },
+                let op = match self.compare_kind {
+                    OperatorEnum::Equals => IntPredicate::EQ,
+                    OperatorEnum::NotEquals => IntPredicate::NE,
+                    OperatorEnum::GreaterThan => IntPredicate::SGT,
+                    OperatorEnum::GreaterOrEqual => IntPredicate::SGE,
+                    OperatorEnum::LowerThan => IntPredicate::SLT,
+                    OperatorEnum::LowerOrEqual => IntPredicate::SLE,
+                    _ => unreachable!(),
+                };
+
+                codegen.builder.build_int_compare(
+                    op,
+                    cmp_res.into_int_value(),
+                    codegen.context.i8_type().const_zero(),
+                    "cmpstr",
+                )
+            }
 
             _ => unimplemented!(),
         };

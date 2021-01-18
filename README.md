@@ -21,14 +21,14 @@ Croco is automatically built for Windows, MacOS and Linux, for each Git commit.
 ## Building croco
 
 Building Croco can be a little bit tough because it relies on LLVM.  
-Build LLVM from source and set the environment variable `LLVM_SYS_100_PREFIX` to your LLVM folder.  
+Build LLVM 11 from source and set the environment variable `LLVM_SYS_110_PREFIX` to your LLVM folder.  
 Clone this repository and then run
 
 ```bash
 cargo build --release
 ```
 
-If you still have some trouble, you can look at the CI file `.github/workflows/ci.yml` for a step by step walktrough on MacOS, Ubuntun and Windows.
+If you still have some trouble, you can look at the CI file `.github/workflows/ci.yml` for a step by step walktrough on MacOS, Ubuntu and Windows.
 
 ## Using croco
 
@@ -180,7 +180,7 @@ $ time crocoi bench_name.croco
 ```
 
 | benchmark name      | node  | python | crocoi |
-| ------------------- | ----- | ------ | ------ |
+|---------------------|-------|--------|--------|
 | rec fibonacci, n=30 | 200ms | 400ms  | 13s    |
 | loop, n=1000000     | 230ms | 236ms  | 850ms  |
 

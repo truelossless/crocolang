@@ -49,7 +49,7 @@ void _croco_str_resize(CrocoStr *string, size_t new_len)
 
 /**
  Compares two CrocoStr
- Returns 0 if both strings are equals
+ Returns 0 if both strings are equal
  Returns < 0 if the first string is inferior to the second
  Returns > 0 if the second string is inferior to the first
 */
@@ -60,7 +60,7 @@ char _croco_str_cmp(CrocoStr *string1, CrocoStr *string2)
 
   // compare each character of the strings until we find a difference, or until
   // one of the string is finished
-  while (string1->len < pos && string2->len < pos)
+  while (string1->len > pos && string2->len > pos)
   {
     char diff = string1->ptr[pos] - string2->ptr[pos];
 
