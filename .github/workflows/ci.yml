@@ -42,7 +42,7 @@ jobs:
         id: cache-llvm
         uses: actions/cache@v2
         with:
-          path: ${{ env.LLVM_SYS_100_PREFIX }}
+          path: ${{ env.LLVM_SYS_110_PREFIX }}
           key: llvm-11rc2-${{ matrix.os }}
 
       - name: Download LLVM
@@ -82,7 +82,7 @@ jobs:
         run: |
           cd llvm/build
           cmake --build . --config Release
-          cmake -DCMAKE_INSTALL_PREFIX=$LLVM_SYS_100_PREFIX -P cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=$LLVM_SYS_110_PREFIX -P cmake_install.cmake
 
       - name: Build Croco release
         run: |
