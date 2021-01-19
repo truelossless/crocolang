@@ -27,9 +27,10 @@ impl CrocolNode for ConstantNode {
 
             LiteralEnum::Str(s) => {
                 let alloca = codegen.alloc_str(s);
+                let load = codegen.builder.build_load(alloca, "loadstr");
 
                 LSymbol {
-                    value: alloca.into(),
+                    value: load,
                     symbol_type: SymbolType::Str,
                 }
             }

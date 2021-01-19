@@ -104,6 +104,35 @@ impl CrocoError {
         CrocoError::new(code_pos, "expected a valid return value")
     }
 
+    pub fn mismatched_number_of_arguments_error(
+        code_pos: &CodePos,
+        decl_len: usize,
+        args_len: usize,
+    ) -> CrocoError {
+        CrocoError::new(
+            code_pos,
+            format!(
+                "mismatched number of arguments in function call\nExpected {} parameter{} but got {}",
+                decl_len,
+                if decl_len < 2 { "" } else { "s" },
+                args_len
+            ),
+        )
+    }
+
+    pub fn parameter_error(code_pos: &CodePos, index: usize, is_method: bool) -> CrocoError {
+        // if we have a method, we don't want to show the self parameter as a true parameter
+        let errored_param = if is_method { index } else { index + 1 };
+
+        CrocoError::new(
+            code_pos,
+            &format!(
+                "parameter {} doesn't match function definition",
+                errored_param,
+            ),
+        )
+    }
+
     pub fn type_annotation_error(code_pos: &CodePos, var_name: &str) -> CrocoError {
         CrocoError::new(
             code_pos,

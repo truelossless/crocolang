@@ -21,7 +21,10 @@ fn it_returns_values() {
     );
 
     // str value
-    test_file_ok("tests/functions/it_returns_values/str_value.croco", CROCOI);
+    test_file_ok(
+        "tests/functions/it_returns_values/str_value.croco",
+        ALL_BACKENDS,
+    );
 
     // bool value
     test_file_ok(

@@ -1,6 +1,11 @@
-use crate::error::CrocoError;
+use inkwell::{
+    attributes::{Attribute, AttributeLoc},
+    AddressSpace,
+};
+
 use crate::symbol::Decl;
 use crate::{ast::node::FunctionDeclNode, crocol::CrocolNode};
+use crate::{error::CrocoError, symbol_type::SymbolType};
 
 use {
     crate::crocol::{utils::get_llvm_type, LCodegen, LNodeResult, LSymbol},
@@ -15,30 +20,93 @@ impl CrocolNode for FunctionDeclNode {
         let fn_decl = self.fn_decl.take().unwrap();
 
         // convert the arguments to llvm
-        let llvm_args: Vec<_> = fn_decl
-            .args
-            .iter()
-            .map(|x| get_llvm_type(&x.arg_type, codegen))
-            .collect();
+        // to comply with the "C ABI", fn(Struct a) is changed to fn(&Struct a)
+        let mut llvm_args = Vec::with_capacity(fn_decl.args.len());
+        for arg in fn_decl.args.iter() {
+            let llvm_arg = match arg.arg_type {
+                SymbolType::Str => codegen.str_type.ptr_type(AddressSpace::Generic).into(),
+                SymbolType::Num | SymbolType::Bool => get_llvm_type(&arg.arg_type, codegen),
+                _ => unimplemented!(),
+            };
 
-        let fn_ty = if let Some(return_type) = &fn_decl.return_type {
-            get_llvm_type(return_type, codegen).fn_type(&llvm_args, false)
-        } else {
-            codegen.context.void_type().fn_type(&llvm_args, false)
+            llvm_args.push(llvm_arg);
+        }
+
+        // if the return type is a struct, pass as the first argument a pointer to this struct which
+        // will contain the result of the function.
+        let mut sret_fn = false;
+
+        let fn_ty = match &fn_decl.return_type {
+            Some(SymbolType::Str) => {
+                sret_fn = true;
+                llvm_args.insert(0, codegen.str_type.ptr_type(AddressSpace::Generic).into());
+                codegen.context.void_type().fn_type(&llvm_args, false)
+            }
+
+            Some(SymbolType::Bool) | Some(SymbolType::Num) => {
+                let ret_ty = get_llvm_type(&fn_decl.return_type.as_ref().unwrap(), codegen);
+                ret_ty.fn_type(&llvm_args, false)
+            }
+
+            None => codegen.context.void_type().fn_type(&llvm_args, false),
+
+            _ => unimplemented!(),
         };
 
-        codegen.current_fn = Some(codegen.module.add_function(&self.name, fn_ty, None));
-        let entry = codegen
-            .context
-            .append_basic_block(codegen.current_fn.unwrap(), "entry");
+        let function = codegen.module.add_function(&self.name, fn_ty, None);
+
+        // add the sret tag to the first param if needed
+        if sret_fn {
+            codegen.sret_ptr = Some(function.get_first_param().unwrap().into_pointer_value());
+            let sret_num = Attribute::get_named_enum_kind_id("sret");
+            let sret_attr = codegen.context.create_enum_attribute(sret_num, 0);
+            function.add_attribute(AttributeLoc::Param(0), sret_attr);
+        } else {
+            codegen.sret_ptr = None
+        }
+
+        let entry = codegen.context.append_basic_block(function, "entry");
         codegen.builder.position_at_end(entry);
 
+        // in case of a function returning a struct, skip the first param which is the return value
+        let args_iter = if sret_fn {
+            fn_decl.args.iter().zip(function.get_param_iter().skip(1))
+        } else {
+            // skip 0 so both iters have the same type
+            fn_decl.args.iter().zip(function.get_param_iter().skip(0))
+        };
+
         // inject the function arguments in the body
-        for (arg, llvm_ty) in fn_decl.args.iter().zip(llvm_args) {
-            let ptr = codegen.create_block_alloca(llvm_ty, "allocaarg");
+        for (arg, param_value) in args_iter {
+            // to comply with the "C ABI", fn(Struct a) is changed to fn(&Struct a)
+            // this means we need to add a memcpy in the function body.
+            let abi_ptr = match &arg.arg_type {
+                SymbolType::Str => {
+                    let copy_alloca =
+                        codegen.create_block_alloca(codegen.str_type.into(), "valstr");
+
+                    codegen
+                        .builder
+                        .build_memcpy(
+                            copy_alloca,
+                            8,
+                            param_value.into_pointer_value(),
+                            8,
+                            codegen.str_type.size_of().unwrap(),
+                        )
+                        .unwrap()
+                }
+                SymbolType::Bool | SymbolType::Num => {
+                    let param_ptr = codegen.create_block_alloca(param_value.get_type(), "param");
+                    codegen.builder.build_store(param_ptr, param_value);
+                    param_ptr
+                }
+                _ => unimplemented!(),
+            };
+
             let symbol = LSymbol {
                 symbol_type: arg.arg_type.clone(),
-                value: ptr.into(),
+                value: abi_ptr.into(),
             };
             codegen
                 .symtable
@@ -52,6 +120,8 @@ impl CrocolNode for FunctionDeclNode {
             .symtable
             .register_decl(self.name.clone(), Decl::FunctionDecl(fn_decl))
             .map_err(|e| CrocoError::new(&self.code_pos, &e))?;
+
+        codegen.current_fn = Some(function);
 
         Ok(LNodeResult::Void)
     }

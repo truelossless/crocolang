@@ -13,29 +13,29 @@ fn it_assigns_correct_values() {
     );
     test_file_ok(
         "tests/primitives/it_assigns_correct_values/num_default_assignment.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
 
     // str assignment
     test_file_ok(
         "tests/primitives/it_assigns_correct_values/str_assignment.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
 
     test_file_ok(
         "tests/primitives/it_assigns_correct_values/str_default_assignment.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
 
     // bool assignment
     test_file_ok(
         "tests/primitives/it_assigns_correct_values/bool_assignment.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
 
     test_file_ok(
         "tests/primitives/it_assigns_correct_values/bool_default_assignment.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
 }
 
@@ -56,12 +56,12 @@ fn it_shadows_correctly() {
 fn it_does_not_change_type() {
     test_file_err(
         "tests/primitives/it_does_not_change_type/str_to_num_err.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
 
     test_file_err(
         "tests/primitives/it_does_not_change_type/num_to_bool_err.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
 }
 

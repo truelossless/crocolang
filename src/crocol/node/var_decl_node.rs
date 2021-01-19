@@ -1,12 +1,9 @@
-use crate::{ast::node::VarDeclNode, symbol_type::SymbolType};
+use crate::ast::node::VarDeclNode;
 use crate::{crocol::CrocolNode, error::CrocoError};
 
-use {
-    crate::{
-        crocol::LSymbol,
-        crocol::{utils::get_llvm_type, LCodegen, LNodeResult},
-    },
-    inkwell::{types::BasicType, AddressSpace},
+use crate::{
+    crocol::LSymbol,
+    crocol::{utils::get_llvm_type, LCodegen, LNodeResult},
 };
 
 impl CrocolNode for VarDeclNode {
@@ -29,14 +26,7 @@ impl CrocolNode for VarDeclNode {
                     }
                 }
 
-                let mut llvm_type = get_llvm_type(&right.symbol_type, codegen);
-
-                // str is a bit special and has already been stack allocated
-                llvm_type = match &right.symbol_type {
-                    SymbolType::Str => llvm_type.ptr_type(AddressSpace::Generic).into(),
-                    _ => llvm_type,
-                };
-
+                let llvm_type = get_llvm_type(&right.symbol_type, codegen);
                 let alloca = codegen.create_block_alloca(llvm_type, &self.left);
 
                 codegen.builder.build_store(alloca, right.value);

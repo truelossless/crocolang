@@ -36,7 +36,6 @@ typedef struct
 */
 void _croco_str_resize(CrocoStr *string, size_t new_len)
 {
-
   if (new_len <= string->max_len)
   {
     return;
@@ -52,16 +51,15 @@ void _croco_str_resize(CrocoStr *string, size_t new_len)
  Returns < 0 if the first string is inferior to the second
  Returns > 0 if the second string is inferior to the first
 */
-char _croco_str_cmp(CrocoStr *string1, CrocoStr *string2)
+char _croco_str_cmp(CrocoStr string1, CrocoStr string2)
 {
-
   size_t pos = 0;
 
   // compare each character of the strings until we find a difference, or until
   // one of the string is finished
-  while (string1->len > pos && string2->len > pos)
+  while (string1.len > pos && string2.len > pos)
   {
-    char diff = string1->ptr[pos] - string2->ptr[pos];
+    char diff = string1.ptr[pos] - string2.ptr[pos];
 
     if (diff != 0)
     {
@@ -72,12 +70,12 @@ char _croco_str_cmp(CrocoStr *string1, CrocoStr *string2)
   }
 
   // same characters and same length, same strings
-  if (string1->len == string2->len)
+  if (string1.len == string2.len)
   {
     return 0;
   }
   // the first string is shorter therefore inferior
-  else if (string1->len == pos)
+  else if (string1.len == pos)
   {
     return -1;
   }
@@ -91,14 +89,13 @@ char _croco_str_cmp(CrocoStr *string1, CrocoStr *string2)
 /**
   Casts a `str` into a `num`
 */
-float _as_str_num(CrocoStr *string)
+float _as_str_num(CrocoStr string)
 {
-
   float res;
 
   // the number should be less than 100 digits, right ?!?!
   char tmp_str[100];
-  sprintf(tmp_str, "%.*s", (int)string->len, string->ptr);
+  sprintf(tmp_str, "%.*s", (int)string.len, string.ptr);
 
   int success = sscanf(tmp_str, "%f", &res);
 
@@ -138,27 +135,32 @@ void assert(bool assertion)
 /**
   Prints to stderr
 */
-void eprint(CrocoStr *string)
+void eprint(CrocoStr string)
 {
-  fprintf(stderr, "%.*s", (int)string->len, string->ptr);
+  fprintf(stderr, "%.*s", (int)string.len, string.ptr);
 }
 
 /**
   Prints to stderr with a line feed
 */
-void eprintln(CrocoStr *string)
+void eprintln(CrocoStr string)
 {
-  fprintf(stderr, "%.*s\n", (int)string->len, string->ptr);
+  fprintf(stderr, "%.*s\n", (int)string.len, string.ptr);
 }
 /**
   Prints to stdout
 */
-void print(CrocoStr *string) { printf("%.*s", (int)string->len, string->ptr); }
+void print(CrocoStr string) { printf("%.*s", (int)string.len, string.ptr); }
 
 /**
   Prints to stdout with a line feed
 */
-void println(CrocoStr *string)
+void println(CrocoStr string)
 {
-  printf("%.*s\n", (int)string->len, string->ptr);
+  printf("%.*s\n", (int)string.len, string.ptr);
+}
+
+CrocoStr tst(CrocoStr str1)
+{
+  return str1;
 }

@@ -178,6 +178,7 @@ impl Crocol {
             symtable: SymTable::new(),
             ptr_size,
             current_fn: None,
+            sret_ptr: None,
         };
 
         // insert all the built-in functions from the std

@@ -65,29 +65,19 @@ impl CrocoiNode for FunctionCallNode {
 
         // ensure that the arguments provided and the arguments in the function call match
         if visited_args.len() != fn_decl.args.len() {
-            return Err(CrocoError::new(
+            return Err(CrocoError::mismatched_number_of_arguments_error(
                 &self.code_pos,
-                format!(
-                    "mismatched number of arguments in function call\nExpected {} parameter{} but got {}",
-                    fn_decl.args.len(),
-                    if fn_decl.args.len() < 2 { "" } else { "s" },
-                    visited_args.len()
-                ),
+                fn_decl.args.len(),
+                visited_args.len(),
             ));
         }
 
         for (i, arg) in visited_args.iter().enumerate() {
             if get_symbol_type(arg) != fn_decl.args[i].arg_type {
-                // if we have a method, we don't want to show the self parameter as
-                // a true parameter
-                let errored_param = if self.method.is_some() { i } else { i + 1 };
-
-                return Err(CrocoError::new(
+                return Err(CrocoError::parameter_error(
                     &self.code_pos,
-                    &format!(
-                        "parameter {} doesn't match function definition",
-                        errored_param,
-                    ),
+                    i,
+                    self.method.is_some(),
                 ));
             }
         }

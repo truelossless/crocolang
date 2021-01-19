@@ -39,7 +39,9 @@ impl CrocolNode for PlusNode {
             }
 
             (SymbolType::Str, SymbolType::Str) => {
-                let left_str = left_val.value.into_pointer_value();
+                let left_str = codegen.builder.build_alloca(codegen.str_type, "tmpstr");
+                codegen.builder.build_store(left_str, left_val.value);
+
                 let left_heap_ptr_ptr = codegen
                     .builder
                     .build_struct_gep(left_str, 0, "gepheapptr")
@@ -51,7 +53,9 @@ impl CrocolNode for PlusNode {
                     .unwrap();
                 let left_len = codegen.builder.build_load(left_len_ptr, "loadlen");
 
-                let right_str = right_val.value.into_pointer_value();
+                let right_str = codegen.builder.build_alloca(codegen.str_type, "tmpstr");
+                codegen.builder.build_store(right_str, right_val.value);
+
                 let right_heap_ptr_ptr = codegen
                     .builder
                     .build_struct_gep(right_str, 0, "gepheapptr")
@@ -133,7 +137,7 @@ impl CrocolNode for PlusNode {
                     .unwrap();
 
                 Ok(LNodeResult::Value(LSymbol {
-                    value: alloca.into(),
+                    value: codegen.builder.build_load(alloca, "loadstradd"),
                     symbol_type: SymbolType::Str,
                 }))
             }

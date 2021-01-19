@@ -1,7 +1,4 @@
-use std::{
-    io::{self, Write},
-    process::Command,
-};
+use std::process::Command;
 
 fn main() {
     #[cfg(feature = "crocol")]

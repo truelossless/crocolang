@@ -15,15 +15,24 @@ use crate::{error::CrocoError, symbol::SymTable};
 
 // I'll be using a simple struct as in the README example for now
 // https://github.com/TheDan64/inkwell/blob/master/README.md
-/// a codegen unit
+/// A codegen unit
 pub struct LCodegen<'ctx> {
+    /// The llvm context
     pub context: &'ctx Context,
+    /// The current module
     pub module: Module<'ctx>,
+    /// The instruction builder
     pub builder: Builder<'ctx>,
+    /// The symbol table containing pointers to variables
     pub symtable: LSymTable<'ctx>,
+    /// The str type as defined in crocol
     pub str_type: StructType<'ctx>,
-    pub ptr_size: IntType<'ctx>, // this platform's isize width
+    /// The pointer size of this architecture
+    pub ptr_size: IntType<'ctx>,
+    /// The current function being built
     pub current_fn: Option<FunctionValue<'ctx>>,
+    /// The pointer used as a return value in case of a sret function
+    pub sret_ptr: Option<PointerValue<'ctx>>,
 }
 
 impl<'ctx> LCodegen<'ctx> {

@@ -86,15 +86,17 @@ impl CrocolNode for AsNode {
 
                 LSymbol {
                     symbol_type: SymbolType::Str,
-                    value: str_res,
+                    value: codegen
+                        .builder
+                        .build_load(str_res.into_pointer_value(), "loadstrptr"),
                 }
             }
 
             (SymbolType::Str, SymbolType::Num) => {
-                let num_as_str_fn = codegen.module.get_function("_as_str_num").unwrap();
+                let str_as_num_fn = codegen.module.get_function("_as_str_num").unwrap();
                 let num_res = codegen
                     .builder
-                    .build_call(num_as_str_fn, &[val.value], "callcast")
+                    .build_call(str_as_num_fn, &[val.value], "callcast")
                     .try_as_basic_value()
                     .left()
                     .unwrap();
