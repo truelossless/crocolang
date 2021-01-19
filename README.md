@@ -20,7 +20,9 @@ Croco is automatically built for Windows, MacOS and Linux, for each Git commit.
 
 ## Building croco
 
-Building Croco can be a little bit tough because it relies on LLVM.  
+Building Croco can be a little bit tough because it relies on LLVM and Clang.  
+
+Download Clang and make sure it's available in your path.  
 Build LLVM 11 from source and set the environment variable `LLVM_SYS_110_PREFIX` to your LLVM folder.  
 Clone this repository and then run
 
@@ -28,7 +30,7 @@ Clone this repository and then run
 cargo build --release
 ```
 
-If you still have some trouble, you can look at the CI file `.github/workflows/ci.yml` for a step by step walktrough on MacOS, Ubuntu and Windows.
+If you still have some trouble, you can look at the CI file `.github/workflows/ci.yml` for a step by step walkthrough on MacOS, Ubuntu and Windows.
 
 ## Using croco
 

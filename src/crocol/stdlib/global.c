@@ -55,7 +55,7 @@ void _croco_str_resize(CrocoStr *string, size_t new_len)
 char _croco_str_cmp(CrocoStr *string1, CrocoStr *string2)
 {
 
-  int pos = 0;
+  size_t pos = 0;
 
   // compare each character of the strings until we find a difference, or until
   // one of the string is finished
