@@ -35,6 +35,7 @@ pub fn main() {
     let mut croco = Crocoi::new();
 
     if let Err(e) = croco.exec_file(file_path) {
-        println!("{}", e);
+        eprintln!("{}", e);
+        std::process::exit(1);
     }
 }

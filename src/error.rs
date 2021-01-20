@@ -8,16 +8,24 @@ use unicode_segmentation::UnicodeSegmentation;
 pub enum CrocoErrorKind {
     // global
     Unknown,
-    Io,      // when a file failed to open
-    Syntax,  // thrown by the lexer
-    Parse,   // thrown by the parser
-    Runtime, // thrown when an error occurs at runtime
+    /// Thrown when a file failed to open
+    Io,
+    /// Thrown by the lexer
+    Syntax,
+    /// Thrown by the parser
+    Parse,
+    /// Thrown when an error occurs at runtime
+    Runtime,
 
     // crocol-specific
-    CompilationError, // thrown when the compilation failed
-    CompileTarget,    // thrown when no compilation is possible on this target
-    Malloc,           // thrown when the OS has no default allocator
-    Linker,           // thrown when there isn't a linker available
+    /// Thrown when the compilation failed
+    Compilation,
+    /// Thrown when no compilation is possible on this target
+    CompileTarget,
+    /// Thrown when the OS has no default allocator  
+    Malloc,
+    /// Thrown when there isn't a linker available           
+    Linker,
 }
 
 /// errors thrown by croco
@@ -158,7 +166,7 @@ impl fmt::Display for CrocoError {
             CrocoErrorKind::CompileTarget => "Compile error",
             CrocoErrorKind::Malloc => "Allocation error",
             CrocoErrorKind::Linker => "Linker error",
-            CrocoErrorKind::CompilationError => "Compilation error",
+            CrocoErrorKind::Compilation => "Compilation error",
             CrocoErrorKind::Unknown => unreachable!(),
         };
 

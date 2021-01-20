@@ -68,9 +68,16 @@ impl CrocolNode for CompareNode {
 
             SymbolType::Str => {
                 let cmp_fn = codegen.module.get_function("_croco_str_cmp").unwrap();
+
+                let left_ptr = codegen.create_block_alloca(codegen.str_type.into(), "tmpstr");
+                let right_ptr = codegen.create_block_alloca(codegen.str_type.into(), "tmpstr");
+
+                codegen.builder.build_store(left_ptr, left_value.value);
+                codegen.builder.build_store(right_ptr, right_value.value);
+
                 let cmp_res = codegen
                     .builder
-                    .build_call(cmp_fn, &[left_value.value, right_value.value], "cmpstr")
+                    .build_call(cmp_fn, &[left_ptr.into(), right_ptr.into()], "cmpstr")
                     .try_as_basic_value()
                     .left()
                     .unwrap();

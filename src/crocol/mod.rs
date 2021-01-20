@@ -185,18 +185,21 @@ impl Crocol {
         insert_builtin_functions(&mut codegen.symtable);
 
         if let Err(mut e) = tree.crocol(&mut codegen) {
-            e.set_kind(CrocoErrorKind::CompilationError);
+            e.set_kind(CrocoErrorKind::Compilation);
             return Err(e);
         }
 
         // this should never fail if our nodes are right (but this fails everytime obviously)
         if !self.no_llvm_checks_flag {
-            if let Err(e) = codegen.module.verify() {
-                eprintln!(
-                    "An LLVM error has occured, this should never happen !\n{}",
-                    e
-                );
-            }
+            codegen.module.verify().map_err(|e| {
+                CrocoError::from_type(
+                    format!(
+                        "An LLVM error has occured, this should never happen!\n{}",
+                        e
+                    ),
+                    CrocoErrorKind::Compilation,
+                )
+            })?;
         }
 
         // run the optimization passes (for some reason this does nothing lol)

@@ -33,7 +33,6 @@ struct MyOptions {
 
     #[options(short = "o", no_long, help = "output file path")]
     output: String,
-
 }
 
 pub fn main() {
@@ -87,7 +86,6 @@ pub fn main() {
         &opts.input[0]
     };
 
-
     if opts.assembly {
         crocol.emit_assembly();
     }
@@ -99,7 +97,7 @@ pub fn main() {
     if opts.emit_llvm {
         crocol.emit_llvm();
     }
-    
+
     if !opts.output.is_empty() {
         crocol.set_output(opts.output);
     }
@@ -108,6 +106,7 @@ pub fn main() {
     crocol.set_no_llvm_checks(opts.no_llvm_checks);
 
     if let Err(e) = crocol.exec_file(file_path) {
-        println!("{}", e);
+        eprintln!("{}", e);
+        std::process::exit(1);
     }
 }
