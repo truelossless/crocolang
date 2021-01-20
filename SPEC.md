@@ -43,7 +43,7 @@ foo = 0101011010
 // ERROR !
 ```
 
-### Casting [CROCOI 100% | CROCOL 80%]
+### Casting [CROCOI 100% | CROCOL 90%]
 
 Primitive types can all be casted from one to another with the `as` operator.  
 The only cast that can fail is `str` -> `num` .
@@ -213,7 +213,7 @@ skipping 5
 7
 ```
 
-## Functions [CROCOI 100% | CROCOL 40%]
+## Functions [CROCOI 100% | CROCOL 50%]
 
 Functions are declared with the `fn` keyword. When they return a value the type should be annotated. A value is returned with the `return` keyword. You can exit early a function without any return value with the `return` keyword as well.
 
@@ -256,7 +256,7 @@ let bobby = Character {
 bobby.hi()
 ```
 
-## Control flow [CROCOI 100% | CROCOL 50%]
+## Control flow [CROCOI 100% | CROCOL 70%]
 
 `if`, `elif` and `else` can be used for conditionnal matching.
 
@@ -417,7 +417,7 @@ bool unreadableStringGivingJavaVietnamFlashbacks = false
 Higher value means higher priority.
 
 | operator              | precedence |
-| --------------------- | ---------- |
+|-----------------------|------------|
 | `\|\|`                | 1          |
 | `&&`                  | 2          |
 | `==` `!=`             | 3          |

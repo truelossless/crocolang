@@ -7,7 +7,11 @@ impl CrocolNode for VarCallNode {
         &mut self,
         codegen: &mut LCodegen<'ctx>,
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
-        let symbol = codegen.symtable.get_symbol(&self.name).unwrap();
+        let symbol = codegen
+            .symtable
+            .get_symbol(&self.name)
+            .map_err(|e| CrocoError::new(&self.code_pos, e))?;
+
         Ok(LNodeResult::Variable(symbol.clone()))
     }
 }

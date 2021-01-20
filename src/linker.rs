@@ -20,7 +20,7 @@ impl Linker {
         // common linkers that can be found on the machine
         // while clang will work out of the box, gcc and ld aren't smart enough to figure includes
         // Later we could only rely on ld with the right arguments, as clang does.
-        let linkers = vec!["clang", "lld", "cc", "gcc", "ld"];
+        let linkers = vec!["clang", "cc", "gcc", "ld"];
 
         // we are going to locate the linker
         for linker in linkers {
@@ -46,9 +46,7 @@ impl Linker {
                 if status.success() {
                     // if we are on windows we can retreive the full path in the stdout of the where command
                     if cfg!(windows) {
-                        self.linker = String::from_utf8_lossy(&output.stdout)
-                            .trim()
-                            .to_owned();
+                        self.linker = String::from_utf8_lossy(&output.stdout).trim().to_owned();
                     } else {
                         self.linker = linker.to_owned();
                     }
@@ -99,7 +97,8 @@ impl Linker {
                 command.args(&["-o", output_file]);
             }
         } else {
-            let link_command = format!("{} \"{}\" -o \"{}\"", self.linker, object_file, output_file);
+            let link_command =
+                format!("{} \"{}\" -o \"{}\"", self.linker, object_file, output_file);
             command = Command::new("sh");
             command.args(&["-c", &link_command]);
         }

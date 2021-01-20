@@ -8,7 +8,7 @@ fn it_is_called() {
     // function call with multiple arguments
     test_file_ok(
         "tests/functions/it_is_called/multiple_arguments.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
 }
 

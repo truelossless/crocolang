@@ -3,7 +3,7 @@ authors = ["truelossless <esteban.gressard@gmail.com>"]
 build = "build.rs"
 edition = "2018"
 name = "croco_lang"
-version = "0.6.4"
+version = "0.6.5"
 
 [target.'cfg(windows)'.build-dependencies]
 cc = {version = "1.0", optional = true}

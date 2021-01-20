@@ -1,20 +1,21 @@
 // If tests
 
-use croco::Crocoi;
+use crate::{test_file_ok, ALL_BACKENDS};
 
 #[test]
 fn it_matches_if_properly() {
-    let mut interpreter = Crocoi::new();
+    test_file_ok(
+        "tests/conditions/it_matches_if_properly/if.croco",
+        ALL_BACKENDS,
+    );
 
-    assert!(interpreter
-        .exec_file("tests/conditions/it_matches_if_properly/if.croco")
-        .is_ok());
+    test_file_ok(
+        "tests/conditions/it_matches_if_properly/elif.croco",
+        ALL_BACKENDS,
+    );
 
-    assert!(interpreter
-        .exec_file("tests/conditions/it_matches_if_properly/elif.croco")
-        .is_ok());
-
-    assert!(interpreter
-        .exec_file("tests/conditions/it_matches_if_properly/else.croco")
-        .is_ok());
+    test_file_ok(
+        "tests/conditions/it_matches_if_properly/else.croco",
+        ALL_BACKENDS,
+    )
 }

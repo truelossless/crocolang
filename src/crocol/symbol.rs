@@ -5,7 +5,7 @@ use inkwell::{
     types::BasicTypeEnum,
     types::IntType,
     types::StructType,
-    values::{BasicValueEnum, FunctionValue, PointerValue},
+    values::{BasicValueEnum, FunctionValue, IntValue, PointerValue},
     AddressSpace,
 };
 
@@ -113,6 +113,15 @@ impl<'ctx> LCodegen<'ctx> {
 pub struct LSymbol<'ctx> {
     pub value: BasicValueEnum<'ctx>,
     pub symbol_type: SymbolType,
+}
+
+impl<'ctx> LSymbol<'ctx> {
+    pub fn into_bool(self) -> Result<IntValue<'ctx>, String> {
+        match self.symbol_type {
+            SymbolType::Bool => Ok(self.value.into_int_value()),
+            _ => Err("expected a bool".to_owned()),
+        }
+    }
 }
 
 /// The result returned by a node.  

@@ -43,8 +43,11 @@ impl CrocolNode for AsNode {
                 }
             }
             (SymbolType::Bool, SymbolType::Str) => {
-                let true_str = codegen.alloc_str("true");
-                let false_str = codegen.alloc_str("false");
+                let true_str_ptr = codegen.alloc_str("true");
+                let true_str = codegen.builder.build_load(true_str_ptr, "loadstr");
+
+                let false_str_ptr = codegen.alloc_str("false");
+                let false_str = codegen.builder.build_load(false_str_ptr, "loadstr");
 
                 let cmp = codegen.builder.build_int_compare(
                     IntPredicate::EQ,

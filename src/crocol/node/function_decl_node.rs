@@ -19,6 +19,9 @@ impl CrocolNode for FunctionDeclNode {
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
         let fn_decl = self.fn_decl.take().unwrap();
 
+        // we're done with the current variables
+        codegen.symtable.pop_symbols();
+
         // convert the arguments to llvm
         // to comply with the "C ABI", fn(Struct a) is changed to fn(&Struct a)
         let mut llvm_args = Vec::with_capacity(fn_decl.args.len());
@@ -76,6 +79,8 @@ impl CrocolNode for FunctionDeclNode {
             fn_decl.args.iter().zip(function.get_param_iter().skip(0))
         };
 
+        codegen.current_fn = Some(function);
+
         // inject the function arguments in the body
         for (arg, param_value) in args_iter {
             // to comply with the "C ABI", fn(Struct a) is changed to fn(&Struct a)
@@ -94,7 +99,8 @@ impl CrocolNode for FunctionDeclNode {
                             8,
                             codegen.str_type.size_of().unwrap(),
                         )
-                        .unwrap()
+                        .unwrap();
+                    copy_alloca
                 }
                 SymbolType::Bool | SymbolType::Num => {
                     let param_ptr = codegen.create_block_alloca(param_value.get_type(), "param");
@@ -120,8 +126,6 @@ impl CrocolNode for FunctionDeclNode {
             .symtable
             .register_decl(self.name.clone(), Decl::FunctionDecl(fn_decl))
             .map_err(|e| CrocoError::new(&self.code_pos, &e))?;
-
-        codegen.current_fn = Some(function);
 
         Ok(LNodeResult::Void)
     }

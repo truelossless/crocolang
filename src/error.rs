@@ -112,6 +112,10 @@ impl CrocoError {
         CrocoError::new(code_pos, "expected a valid return value")
     }
 
+    pub fn invert_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot invert something that isn't a boolean")
+    }
+
     pub fn mismatched_number_of_arguments_error(
         code_pos: &CodePos,
         decl_len: usize,

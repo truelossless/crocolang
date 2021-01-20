@@ -41,7 +41,7 @@ void _croco_str_resize(CrocoStr *string, size_t new_len)
     return;
   }
 
-  realloc(string->ptr, new_len);
+  string->ptr = (char *)realloc(string->ptr, new_len);
   string->max_len = new_len;
 }
 

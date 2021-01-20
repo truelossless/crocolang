@@ -15,19 +15,9 @@ impl CrocoiNode for NotNode {
 
         let condition = bool_symbol
             .into_primitive()
-            .map_err(|_| {
-                CrocoError::new(
-                    &self.code_pos,
-                    "cannot invert something that isn't a boolean",
-                )
-            })?
+            .map_err(|_| CrocoError::invert_error(&self.code_pos))?
             .into_bool()
-            .map_err(|_| {
-                CrocoError::new(
-                    &self.code_pos,
-                    "cannot invert something that isn't a boolean",
-                )
-            })?;
+            .map_err(|_| CrocoError::invert_error(&self.code_pos))?;
 
         Ok(INodeResult::Value(ISymbol::Primitive(Bool(!condition))))
     }

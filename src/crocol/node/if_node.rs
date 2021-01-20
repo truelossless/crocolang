@@ -13,26 +13,6 @@ impl CrocolNode for IfNode {
         let true_value = codegen.context.bool_type().const_int(1, false);
         let before_if_block = codegen.builder.get_insert_block().unwrap();
 
-        let endif_block = codegen
-            .context
-            .append_basic_block(codegen.current_fn.unwrap(), "endif");
-
-        let else_block = if self.conditions.len() != self.bodies.len() {
-            let block = codegen
-                .context
-                .append_basic_block(codegen.current_fn.unwrap(), "else");
-
-            // populate the else block
-            codegen.builder.position_at_end(block);
-            self.bodies.last_mut().unwrap().crocol(codegen)?;
-            codegen.builder.build_unconditional_branch(endif_block);
-            codegen.builder.position_at_end(before_if_block);
-
-            Some(block)
-        } else {
-            None
-        };
-
         // We need to iterate backwards or the condition blocks wouldn't be created.
         // this results in llvm ir code with conditions blocks which can be confusing,
         // but it's better than other solutions tried which involved `Vec` allocation.
@@ -58,9 +38,28 @@ impl CrocolNode for IfNode {
         //   %cond = cmp ...
         //   br %cond then1 if2
 
+        // the block closing the condition
+        let endif_block = codegen
+            .context
+            .append_basic_block(codegen.current_fn.unwrap(), "endif");
+
         // the next if block.
-        // Since we iterate backwards it is at the start either the else block, or the endif block.
-        let mut next_block = else_block.unwrap_or(endif_block);
+        // Since we iterate backwards it is at the start of either the else block, or the endif block
+        let mut next_block = if self.conditions.len() != self.bodies.len() {
+            let else_block = codegen
+                .context
+                .append_basic_block(codegen.current_fn.unwrap(), "else");
+
+            // populate the else block
+            codegen.builder.position_at_end(else_block);
+            self.bodies.last_mut().unwrap().crocol(codegen)?;
+            codegen.builder.build_unconditional_branch(endif_block);
+            codegen.builder.position_at_end(before_if_block);
+
+            else_block
+        } else {
+            endif_block
+        };
 
         for (condition, body) in self.conditions.iter_mut().zip(self.bodies.iter_mut()).rev() {
             let if_block = codegen
@@ -69,6 +68,14 @@ impl CrocolNode for IfNode {
             let then_block = codegen
                 .context
                 .append_basic_block(codegen.current_fn.unwrap(), "then");
+
+            // populate the new then block
+            codegen.builder.position_at_end(then_block);
+            body.crocol(codegen)?;
+            codegen.builder.build_unconditional_branch(endif_block);
+
+            // populate the new if block
+            codegen.builder.position_at_end(if_block);
 
             let cond_ok = condition
                 .crocol(codegen)?
@@ -79,13 +86,6 @@ impl CrocolNode for IfNode {
                 _ => return Err(CrocoError::condition_not_bool_error(&self.code_pos)),
             }
 
-            // populate the new then block
-            codegen.builder.position_at_end(then_block);
-            body.crocol(codegen)?;
-            codegen.builder.build_unconditional_branch(endif_block);
-
-            // populate the new if block
-            codegen.builder.position_at_end(if_block);
             let cmp = codegen.builder.build_int_compare(
                 IntPredicate::EQ,
                 cond_ok.value.into_int_value(),

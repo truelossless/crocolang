@@ -43,7 +43,7 @@ fn it_assigns_correct_values() {
 fn it_shadows_correctly() {
     test_file_err(
         "tests/primitives/it_shadows_correctly/shadow_err.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
 
     test_file_ok(
@@ -69,11 +69,11 @@ fn it_does_not_change_type() {
 fn it_calculates_correctly() {
     test_file_ok(
         "tests/primitives/it_calculates_correctly/priority.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
     test_file_ok(
         "tests/primitives/it_calculates_correctly/floating_point.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
     test_file_ok(
         "tests/primitives/it_calculates_correctly/unary.croco",
