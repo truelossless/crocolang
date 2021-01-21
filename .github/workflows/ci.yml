@@ -27,12 +27,18 @@ jobs:
 
       # we cannot set the sys_prefix on windows with Bash because it constructs a /d/ path instead of d:/
       # which later conduces in a cache miss
-      - name: set LLVM_SYS_PREFIX and add clang to path [windows]
+
+      # move clang out of msys, which triggers build errors if it's in the path
+      - name: set LLVM_SYS_PREFIX and add clang to PATH [windows]
         if: matrix.os == 'windows-latest'
         shell: powershell
         run: |
           echo "LLVM_SYS_110_PREFIX=$PWD/llvm" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "C:/msys64/mingw64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          cp -r C:/msys64/usr/bin C:/clang
+          cd C:/clang
+          rm *gcc*.exe
+          rm g++.exe
+          echo "C:/clang" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: set LLVM_SYS_PREFIX [unix]
         if: matrix.os != 'windows-latest'
