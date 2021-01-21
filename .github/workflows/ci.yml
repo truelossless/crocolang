@@ -34,7 +34,7 @@ jobs:
         shell: powershell
         run: |
           echo "LLVM_SYS_110_PREFIX=$PWD/llvm" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          mdkir C:/clang
+          mkdir C:/clang
           cp -r C:/msys64/usr/bin/*.dll C:/clang
           cp -r C:/msys64/usr/bin/*clang* C:/clang
           echo "C:/clang" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
