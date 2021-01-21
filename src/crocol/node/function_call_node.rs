@@ -1,4 +1,4 @@
-use crate::crocol::{LCodegen, LNodeResult, LSymbol};
+use crate::crocol::{utils::get_or_define_function, LCodegen, LNodeResult, LSymbol};
 use crate::error::CrocoError;
 use crate::symbol_type::SymbolType;
 use crate::{ast::node::*, crocol::CrocolNode};
@@ -56,7 +56,7 @@ impl CrocolNode for FunctionCallNode {
             ));
         }
 
-        let function = codegen.module.get_function(&self.fn_name).unwrap();
+        let function = get_or_define_function(&self.fn_name, &fn_decl, codegen);
 
         // to conform to the "C ABI",
         // we change `Struct fn()` to `void fn(Struct*)`

@@ -77,7 +77,7 @@ fn it_calculates_correctly() {
     );
     test_file_ok(
         "tests/primitives/it_calculates_correctly/unary.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
     test_file_ok(
         "tests/primitives/it_calculates_correctly/parenthesis.croco",

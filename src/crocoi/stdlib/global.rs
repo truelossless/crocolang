@@ -99,7 +99,7 @@ fn assert(mut args: Vec<ISymbol>) -> Option<ISymbol> {
     let assertion = get_arg_bool(&mut args);
 
     if !assertion {
-        eprintln!("Assertion failed !");
+        eprintln!("Assertion failed!");
         std::process::exit(1);
     }
     None

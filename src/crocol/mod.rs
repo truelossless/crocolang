@@ -10,7 +10,7 @@ use self::utils::insert_builtin_functions;
 use std::fs;
 
 use crate::lexer::Lexer;
-use crate::symbol::SymTable;
+use crate::symbol::{Decl, SymTable};
 use crate::{ast::AstNode, parser::Parser};
 use crate::{
     error::{CrocoError, CrocoErrorKind},
@@ -183,6 +183,21 @@ impl Crocol {
 
         // insert all the built-in functions from the std
         insert_builtin_functions(&mut codegen.symtable);
+
+        // insert all the declarations found by the parser
+        for (fn_name, fn_decl) in parser.take_fn_decls() {
+            codegen
+                .symtable
+                .register_decl(fn_name, Decl::FunctionDecl(fn_decl))
+                .map_err(|e| CrocoError::from_type(e, CrocoErrorKind::Compilation))?;
+        }
+
+        for (struct_name, struct_decl) in parser.take_struct_decls() {
+            codegen
+                .symtable
+                .register_decl(struct_name, Decl::StructDecl(struct_decl))
+                .unwrap();
+        }
 
         if let Err(mut e) = tree.crocol(&mut codegen) {
             e.set_kind(CrocoErrorKind::Compilation);

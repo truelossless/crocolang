@@ -5,7 +5,7 @@ use inkwell::{
     types::BasicTypeEnum,
     types::IntType,
     types::StructType,
-    values::{BasicValueEnum, FunctionValue, IntValue, PointerValue},
+    values::{BasicValueEnum, FloatValue, FunctionValue, IntValue, PointerValue},
     AddressSpace,
 };
 
@@ -116,10 +116,17 @@ pub struct LSymbol<'ctx> {
 }
 
 impl<'ctx> LSymbol<'ctx> {
-    pub fn into_bool(self) -> Result<IntValue<'ctx>, String> {
+    pub fn into_bool(self, code_pos: &CodePos) -> Result<IntValue<'ctx>, CrocoError> {
         match self.symbol_type {
             SymbolType::Bool => Ok(self.value.into_int_value()),
-            _ => Err("expected a bool".to_owned()),
+            _ => Err(CrocoError::new(code_pos, "expected a boolean")),
+        }
+    }
+
+    pub fn into_num(self, code_pos: &CodePos) -> Result<FloatValue<'ctx>, CrocoError> {
+        match self.symbol_type {
+            SymbolType::Num => Ok(self.value.into_float_value()),
+            _ => Err(CrocoError::new(code_pos, "expected a number")),
         }
     }
 }

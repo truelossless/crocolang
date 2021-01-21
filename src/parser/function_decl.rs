@@ -1,8 +1,11 @@
 use super::{Parser, TypedArg};
-use crate::ast::{BackendNode, BlockScope};
 use crate::error::CrocoError;
 use crate::symbol::FunctionDecl;
 use crate::token::{CodePos, SeparatorEnum::*, Token, Token::*};
+use crate::{
+    ast::{BackendNode, BlockScope},
+    symbol_type::SymbolType,
+};
 
 impl Parser {
     /// parses a function declation into a FunctionDecl
@@ -10,11 +13,17 @@ impl Parser {
     pub fn parse_function_decl(
         &mut self,
         iter: &mut std::iter::Peekable<std::vec::IntoIter<(Token, CodePos)>>,
-    ) -> Result<(String, FunctionDecl, Box<dyn BackendNode>), CrocoError> {
-        let identifier = self.expect_identifier(
+        struct_name: Option<String>,
+    ) -> Result<(String, Box<dyn BackendNode>), CrocoError> {
+        let mut fn_name = self.expect_identifier(
             iter,
             "expected the function name after function declaration",
         )?;
+
+        // if we have a method, format correctly the function name
+        if let Some(struct_name) = &struct_name {
+            fn_name.name = format!("_{}_{}", struct_name, fn_name.name)
+        }
 
         self.expect_token(
             iter,
@@ -22,7 +31,15 @@ impl Parser {
             "expected a left parenthensis after the function name",
         )?;
 
-        let mut typed_args: Vec<TypedArg> = Vec::new();
+        // if we have a method, the self argument is the first arg
+        let mut typed_args = if let Some(struct_name) = struct_name {
+            vec![TypedArg {
+                arg_name: "self".to_owned(),
+                arg_type: SymbolType::Struct(struct_name),
+            }]
+        } else {
+            Vec::new()
+        };
 
         let mut first_arg = false;
 
@@ -47,7 +64,7 @@ impl Parser {
                         &self.token_pos,
                         format!(
                             "expected a comma or a right parenthesis in {} function declaration",
-                            identifier.name
+                            fn_name.name
                         ),
                     ))
                 }
@@ -99,6 +116,8 @@ impl Parser {
             return_type,
         };
 
-        Ok((identifier.name, fn_decl, fn_body))
+        self.register_fn_decl(&fn_name.name, fn_decl)?;
+
+        Ok((fn_name.name, fn_body))
     }
 }

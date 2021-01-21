@@ -219,11 +219,11 @@ Functions are declared with the `fn` keyword. When they return a value the type 
 
 ```croco
 fn greet() {
-    println("Hello, neighbourhood !")
+    println("Hello, neighbourhood!")
     return
 
     // this will never be executed
-    println("I hate this place but nobody is going to see this !")
+    println("I hate this place but nobody is going to see this!")
 }
 
 
@@ -390,7 +390,7 @@ The only valid comments are started with `//`
 
 ```croco
 let actual_code; // this is a comment
-// this won't be read by the interpreter !!
+// this won't be read by the interpreter!!
 ```
 
 ## Line endings
@@ -403,10 +403,10 @@ Hence you don't need semicolons or parenthesis around control keywords.
 Variables should use the snake_case convention.
 
 ```croco
-// DO !!
+// DO!!
 bool long_ass_and_yet_readable_variable_name = true
 
-// DON'T !!
+// DON'T!!
 bool unreadableStringGivingJavaVietnamFlashbacks = false
 ```
 

@@ -127,7 +127,7 @@ void assert(bool assertion)
 {
   if (!assertion)
   {
-    fprintf(stderr, "Assertion failed !");
+    fprintf(stderr, "Assertion failed!");
     exit(1);
   }
 }

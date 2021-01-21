@@ -15,7 +15,7 @@ pub fn get_value(
 ) -> Result<LiteralEnum, CrocoError> {
     Ok(opt_node
         .as_mut()
-        .ok_or_else(|| CrocoError::new(code_pos, "one variable hasn't been initialized !"))?
+        .ok_or_else(|| CrocoError::new(code_pos, "variable hasn't been initialized"))?
         .crocoi(codegen)?
         .into_symbol(code_pos)?
         .into_primitive()

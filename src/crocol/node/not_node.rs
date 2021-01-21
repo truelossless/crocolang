@@ -19,7 +19,7 @@ impl CrocolNode for NotNode {
             .unwrap()
             .crocol(codegen)?
             .into_symbol(codegen, &self.code_pos)?
-            .into_bool()
+            .into_bool(&self.code_pos)
             .map_err(|_| CrocoError::invert_error(&self.code_pos))?;
 
         let not_value =

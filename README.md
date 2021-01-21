@@ -8,7 +8,7 @@ You can see some examples of the syntax below :)
 Other simple examples can be seen under the `tests` folder.
 For the partial spec and even more examples, see [here](SPEC.md).
 
-Feel free to fill issues and open pull requests !!
+Feel free to fill issues and open pull requests!!
 
 The lexer and parser are backend-agnostic, which means it should be easy to add all types of backends.  
 Currently there is a interpreter backend (crocoi), and an LLVM backend (crocol).
@@ -35,7 +35,7 @@ If you still have some trouble, you can look at the CI file `.github/workflows/c
 ## Using croco
 
 You probably want to put the crocoi/crocol executable in your path.  
-Once it's done, you can use do `crocoi myfile.croco` in your favorite shell to run your myfile with the croco interpreter !
+Once it's done, you can use do `crocoi myfile.croco` in your favorite shell to run your myfile with the croco interpreter!
 
 ```
 $ crocoi --help
@@ -70,7 +70,7 @@ Optional arguments:
 
 ## Examples
 
-Fibonacci (quite slow but it works !!!)
+Fibonacci (quite slow but it works!!!)
 
 ```croco
 fn fib(n num) num {
@@ -165,7 +165,7 @@ pi is a big number
 User-agent: *
 Disallow: /
 
-Assertion failed !
+Assertion failed!
 ```
 
 ## Benchmarks
@@ -174,6 +174,8 @@ The code for the benchmarks can be found under `benchmarks/`
 
 The interesting bits is the relative performance to other languages.  
 _Processor: i7 6700HQ, released in September 2015_
+
+### Crocoi
 
 ```
 $ time node bench_name.js
@@ -184,16 +186,85 @@ $ time crocoi bench_name.croco
 | benchmark name      | node  | python | crocoi |
 |---------------------|-------|--------|--------|
 | rec fibonacci, n=30 | 200ms | 400ms  | 13s    |
-| loop, n=1000000     | 230ms | 236ms  | 850ms  |
+| loop, n=1000000     | 230ms | 230ms  | 850ms  |
 
 We're getting there :D  
 Crocoi is fully interpreted, so it's normal that it's way slower than Node, which is basically a VM.  
-However, it should be closer to python performance, but it's clear that there's still a long way to go !
-Apparently Python doesn't do any tail call optimization for recursive functions, so it's weird that croco is THAT slow with fibonacci. Actually Python is jitted so that's probably why.
+However, it should be closer to python performance, but it's clear that there's still a long way to go!
+Apparently Python doesn't do any tail call optimization for recursive functions, so it's weird that croco is THAT slow with fibonacci.
 
-### Where are the performance culprits ?
+### Crocol
 
-- A lot of clone calls :S I plan to further profile performance later.
+```
+$ time clang bench_name.c -O3
+$ time ./a.out
+$ time crocol bench_name.croco -O3
+$ time ./bench_name
+```
+
+**Execution speed**
+
+| benchmark name      | clang  | crocol |
+|---------------------|--------|--------|
+| rec fibonacci, n=45 | 4500ms | 7400ms |
+
+These results are pretty good !  
+The only thing slowing crocol is that we are doing floating point arithmetics for the moment.  
+The result is also less precise.
+
+**Compilation time (after warmup)**
+
+| benchmark name      | clang | crocol |
+|---------------------|-------|--------|
+| rec fibonacci, n=40 | 250ms | 500ms  |
+
+**LLVM IR differences**
+
+`clang fib.c -O3 -emit-llvm -S`
+```
+; Function Attrs: nounwind readnone uwtable
+define dso_local i32 @fib(i32 %0) local_unnamed_addr #0 {
+  %2 = icmp slt i32 %0, 2
+  br i1 %2, label %11, label %3
+
+3:                                                ; preds = %1, %3
+  %4 = phi i32 [ %8, %3 ], [ %0, %1 ]
+  %5 = phi i32 [ %9, %3 ], [ 0, %1 ]
+  %6 = add nsw i32 %4, -1
+  %7 = tail call i32 @fib(i32 %6)
+  %8 = add nsw i32 %4, -2
+  %9 = add nsw i32 %7, %5
+  %10 = icmp slt i32 %4, 4
+  br i1 %10, label %11, label %3
+
+11:                                               ; preds = %3, %1
+  %12 = phi i32 [ 0, %1 ], [ %9, %3 ]
+  %13 = phi i32 [ %0, %1 ], [ %8, %3 ]
+  %14 = add nsw i32 %13, %12
+  ret i32 %14
+}
+```
+
+`crocol fib.croco -O3 --emit-llvm`
+```
+; Function Attrs: nounwind readnone
+define float @fib(float %0) local_unnamed_addr #8 {
+entry:
+  %cmpnum = fcmp ugt float %0, 1.000000e+00
+  br i1 %cmpnum, label %endif, label %then
+
+then:                                             ; preds = %entry
+  ret float %0
+
+endif:                                            ; preds = %entry
+  %sub = fadd float %0, -1.000000e+00
+  %callfn = tail call float @fib(float %sub)
+  %sub3 = fadd float %0, -2.000000e+00
+  %callfn4 = tail call float @fib(float %sub3)
+  %add = fadd float %callfn, %callfn4
+  ret float %add
+}
+```
 
 ## IDE support
 

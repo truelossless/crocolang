@@ -44,6 +44,13 @@ impl CrocolNode for BlockNode {
             BlockScope::Keep => (),
         }
 
-        Ok(LNodeResult::Void)
+        // if there's an early return in this block report it.
+        // TODO: less hacky way to do this.
+        // maybe have an exit block ? how would it solve this issue ?
+        if early_return {
+            Ok(LNodeResult::Return(None))
+        } else {
+            Ok(LNodeResult::Void)
+        }
     }
 }

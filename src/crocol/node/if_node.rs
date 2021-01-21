@@ -71,8 +71,15 @@ impl CrocolNode for IfNode {
 
             // populate the new then block
             codegen.builder.position_at_end(then_block);
-            body.crocol(codegen)?;
-            codegen.builder.build_unconditional_branch(endif_block);
+
+            // llvm doesn't like when two terminators are in the same block.
+            // if we have a early return, we don't want to build a branch.
+            match body.crocol(codegen)? {
+                LNodeResult::Return(None) => (),
+                _ => {
+                    codegen.builder.build_unconditional_branch(endif_block);
+                }
+            }
 
             // populate the new if block
             codegen.builder.position_at_end(if_block);

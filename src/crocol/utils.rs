@@ -8,11 +8,12 @@ use crate::{
 
 use inkwell::{
     types::{BasicType, BasicTypeEnum},
+    values::FunctionValue,
     AddressSpace,
 };
 use std::{path::Path, vec};
 
-/// get the llvm type corresponding to a SymbolType
+/// Gets the llvm type corresponding to a SymbolType
 pub fn get_llvm_type<'ctx>(
     symbol_type: &SymbolType,
     codegen: &LCodegen<'ctx>,
@@ -54,6 +55,7 @@ pub fn get_llvm_type<'ctx>(
     }
 }
 
+/// Default initializes a symbol
 pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &LCodegen<'ctx>) {
     // we're guarenteed to have a pointer here
     let ptr = init_symbol.value.into_pointer_value();
@@ -133,6 +135,50 @@ pub fn strip_ext(file: &str) -> &str {
         .unwrap_or_else(|| file.as_ref())
         .to_str()
         .unwrap()
+}
+
+/// Returns the inkwell function if it exists, or create one according to the croco function definition
+pub fn get_or_define_function<'ctx>(
+    fn_name: &str,
+    fn_decl: &FunctionDecl,
+    codegen: &LCodegen<'ctx>,
+) -> FunctionValue<'ctx> {
+    codegen.module.get_function(fn_name).unwrap_or_else(|| {
+        // create a new llvm function
+
+        // convert the arguments to llvm
+        // to comply with the "C ABI", fn(Struct a) is changed to fn(&Struct a)
+        let mut llvm_args = Vec::with_capacity(fn_decl.args.len());
+        for arg in fn_decl.args.iter() {
+            let llvm_arg = match arg.arg_type {
+                SymbolType::Str => codegen.str_type.ptr_type(AddressSpace::Generic).into(),
+                SymbolType::Num | SymbolType::Bool => get_llvm_type(&arg.arg_type, codegen),
+                _ => unimplemented!(),
+            };
+
+            llvm_args.push(llvm_arg);
+        }
+
+        // if the return type is a struct, pass as the first argument a pointer to this struct which
+        // will contain the result of the function.
+        let fn_ty = match &fn_decl.return_type {
+            Some(SymbolType::Str) => {
+                llvm_args.insert(0, codegen.str_type.ptr_type(AddressSpace::Generic).into());
+                codegen.context.void_type().fn_type(&llvm_args, false)
+            }
+
+            Some(SymbolType::Bool) | Some(SymbolType::Num) => {
+                let ret_ty = get_llvm_type(&fn_decl.return_type.as_ref().unwrap(), codegen);
+                ret_ty.fn_type(&llvm_args, false)
+            }
+
+            None => codegen.context.void_type().fn_type(&llvm_args, false),
+
+            _ => unimplemented!(),
+        };
+
+        codegen.module.add_function(fn_name, fn_ty, None)
+    })
 }
 
 /// Inserts all the function definitions from the crocol std

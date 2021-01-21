@@ -10,11 +10,14 @@ pub use self::symbol::INodeResult;
 pub use self::symbol::ISymbol;
 
 use crate::ast::{node::FunctionCallNode, AstNode};
-use crate::error::{CrocoError, CrocoErrorKind};
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::symbol::SymTable;
 use crate::token::CodePos;
+use crate::{
+    error::{CrocoError, CrocoErrorKind},
+    symbol::Decl,
+};
 use std::{collections::HashMap, fs};
 
 #[clonable]
@@ -91,6 +94,21 @@ impl Crocoi {
 
         // import the builtin library
         import_builtin_module(&mut codegen, "global");
+
+        // import all the declarations found by the parser
+        for (fn_name, fn_decl) in parser.take_fn_decls() {
+            codegen
+                .symtable
+                .register_decl(fn_name, Decl::FunctionDecl(fn_decl))
+                .map_err(|e| CrocoError::from_type(e, CrocoErrorKind::Runtime))?;
+        }
+
+        for (struct_name, struct_decl) in parser.take_struct_decls() {
+            codegen
+                .symtable
+                .register_decl(struct_name, Decl::StructDecl(struct_decl))
+                .unwrap();
+        }
 
         // println!("symbol tables: {:?}", self.symtable);
         if let Err(mut e) = tree.crocoi(&mut codegen) {

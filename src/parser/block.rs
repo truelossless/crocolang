@@ -1,9 +1,11 @@
 use super::{ExprParsingType::*, Parser};
 
-use crate::ast::{node::*, BackendNode};
 use crate::ast::{AstNode, BlockScope};
 use crate::error::CrocoError;
-use crate::symbol::FunctionDecl;
+use crate::{
+    ast::{node::*, BackendNode},
+    symbol::StructDecl,
+};
 use crate::{
     symbol_type::SymbolType,
     token::{CodePos, KeywordEnum::*, OperatorEnum::*, SeparatorEnum::*, Token, Token::*},
@@ -171,7 +173,7 @@ impl Parser {
                         ));
                     }
 
-                    let identifier = self.expect_identifier(
+                    let struct_name = self.expect_identifier(
                         iter,
                         "expected the struct name after struct declaration",
                     )?;
@@ -183,8 +185,7 @@ impl Parser {
                     )?;
 
                     let mut fields: BTreeMap<String, SymbolType> = BTreeMap::new();
-                    let mut methods: HashMap<String, (FunctionDecl, Box<dyn BackendNode>)> =
-                        HashMap::new();
+                    let mut methods: HashMap<String, Box<dyn BackendNode>> = HashMap::new();
 
                     loop {
                         self.discard_newlines(iter);
@@ -192,8 +193,8 @@ impl Parser {
                         match self.next_token(iter) {
                             // struct method
                             Keyword(Function) => {
-                                let (method_name, method_decl, method_body) =
-                                    self.parse_function_decl(iter)?;
+                                let (method_name, method_body) =
+                                    self.parse_function_decl(iter, Some(struct_name.name.clone()))?;
 
                                 // check if the method name isn't already a field name
                                 if methods.contains_key(&method_name) {
@@ -203,10 +204,7 @@ impl Parser {
                                     ));
                                 }
 
-                                if methods
-                                    .insert(method_name.clone(), (method_decl, method_body))
-                                    .is_some()
-                                {
+                                if methods.insert(method_name.clone(), method_body).is_some() {
                                     return Err(CrocoError::new(
                                         &self.token_pos,
                                         &format!("duplicate field {} in struct", method_name),
@@ -245,9 +243,11 @@ impl Parser {
                         }
                     }
 
+                    // register the struct declaration
+                    self.register_struct_decl(&struct_name.name, StructDecl { fields })?;
+
                     block.add_child(Box::new(StructDeclNode::new(
-                        identifier.name,
-                        fields,
+                        struct_name.name,
                         methods,
                         self.token_pos.clone(),
                     )));
@@ -264,10 +264,10 @@ impl Parser {
                         ));
                     }
 
-                    let (fn_name, fn_decl, fn_body) = self.parse_function_decl(iter)?;
+                    let (fn_name, fn_body) = self.parse_function_decl(iter, None)?;
 
                     let fn_decl_node =
-                        FunctionDeclNode::new(fn_name, fn_decl, fn_body, self.token_pos.clone());
+                        FunctionDeclNode::new(fn_name, fn_body, self.token_pos.clone());
 
                     // we can't use `prepend_child()` for now because it is hard for crocol
                     // to use forward dedclarations.

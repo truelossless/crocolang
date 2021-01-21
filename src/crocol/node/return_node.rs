@@ -1,8 +1,8 @@
-use crate::error::CrocoError;
 use crate::{
     ast::node::ReturnNode,
     crocol::{CrocolNode, LCodegen, LNodeResult},
 };
+use crate::{crocol::LSymbol, error::CrocoError};
 
 impl CrocolNode for ReturnNode {
     fn crocol<'ctx>(
@@ -23,13 +23,17 @@ impl CrocolNode for ReturnNode {
             LNodeResult::Variable(var) => {
                 let val = codegen
                     .builder
-                    .build_load(var.value.into_pointer_value(), "loadsret");
+                    .build_load(var.value.into_pointer_value(), "loadret");
+
                 // if we have a struct return, update the pointer and return void
                 if let Some(sret_ptr) = codegen.sret_ptr {
                     codegen.builder.build_store(sret_ptr, val);
                     Ok(LNodeResult::Return(None))
                 } else {
-                    Ok(LNodeResult::Return(Some(var)))
+                    Ok(LNodeResult::Return(Some(LSymbol {
+                        value: val,
+                        symbol_type: var.symbol_type,
+                    })))
                 }
             }
 

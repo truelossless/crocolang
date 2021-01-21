@@ -30,7 +30,7 @@ impl CrocolNode for PlusNode {
 
                 let res = codegen
                     .builder
-                    .build_float_add(left_float, right_float, "tmpadd");
+                    .build_float_add(left_float, right_float, "add");
 
                 Ok(LNodeResult::Value(LSymbol {
                     value: res.into(),
@@ -106,7 +106,7 @@ impl CrocolNode for PlusNode {
 
                 // copy the first str into our new str
                 // FOR SOME REASON MEMCPY DOESN'T WORK BUT MEMMOVE WORKS,
-                // EVEN IF OUR STRINGS AREN'T OVERLAPPING !!
+                // EVEN IF OUR STRINGS AREN'T OVERLAPPING!!
                 codegen
                     .builder
                     .build_memmove(

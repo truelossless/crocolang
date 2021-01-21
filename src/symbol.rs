@@ -135,12 +135,13 @@ impl<T: Clone + fmt::Debug> SymTable<T> {
         }
     }
 
-    /// Registers a function or struct declaration
+    /// Registers a function, struct, or global variable declaration
     pub fn register_decl(&mut self, var_name: String, decl: Decl<T>) -> Result<(), String> {
-        let res = self.top_level.insert(var_name, decl);
-
-        if res.is_some() {
-            Err("struct or function already declared with the same name".to_owned())
+        if self.top_level.insert(var_name.clone(), decl).is_some() {
+            Err(format!(
+                "built-in function already declared with the name {}",
+                var_name
+            ))
         } else {
             Ok(())
         }

@@ -1,13 +1,13 @@
 fn main() {
-    let a = "youpi !"
+    let a = "youpi!"
     let b = a
 
     b = "yay !"
 
-    assert(a == "youpi !")
+    assert(a == "youpi!")
 
     let c = &a
-    *c = "yeehaw !"
+    *c = "yeehaw!"
 
-    assert(a == "yeehaw !")
+    assert(a == "yeehaw!")
 }
