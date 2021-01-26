@@ -1,33 +1,36 @@
-// References tests
+use crate::{test_file_err, test_file_ok, CROCOI};
 
-use croco::Crocoi;
+// References tests
 
 #[test]
 fn it_assigns_correctly() {
-    let mut interpreter = Crocoi::new();
+    test_file_ok(
+        "tests/references/it_assigns_correctly/basic_reference.croco",
+        CROCOI,
+    );
+    test_file_ok(
+        "tests/references/it_assigns_correctly/mut_reference.croco",
+        CROCOI,
+    );
+    test_file_ok(
+        "tests/references/it_assigns_correctly/correct_mut.croco",
+        CROCOI,
+    );
+    test_file_ok(
+        "tests/references/it_assigns_correctly/deref_ref.croco",
+        CROCOI,
+    );
 
-    assert!(interpreter
-        .exec_file("tests/references/it_assigns_correctly/basic_reference.croco")
-        .is_ok());
-    assert!(interpreter
-        .exec_file("tests/references/it_assigns_correctly/mut_reference.croco")
-        .is_ok());
-    assert!(interpreter
-        .exec_file("tests/references/it_assigns_correctly/correct_mut.croco")
-        .is_ok());
-    assert!(interpreter
-        .exec_file("tests/references/it_assigns_correctly/deref_ref.croco")
-        .is_ok());
-    assert!(interpreter
-        .exec_file("tests/references/it_assigns_correctly/deref_ref_err.croco")
-        .is_err());
+    test_file_err(
+        "tests/references/it_assigns_correctly/deref_ref_err.croco",
+        CROCOI,
+    );
 }
 
 #[test]
 fn it_auto_dereferences() {
-    let mut interpreter = Crocoi::new();
-
-    assert!(interpreter
-        .exec_file("tests/references/it_auto_dereferences/auto_dereference.croco")
-        .is_ok());
+    test_file_ok(
+        "tests/references/it_auto_dereferences/auto_dereference.croco",
+        CROCOI,
+    );
 }

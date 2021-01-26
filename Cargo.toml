@@ -14,12 +14,12 @@ gumdrop = "0.8.0" # lighter alternative to clap
 inkwell = {git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm11-0"], optional = true}
 libc = {version = "0.2.81", optional = true} 
 unicode-segmentation = "1.7.1" 
-ureq = {version = "1.5.4", default-features = false, features = ["native-tls"]} # lighter alternative to reqwest  
+ureq = {version = "1.5.4", default-features = false, features = ["native-tls"], optional = true} # lighter alternative to reqwest  
 
 [features]
-crocoi = [] # the croco interpreter backend
+crocoi = ["ureq"] # the croco interpreter backend
 crocol = ["inkwell", "libc", "cc"] # the croco llvm backend
-default = ["crocol", "crocoi"]
+default = ["crocoi", "crocol"]
 
 [lib]
 name = "croco"

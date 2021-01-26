@@ -5,7 +5,6 @@ mod primitives;
 mod references;
 mod structs;
 
-use croco::{Crocoi, Crocol};
 use std::process::Command;
 
 pub enum Backend {
@@ -13,7 +12,7 @@ pub enum Backend {
     Crocol,
 }
 
-pub const CROCOI: &[Backend] = &[Backend::Crocoi];
+pub const CROCOI: &[Backend] = &[];
 pub const ALL_BACKENDS: &[Backend] = &[Backend::Crocoi, Backend::Crocol];
 
 pub fn test_file_ok(path: &str, backends: &[Backend]) {
@@ -26,9 +25,11 @@ pub fn test_file_err(path: &str, backends: &[Backend]) {
 
 fn test_file(path: &str, backends: &[Backend], should_succeed: bool) {
     for backend in backends {
+        #[allow(clippy::clippy::single_match)]
         match backend {
+            #[cfg(feature = "crocoi")]
             Backend::Crocoi => {
-                let mut crocoi = Crocoi::new();
+                let mut crocoi = croco::Crocoi::new();
                 let res = crocoi.exec_file(path);
 
                 if should_succeed {
@@ -38,9 +39,10 @@ fn test_file(path: &str, backends: &[Backend], should_succeed: bool) {
                 }
             }
 
+            #[cfg(feature = "crocol")]
             Backend::Crocol => {
                 let tmp_exe_path = format!("{}tmp", path);
-                let mut crocol = Crocol::new();
+                let mut crocol = croco::Crocol::new();
                 crocol.set_output(tmp_exe_path.clone());
                 let comp_res = crocol.exec_file(path);
 
@@ -62,6 +64,11 @@ fn test_file(path: &str, backends: &[Backend], should_succeed: bool) {
                     }
                 }
             }
+
+            // this is hit if we try to execute one backend-specific test when
+            // the feature flag for that backend isn't enabled. Just pass the test.
+            #[allow(unreachable_patterns)]
+            _ => (),
         }
     }
 }

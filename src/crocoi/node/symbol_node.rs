@@ -1,4 +1,4 @@
-use crate::{ast::AstNode, crocoi::CrocoiNode, crocol::CrocolNode};
+use crate::{ast::AstNode, crocoi::CrocoiNode};
 use crate::{ast::BackendNode, error::CrocoError};
 use crate::{
     crocoi::{symbol::ISymbol, ICodegen, INodeResult},
@@ -25,7 +25,7 @@ impl AstNode for SymbolNode {}
 impl BackendNode for SymbolNode {}
 
 #[cfg(feature = "crocol")]
-impl CrocolNode for SymbolNode {} // required for BackendNode
+impl crate::crocol::CrocolNode for SymbolNode {} // required for BackendNode
 
 impl CrocoiNode for SymbolNode {
     fn crocoi(&mut self, _codegen: &mut ICodegen) -> Result<INodeResult, CrocoError> {

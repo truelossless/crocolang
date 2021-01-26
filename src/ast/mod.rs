@@ -1,7 +1,7 @@
 pub mod node;
 
+use crate::error::CrocoError;
 use crate::token::CodePos;
-use crate::{crocoi::CrocoiNode, crocol::CrocolNode, error::CrocoError};
 use dyn_clonable::*;
 
 /// A trait used to build node trait objects
@@ -29,15 +29,15 @@ pub trait AstNode: Clone {
 // relevant issue: https://github.com/rust-lang/rfcs/issues/2035
 #[cfg(all(feature = "crocoi", feature = "crocol"))]
 #[clonable]
-pub trait BackendNode: CrocoiNode + CrocolNode + Clone {}
+pub trait BackendNode: crate::crocoi::CrocoiNode + crate::crocol::CrocolNode + Clone {}
 
 #[cfg(all(feature = "crocoi", not(feature = "crocol")))]
 #[clonable]
-pub trait BackendNode: CrocoiNode + Clone {}
+pub trait BackendNode: crate::crocoi::CrocoiNode + Clone {}
 
 #[cfg(all(feature = "crocol", not(feature = "crocoi")))]
 #[clonable]
-pub trait BackendNode: CrocolNode + Clone {}
+pub trait BackendNode: crate::crocol::CrocolNode + Clone {}
 
 #[derive(Clone, Debug)]
 /// The result of a node

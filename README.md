@@ -2,7 +2,7 @@
 
 ![ci](https://github.com/truelossless/crocolang/workflows/ci/badge.svg)
 
-Croco is a small and fun-to-use language written in Rust.
+Croco is a small and fun-to-use programming language written in Rust.
 
 You can see some examples of the syntax below :)  
 Other simple examples can be seen under the `tests` folder.
@@ -20,7 +20,9 @@ Croco is automatically built for Windows, MacOS and Linux, for each Git commit.
 
 ## Building croco
 
-Building Croco can be a little bit tough because it relies on LLVM and Clang.  
+### Building all backends
+
+Building the crocol backend can be a little bit tough because it relies on LLVM and Clang.  
 
 Download Clang and make sure it's available in your path.  
 Build LLVM 11 from source and set the environment variable `LLVM_SYS_110_PREFIX` to your LLVM folder.  
@@ -28,6 +30,14 @@ Clone this repository and then run
 
 ```bash
 cargo build --release
+```
+
+### Building the crocoi interpreter only
+
+If you only want to use the crocoi backend, there is no setup.
+
+```bash
+cargo build --release --no-default-features --features crocoi 
 ```
 
 If you still have some trouble, you can look at the CI file `.github/workflows/ci.yml` for a step by step walkthrough on MacOS, Ubuntu and Windows.
@@ -268,4 +278,4 @@ endif:                                            ; preds = %entry
 
 ## IDE support
 
-I made a Visual Studio code extension that adds basic syntax highlighting. It is available under the `croco-0.0.3.vsix` file. Follow [these instructions for the installation](https://marketplace.visualstudio.com/items?itemName=fabiospampinato.vscode-install-vsix).
+I made a Visual Studio Code extension that adds basic syntax highlighting. It is available under the `croco-0.0.3.vsix` file.
