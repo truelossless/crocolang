@@ -1,4 +1,5 @@
 use inkwell::{
+    attributes::{Attribute, AttributeLoc},
     builder::Builder,
     context::Context,
     module::Module,
@@ -9,9 +10,12 @@ use inkwell::{
     AddressSpace,
 };
 
-use crate::token::CodePos;
+use crate::crocol::utils::get_or_define_function;
+use crate::{ast::BackendNode, token::CodePos};
 use crate::{ast::NodeResult, symbol_type::SymbolType};
 use crate::{error::CrocoError, symbol::SymTable};
+
+use super::utils::get_or_define_struct;
 
 // I'll be using a simple struct as in the README example for now
 // https://github.com/TheDan64/inkwell/blob/master/README.md
@@ -56,6 +60,99 @@ impl<'ctx> LCodegen<'ctx> {
         }
     }
 
+    /// Builds a function from an AST node
+    pub fn build_function(
+        &mut self,
+        fn_name: &str,
+        mut fn_body: Box<dyn BackendNode>,
+        code_pos: &CodePos,
+    ) -> Result<(), CrocoError> {
+        let fn_decl = self.symtable.get_function_decl(fn_name).unwrap().clone();
+
+        // we're done with the current variables
+        self.symtable.pop_symbols();
+
+        let function = get_or_define_function(fn_name, &fn_decl, self);
+        let sret_fn =
+            matches!(fn_decl.return_type, Some(SymbolType::Struct(_)) | Some(SymbolType::Str));
+
+        // add the sret tag to the first param if needed
+        if sret_fn {
+            self.sret_ptr = Some(function.get_first_param().unwrap().into_pointer_value());
+            let sret_num = Attribute::get_named_enum_kind_id("sret");
+            let sret_attr = self.context.create_enum_attribute(sret_num, 0);
+            function.add_attribute(AttributeLoc::Param(0), sret_attr);
+        } else {
+            self.sret_ptr = None
+        }
+
+        // the start of the function
+        let entry = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry);
+
+        // in case of a function returning a struct, skip the first param which is the return value
+        let args_iter = if sret_fn {
+            fn_decl.args.iter().zip(function.get_param_iter().skip(1))
+        } else {
+            // skip 0 so both iters have the same type
+            fn_decl.args.iter().zip(function.get_param_iter().skip(0))
+        };
+
+        self.current_fn = Some(function);
+
+        // inject the function arguments in the body
+        for (arg, param_value) in args_iter {
+            // to comply with the "C ABI", fn(Struct a) is changed to fn(&Struct a)
+            // this means we need to add a memcpy in the function body.
+            let abi_ptr = match &arg.arg_type {
+                // TODO: copy correctly heap allocated memory
+                SymbolType::Str | SymbolType::Struct(_) => {
+                    let ty = if let SymbolType::Struct(struct_name) = &arg.arg_type {
+                        let struct_ty = self
+                            .symtable
+                            .get_struct_decl(struct_name)
+                            .map_err(|e| CrocoError::new(code_pos, e))?;
+                        get_or_define_struct(struct_name, &struct_ty, self)
+                    } else {
+                        self.str_type
+                    };
+
+                    let copy_alloca = self.create_block_alloca(ty.into(), "copy");
+
+                    self.builder
+                        .build_memcpy(
+                            copy_alloca,
+                            8,
+                            param_value.into_pointer_value(),
+                            8,
+                            ty.size_of().unwrap(),
+                        )
+                        .unwrap();
+                    copy_alloca
+                }
+                SymbolType::Bool | SymbolType::Num | SymbolType::Ref(_) => {
+                    let param_ptr = self.create_block_alloca(param_value.get_type(), "param");
+                    self.builder.build_store(param_ptr, param_value);
+                    param_ptr
+                }
+                _ => unimplemented!(),
+            };
+
+            let symbol = LSymbol {
+                symbol_type: arg.arg_type.clone(),
+                value: abi_ptr.into(),
+            };
+            self.symtable
+                .insert_symbol(&arg.arg_name, symbol)
+                .map_err(|e| CrocoError::new(&code_pos, e))?;
+        }
+
+        fn_body.crocol(self)?;
+
+        Ok(())
+    }
+
+    /// Allocates a CrocStr given a specific text
     pub fn alloc_str(&self, text: &str) -> PointerValue<'ctx> {
         // get the string as an llvm i8 array
         let char_array = self.context.const_string(text.as_bytes(), false);
@@ -96,14 +193,6 @@ impl<'ctx> LCodegen<'ctx> {
         self.builder.build_store(max_len_ptr, str_len);
 
         alloca
-    }
-
-    /// Dereferences a pointer if needed, or returns the corresponding enum
-    pub fn auto_deref(&self, value: BasicValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
-        match value {
-            BasicValueEnum::PointerValue(p) => self.builder.build_load(p, "loadautoderef"),
-            value => value,
-        }
     }
 }
 
@@ -166,11 +255,17 @@ impl<'ctx> LNodeResult<'ctx> {
         self,
         codegen: &LCodegen<'ctx>,
         code_pos: &CodePos,
-    ) -> Result<PointerValue<'ctx>, CrocoError> {
+    ) -> Result<LSymbol<'ctx>, CrocoError> {
         match self {
-            LNodeResult::Variable(var) => Ok(var.value.into_pointer_value()),
+            LNodeResult::Variable(var) => Ok(var),
             LNodeResult::Value(val) => {
-                Ok(codegen.create_block_alloca(val.value.get_type(), "storeval"))
+                let alloca = codegen.create_block_alloca(val.value.get_type(), "storeval");
+                codegen.builder.build_store(alloca, val.value);
+
+                Ok(LSymbol {
+                    value: alloca.into(),
+                    symbol_type: val.symbol_type,
+                })
             }
             _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)),
         }

@@ -2,16 +2,30 @@ use crate::{
     crocol::{symbol::LSymTable, LCodegen, LSymbol},
     parser::TypedArg,
     symbol::Decl,
-    symbol::FunctionDecl,
+    symbol::{FunctionDecl, StructDecl},
     symbol_type::SymbolType,
 };
 
 use inkwell::{
-    types::{BasicType, BasicTypeEnum},
+    types::{BasicType, BasicTypeEnum, StructType},
     values::FunctionValue,
     AddressSpace,
 };
 use std::{path::Path, vec};
+
+/// Auto dereferences as many times as needed  
+pub fn auto_deref<'ctx>(mut symbol: LSymbol<'ctx>, codegen: &LCodegen<'ctx>) -> LSymbol<'ctx> {
+    while let SymbolType::Ref(r) = symbol.symbol_type {
+        symbol = LSymbol {
+            value: codegen
+                .builder
+                .build_load(symbol.value.into_pointer_value(), "autoderef"),
+            symbol_type: *r,
+        };
+    }
+
+    symbol
+}
 
 /// Gets the llvm type corresponding to a SymbolType
 pub fn get_llvm_type<'ctx>(
@@ -42,14 +56,7 @@ pub fn get_llvm_type<'ctx>(
         SymbolType::Map(_, _) => todo!(),
         SymbolType::Struct(s) => {
             let struct_decl = codegen.symtable.get_struct_decl(s).unwrap();
-
-            let mut field_types = Vec::with_capacity(struct_decl.fields.len());
-
-            for field in struct_decl.fields.values() {
-                field_types.push(get_llvm_type(field, codegen));
-            }
-
-            codegen.context.struct_type(&field_types, false).into()
+            get_or_define_struct(s, struct_decl, codegen).into()
         }
         SymbolType::CrocoType => unreachable!(),
     }
@@ -151,8 +158,12 @@ pub fn get_or_define_function<'ctx>(
         let mut llvm_args = Vec::with_capacity(fn_decl.args.len());
         for arg in fn_decl.args.iter() {
             let llvm_arg = match arg.arg_type {
-                SymbolType::Str => codegen.str_type.ptr_type(AddressSpace::Generic).into(),
-                SymbolType::Num | SymbolType::Bool => get_llvm_type(&arg.arg_type, codegen),
+                SymbolType::Str | SymbolType::Struct(_) => get_llvm_type(&arg.arg_type, codegen)
+                    .ptr_type(AddressSpace::Generic)
+                    .into(),
+                SymbolType::Num | SymbolType::Bool | SymbolType::Ref(_) => {
+                    get_llvm_type(&arg.arg_type, codegen)
+                }
                 _ => unimplemented!(),
             };
 
@@ -162,8 +173,13 @@ pub fn get_or_define_function<'ctx>(
         // if the return type is a struct, pass as the first argument a pointer to this struct which
         // will contain the result of the function.
         let fn_ty = match &fn_decl.return_type {
-            Some(SymbolType::Str) => {
-                llvm_args.insert(0, codegen.str_type.ptr_type(AddressSpace::Generic).into());
+            Some(SymbolType::Str) | Some(SymbolType::Struct(_)) => {
+                llvm_args.insert(
+                    0,
+                    get_llvm_type(&fn_decl.return_type.as_ref().unwrap(), codegen)
+                        .ptr_type(AddressSpace::Generic)
+                        .into(),
+                );
                 codegen.context.void_type().fn_type(&llvm_args, false)
             }
 
@@ -181,6 +197,28 @@ pub fn get_or_define_function<'ctx>(
     })
 }
 
+pub fn get_or_define_struct<'ctx>(
+    struct_name: &str,
+    struct_decl: &StructDecl,
+    codegen: &LCodegen<'ctx>,
+) -> StructType<'ctx> {
+    codegen
+        .module
+        .get_struct_type(struct_name)
+        .unwrap_or_else(|| {
+            let opaque = codegen.context.opaque_struct_type(&struct_name);
+
+            let llvm_fields: Vec<_> = struct_decl
+                .fields
+                .values()
+                .map(|x| get_llvm_type(x, codegen))
+                .collect();
+
+            opaque.set_body(&llvm_fields, false);
+
+            opaque
+        })
+}
 /// Inserts all the function definitions from the crocol std
 pub fn insert_builtin_functions<'ctx>(symtable: &mut LSymTable<'ctx>) {
     let assert_decl = FunctionDecl {

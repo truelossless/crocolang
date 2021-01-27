@@ -35,7 +35,7 @@ impl Parser {
         let mut typed_args = if let Some(struct_name) = struct_name {
             vec![TypedArg {
                 arg_name: "self".to_owned(),
-                arg_type: SymbolType::Struct(struct_name),
+                arg_type: SymbolType::Ref(Box::new(SymbolType::Struct(struct_name))),
             }]
         } else {
             Vec::new()

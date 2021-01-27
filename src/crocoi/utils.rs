@@ -38,7 +38,7 @@ pub fn get_number_value(
     }
 }
 
-/// auto deref if we have a Ref
+/// Auto dereferences as many times as needed  
 /// e.g (&a).foo -> a.foo
 pub fn auto_deref(mut symbol: ISymbol) -> ISymbol {
     loop {

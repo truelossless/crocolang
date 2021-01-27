@@ -150,7 +150,10 @@ void eprintln(CrocoStr string)
 /**
   Prints to stdout
 */
-void print(CrocoStr string) { printf("%.*s", (int)string.len, string.ptr); }
+void print(CrocoStr string)
+{
+  printf("%.*s", (int)string.len, string.ptr);
+}
 
 /**
   Prints to stdout with a line feed
@@ -158,9 +161,4 @@ void print(CrocoStr string) { printf("%.*s", (int)string.len, string.ptr); }
 void println(CrocoStr string)
 {
   printf("%.*s\n", (int)string.len, string.ptr);
-}
-
-CrocoStr tst(CrocoStr str1)
-{
-  return str1;
 }

@@ -2,14 +2,13 @@ struct Person {
     name str
 }
 
-let person = Person {
-    name: "Karl"
-}
 
 fn main() {
+    let person = Person {
+        name: "Karl"
+    }
+    
     assert(person.name == "Karl")
-
     person.name = "Mike"
-
     assert(person.name == "Mike")
 }

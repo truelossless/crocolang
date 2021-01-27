@@ -433,7 +433,7 @@ impl Parser {
                 Separator(NewLine) => {
                     self.next_token(iter);
                 }
-                // TODO: impl line numbers / rows
+
                 el => {
                     return Err(CrocoError::new(
                         &self.token_pos,

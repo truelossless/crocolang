@@ -117,6 +117,13 @@ impl ISymbol {
             _ => Err("expected a type"),
         }
     }
+
+    pub fn get_ref(&self) -> Rc<RefCell<ISymbol>> {
+        match self {
+            ISymbol::Ref(r) => r.clone(),
+            _ => panic!("expected a reference"),
+        }
+    }
 }
 
 /// convenience type
@@ -172,23 +179,12 @@ impl INodeResult {
         }
     }
 
-    /// Returns the ISymbol behind a Value, or a transforms a Variable into a Value(ISymbol::Ref())
-    pub fn into_value_or_var_ref(self, code_pos: &CodePos) -> Result<ISymbol, CrocoError> {
-        match self {
-            INodeResult::Variable(var) => Ok(ISymbol::Ref(var)),
-            INodeResult::Value(val) => Ok(val),
-            _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)),
-        }
-    }
-
-    /// transforms a Variable to a Value(ISymbol::Ref())
+    /// Returns a reference of a value, or transforms a variable into a reference value
     pub fn into_var_ref(self, code_pos: &CodePos) -> Result<ISymbol, CrocoError> {
         match self {
             INodeResult::Variable(var) => Ok(ISymbol::Ref(var)),
-            _ => Err(CrocoError::new(
-                code_pos,
-                "expected a reference to a variable",
-            )),
+            INodeResult::Value(val) => Ok(ISymbol::Ref(Rc::new(RefCell::new(val)))),
+            _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)),
         }
     }
 }

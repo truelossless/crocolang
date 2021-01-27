@@ -39,10 +39,7 @@ impl CrocoiNode for StructCreateNode {
                     let field_val = field.crocoi(codegen)?.into_value(&self.code_pos)?;
 
                     if field_decl.1 != get_symbol_type(&field_val) {
-                        return Err(CrocoError::new(
-                            &self.code_pos,
-                            &format!("field {} is not of the right type", field_decl.0),
-                        ));
+                        return Err(CrocoError::field_type_error(&field_decl.0, &self.code_pos));
                     }
 
                     Rc::new(RefCell::new(field_val))

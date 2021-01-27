@@ -19,12 +19,7 @@ impl CrocoiNode for DotFieldNode {
             ISymbol::Struct(s) => s
                 .fields
                 .get(&self.field_name)
-                .ok_or_else(|| {
-                    CrocoError::new(
-                        &self.code_pos,
-                        format!("no field with the name {}", self.field_name),
-                    )
-                })?
+                .ok_or_else(|| CrocoError::no_field_error(&self.field_name, &self.code_pos))?
                 .clone(),
 
             // str fields

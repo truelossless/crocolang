@@ -1,4 +1,7 @@
-use crate::crocol::{utils::get_or_define_function, LCodegen, LNodeResult, LSymbol};
+use crate::crocol::{
+    utils::{get_or_define_function, get_or_define_struct},
+    LCodegen, LNodeResult, LSymbol,
+};
 use crate::error::CrocoError;
 use crate::symbol_type::SymbolType;
 use crate::{ast::node::*, crocol::CrocolNode};
@@ -8,13 +11,33 @@ impl CrocolNode for FunctionCallNode {
         &mut self,
         codegen: &mut LCodegen<'ctx>,
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
+        let mut visited_args = Vec::with_capacity(self.args.len());
+        let fn_name;
+        // if we're dealing with a method, inject self as the first argument
+        if let Some(method_self) = self.method.as_mut() {
+            let method_symbol = method_self
+                .crocol(codegen)?
+                .into_pointer(codegen, &self.code_pos)?;
+
+            fn_name = match method_symbol.symbol_type {
+                SymbolType::Struct(struct_name) => format!("_{}_{}", struct_name, self.fn_name),
+                SymbolType::Str => format!("_str_{}", &self.fn_name),
+                SymbolType::Num => format!("_num_{}", &self.fn_name),
+                SymbolType::Bool => format!("_bool_{}", &self.fn_name),
+                _ => unimplemented!(),
+            };
+
+            visited_args.push(method_symbol.value);
+        } else {
+            fn_name = self.fn_name.clone();
+        };
+
         let fn_decl = codegen
             .symtable
-            .get_function_decl(&self.fn_name)
+            .get_function_decl(&fn_name)
             .map_err(|e| CrocoError::new(&self.code_pos, e))?
             .clone();
 
-        let mut visited_args = Vec::with_capacity(self.args.len());
         for (i, (arg, arg_decl)) in self.args.iter_mut().zip(&fn_decl.args).enumerate() {
             let mut value = arg.crocol(codegen)?.into_symbol(codegen, &self.code_pos)?;
 
@@ -35,8 +58,6 @@ impl CrocolNode for FunctionCallNode {
 
                     LSymbol {
                         value: alloca.into(),
-                        // here the type differs from the value, so we can check if we pass by value and have a pointer
-                        // when value is a PointerValue and symbol_type is Struct
                         symbol_type: value.symbol_type,
                     }
                 }
@@ -48,7 +69,7 @@ impl CrocolNode for FunctionCallNode {
             visited_args.push(value.value);
         }
 
-        if self.args.len() != fn_decl.args.len() {
+        if visited_args.len() != fn_decl.args.len() {
             return Err(CrocoError::mismatched_number_of_arguments_error(
                 &self.code_pos,
                 fn_decl.args.len(),
@@ -56,15 +77,26 @@ impl CrocolNode for FunctionCallNode {
             ));
         }
 
-        let function = get_or_define_function(&self.fn_name, &fn_decl, codegen);
+        let function = get_or_define_function(&fn_name, &fn_decl, codegen);
 
         // to conform to the "C ABI",
         // we change `Struct fn()` to `void fn(Struct*)`
         // TODO: don't do it for small structs
         let maybe_ret_alloca = match fn_decl.return_type {
-            Some(SymbolType::Str) => {
-                let str_ty = codegen.str_type;
-                let alloca = codegen.create_block_alloca(str_ty.into(), "sretstr");
+            Some(SymbolType::Str) | Some(SymbolType::Struct(_)) => {
+                let ty = if let SymbolType::Struct(struct_name) =
+                    fn_decl.return_type.as_ref().unwrap()
+                {
+                    let struct_ty = codegen
+                        .symtable
+                        .get_struct_decl(&struct_name)
+                        .map_err(|e| CrocoError::new(&self.code_pos, e))?;
+                    get_or_define_struct(&struct_name, struct_ty, codegen)
+                } else {
+                    codegen.str_type
+                };
+
+                let alloca = codegen.create_block_alloca(ty.into(), "sret");
                 // insert a pointer to the return value in the first argument
                 visited_args.insert(0, alloca.into());
                 Some(alloca)

@@ -217,7 +217,6 @@ impl Crocol {
             })?;
         }
 
-        // run the optimization passes (for some reason this does nothing lol)
         let pass_manager_builder = PassManagerBuilder::create();
         pass_manager_builder.set_optimization_level(self.optimization_flag);
 

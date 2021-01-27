@@ -101,6 +101,13 @@ impl CrocoError {
         CrocoError::new(code_pos, "expected a value but got an early-return keyword")
     }
 
+    pub fn field_type_error(field_name: &str, code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(
+            code_pos,
+            format!("field {} is not of the right type", field_name),
+        )
+    }
+
     pub fn infer_error(code_pos: &CodePos, var_name: &str) -> CrocoError {
         CrocoError::new(
             code_pos,
@@ -130,6 +137,10 @@ impl CrocoError {
                 args_len
             ),
         )
+    }
+
+    pub fn no_field_error(field_name: &str, code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, format!("no field with the name {}", field_name))
     }
 
     pub fn parameter_error(code_pos: &CodePos, index: usize, is_method: bool) -> CrocoError {

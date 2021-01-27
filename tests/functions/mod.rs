@@ -41,7 +41,7 @@ fn it_returns_values() {
     // struct value
     test_file_ok(
         "tests/functions/it_returns_values/struct_value.croco",
-        CROCOI,
+        ALL_BACKENDS,
     );
 }
 

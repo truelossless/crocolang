@@ -1,4 +1,4 @@
-/// the type of a symbol, which is backend-agnostic
+/// The type of a symbol, which is backend-agnostic
 #[derive(Clone, Debug)]
 pub enum SymbolType {
     Ref(Box<SymbolType>),

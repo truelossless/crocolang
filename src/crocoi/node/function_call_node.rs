@@ -3,27 +3,17 @@ use crate::token::LiteralEnum;
 use crate::{ast::node::*, crocoi::CrocoiNode};
 use crate::{crocoi::symbol::Function, error::CrocoError};
 
-use crate::crocoi::{self, symbol::get_symbol_type, utils::auto_deref, ICodegen, ISymbol};
+use crate::crocoi::{self, symbol::get_symbol_type, ICodegen, ISymbol};
 
 impl CrocoiNode for FunctionCallNode {
     fn crocoi(&mut self, codegen: &mut ICodegen) -> Result<INodeResult, CrocoError> {
-        // resolve the function arguments
-        let mut visited_args = Vec::with_capacity(self.args.len());
-        for arg in &mut self.args {
-            let value = arg.crocoi(codegen)?.into_symbol(&self.code_pos)?;
-            visited_args.push(value);
-        }
-
         let fn_decl;
         let fn_code;
+        let mut visited_args = Vec::with_capacity(self.args.len());
 
         // if we're dealing with a method, inject self as the first argument
         if let Some(method_self) = self.method.as_mut() {
-            let mut method_symbol = method_self
-                .crocoi(codegen)?
-                .into_value_or_var_ref(&self.code_pos)?;
-
-            method_symbol = auto_deref(method_symbol);
+            let method_symbol = method_self.crocoi(codegen)?.into_var_ref(&self.code_pos)?;
 
             let err_closure = || {
                 CrocoError::new(
@@ -32,7 +22,7 @@ impl CrocoiNode for FunctionCallNode {
                 )
             };
 
-            let fn_name = match &method_symbol {
+            let fn_name = match &*method_symbol.get_ref().borrow() {
                 ISymbol::Struct(s) => format!("_{}_{}", s.struct_type, self.fn_name),
                 ISymbol::Primitive(LiteralEnum::Str(_)) => format!("_str_{}", &self.fn_name),
                 ISymbol::Primitive(LiteralEnum::Num(_)) => format!("_num_{}", &self.fn_name),
@@ -50,7 +40,7 @@ impl CrocoiNode for FunctionCallNode {
             fn_code = codegen.functions.get(&fn_name).unwrap().clone();
 
             // insert the self symbol in the args
-            visited_args.insert(0, method_symbol);
+            visited_args.push(method_symbol);
 
         // this is just a regular function
         } else {
@@ -61,6 +51,12 @@ impl CrocoiNode for FunctionCallNode {
                 .clone();
 
             fn_code = codegen.functions.get(&self.fn_name).unwrap().clone();
+        }
+
+        // resolve the function arguments
+        for arg in &mut self.args {
+            let value = arg.crocoi(codegen)?.into_symbol(&self.code_pos)?;
+            visited_args.push(value);
         }
 
         // ensure that the arguments provided and the arguments in the function call match
