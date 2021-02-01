@@ -1,0 +1,10 @@
+fn aux() {
+    while true {
+        return
+        assert(false)
+    }
+}
+
+fn main() {
+    aux()
+}

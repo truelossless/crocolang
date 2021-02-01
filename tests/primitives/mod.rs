@@ -1,8 +1,6 @@
 // Primitive tests
 
-use crate::ALL_BACKENDS;
-
-use super::{test_file_err, test_file_ok, CROCOI};
+use super::{test_file_err, test_file_ok, ALL_BACKENDS, CROCOI};
 
 #[test]
 fn it_assigns_correct_values() {

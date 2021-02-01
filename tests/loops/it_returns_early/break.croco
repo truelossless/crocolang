@@ -1,0 +1,6 @@
+fn main() {
+    while true {
+        break
+        assert(false)
+    }
+}

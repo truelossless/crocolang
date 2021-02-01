@@ -1,0 +1,15 @@
+fn main() {
+    let i num
+    let acc num
+    while i < 10 {
+        i += 1
+        
+        if i < 5 {
+            continue
+        }
+
+        acc += i
+    }
+
+    assert(acc == 45)
+}

@@ -118,6 +118,7 @@ impl CrocolNode for PlusNode {
                     )
                     .unwrap();
 
+                // SAFETY: We keep track of the size of our strings so the GEP should stay in our allocated memory
                 let malloc_offset = unsafe {
                     codegen
                         .builder

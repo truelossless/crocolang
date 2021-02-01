@@ -1,0 +1,10 @@
+fn main() {
+    let i = 0
+    let global = "croco"
+
+    while i < 2 {
+        assert(global == "croco")
+        let global = "crocolang"
+        i += 1
+    }
+}

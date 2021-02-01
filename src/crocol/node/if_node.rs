@@ -1,16 +1,12 @@
+use crate::crocol::{LCodegen, LNodeResult};
 use crate::symbol_type::SymbolType;
 use crate::{ast::node::IfNode, crocol::CrocolNode, error::CrocoError};
-use {
-    crate::crocol::{LCodegen, LNodeResult},
-    inkwell::IntPredicate,
-};
 
 impl CrocolNode for IfNode {
     fn crocol<'ctx>(
         &mut self,
         codegen: &mut LCodegen<'ctx>,
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
-        let true_value = codegen.context.bool_type().const_int(1, false);
         let before_if_block = codegen.builder.get_insert_block().unwrap();
 
         // We need to iterate backwards or the condition blocks wouldn't be created.
@@ -75,7 +71,7 @@ impl CrocolNode for IfNode {
             // llvm doesn't like when two terminators are in the same block.
             // if we have a early return, we don't want to build a branch.
             match body.crocol(codegen)? {
-                LNodeResult::Return(None) => (),
+                LNodeResult::Return(_) | LNodeResult::Continue | LNodeResult::Break => (),
                 _ => {
                     codegen.builder.build_unconditional_branch(endif_block);
                 }
@@ -93,15 +89,11 @@ impl CrocolNode for IfNode {
                 _ => return Err(CrocoError::condition_not_bool_error(&self.code_pos)),
             }
 
-            let cmp = codegen.builder.build_int_compare(
-                IntPredicate::EQ,
+            codegen.builder.build_conditional_branch(
                 cond_ok.value.into_int_value(),
-                true_value,
-                "cmpif",
+                then_block,
+                next_block,
             );
-            codegen
-                .builder
-                .build_conditional_branch(cmp, then_block, next_block);
 
             next_block = if_block;
         }

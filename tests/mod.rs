@@ -1,6 +1,7 @@
 mod arrays;
 mod conditions;
 mod functions;
+mod loops;
 mod primitives;
 mod references;
 mod structs;

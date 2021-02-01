@@ -3,7 +3,7 @@
 Here is the spec of Croco, an interpreted language. The implementation percentage is shown for each point discussed.  
 Croco is designed to be a fun, fast, and easy to use programming language.
 
-## Variables [CROCOI 60% | CROCOL 40%]
+## Variables [CROCOI 60% | CROCOL 50%]
 
 ### Primitives [CROCOI 100% | CROCOL 60%]
 
@@ -112,7 +112,7 @@ println(arr["hello"])
 10
 ```
 
-### Structs [CROCOI 100% | CROCOL 0%]
+### Structs [CROCOI 100% | CROCOL 100%]
 
 Structs must be defined with the `struct` before they are created.  
 There is no anonymous objects.  
@@ -158,12 +158,12 @@ println(txt)
 lorum ipsem
 ```
 
-## Lööps [CROCOI 20% | CROCOL 0%]
+## Lööps [CROCOI 20% | CROCOL 20%]
 
 Loops are very similar to what other languages offers.  
 Currently only `while` is implemented.
 
-### While loops [CROCOI 100% | CROCOL 0%]
+### While loops [CROCOI 100% | CROCOL 100%]
 
 ```croco
 let a = 0
@@ -182,7 +182,7 @@ for let i in 0..5 {
 }
 ```
 
-### Early returns from loops [CROCOI 100% | CROCOL 0%]
+### Early returns from loops [CROCOI 100% | CROCOL 100%]
 
 ```croco
 let a = 0
@@ -213,7 +213,7 @@ skipping 5
 7
 ```
 
-## Functions [CROCOI 100% | CROCOL 50%]
+## Functions [CROCOI 100% | CROCOL 60%]
 
 Functions are declared with the `fn` keyword. When they return a value the type should be annotated. A value is returned with the `return` keyword. You can exit early a function without any return value with the `return` keyword as well.
 
@@ -235,7 +235,7 @@ greet()
 let books_sold_today = books_sold()
 ```
 
-### Methods [CROCOI 90% | CROCOL 0%]
+### Methods [CROCOI 100% | CROCOL 80%]
 
 Structs can also have functions.
 
@@ -256,7 +256,7 @@ let bobby = Character {
 bobby.hi()
 ```
 
-## Control flow [CROCOI 100% | CROCOL 70%]
+## Control flow [CROCOI 100% | CROCOL 100%]
 
 `if`, `elif` and `else` can be used for conditionnal matching.
 

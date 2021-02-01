@@ -1,5 +1,6 @@
 use inkwell::{
     attributes::{Attribute, AttributeLoc},
+    basic_block::BasicBlock,
     builder::Builder,
     context::Context,
     module::Module,
@@ -35,6 +36,10 @@ pub struct LCodegen<'ctx> {
     pub ptr_size: IntType<'ctx>,
     /// The current function being built
     pub current_fn: Option<FunctionValue<'ctx>>,
+    /// The current block when a loop is being built. This is used for the continue instruction.
+    pub current_loop_block: Option<BasicBlock<'ctx>>,
+    /// The current block when a loop is being built. This is used for the continue instruction.
+    pub current_loop_end_block: Option<BasicBlock<'ctx>>,
     /// The pointer used as a return value in case of a sret function
     pub sret_ptr: Option<PointerValue<'ctx>>,
 }

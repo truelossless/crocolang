@@ -18,7 +18,7 @@ impl Linker {
 
     pub fn find_linker(&mut self) -> Result<String, String> {
         // common linkers that can be found on the machine
-        // while clang will work out of the box, gcc and ld aren't smart enough to figure includes
+        // while clang will work out of the box, gcc and ld aren't smart enough to figure out includes
         // Later we could only rely on ld with the right arguments, as clang does.
         let linkers = vec!["clang", "cc", "gcc", "ld"];
 
@@ -59,9 +59,10 @@ impl Linker {
         // if we are on windows we can try to locate MSVC tools
         #[cfg(windows)] // using cfg! here yields an error regarding the crate import on unix
         {
-            let msvc_result = unsafe { crate::ms_craziness_bindings::find_msvc() };
+            // SAFETY: this leaks a string but it is freed by the OS when the linker finishes.
+            let find_msvc = unsafe { crate::ms_craziness_bindings::find_msvc() };
 
-            if msvc_result.windows_sdk_version != 0 {
+            if let Some(msvc_result) = find_msvc {
                 self.linker = format!("{}\\link.exe", &msvc_result.vs_exe_path);
                 self.msvc_libs = Some(vec![
                     format!("{}/msvcrt.lib", msvc_result.vs_library_path),

@@ -15,27 +15,33 @@ impl CrocolNode for BlockNode {
             BlockScope::Keep => (),
         }
 
-        let mut early_return = false;
+        let mut value = LNodeResult::Void;
 
         for node in &mut self.body {
-            match node.crocol(codegen)? {
+            value = node.crocol(codegen)?;
+
+            match &value {
                 LNodeResult::Return(ret) => {
                     if let Some(ret_val) = ret {
                         codegen.builder.build_return(Some(&ret_val.value));
                     } else {
                         codegen.builder.build_return(None);
                     }
-                    early_return = true;
                     break;
                 }
                 LNodeResult::Variable(_) | LNodeResult::Value(_) | LNodeResult::Void => (),
-                _ => unimplemented!(),
+                LNodeResult::Break | LNodeResult::Continue => break,
             }
         }
 
         // if there is no early return the function returns void
-        if !early_return && self.scope == BlockScope::Function {
-            codegen.builder.build_return(None);
+        if self.scope == BlockScope::Function {
+            match &value {
+                LNodeResult::Return(_) => (),
+                _ => {
+                    codegen.builder.build_return(None);
+                }
+            }
         }
 
         // we're done with this scope, drop it
@@ -44,13 +50,6 @@ impl CrocolNode for BlockNode {
             BlockScope::Keep => (),
         }
 
-        // if there's an early return in this block report it.
-        // TODO: less hacky way to do this.
-        // maybe have an exit block ? how would it solve this issue ?
-        if early_return {
-            Ok(LNodeResult::Return(None))
-        } else {
-            Ok(LNodeResult::Void)
-        }
+        Ok(value)
     }
 }

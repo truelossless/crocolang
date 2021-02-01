@@ -27,10 +27,6 @@ impl CrocoiNode for BlockNode {
             }
         }
 
-        // clean up the injected statements
-        // self.prepended.clear();
-        // self.appended.clear();
-
         // return void if there is no return value
         if let INodeResult::Value(_) = value {
             return Ok(INodeResult::Void);

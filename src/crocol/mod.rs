@@ -178,6 +178,8 @@ impl Crocol {
             symtable: SymTable::new(),
             ptr_size,
             current_fn: None,
+            current_loop_block: None,
+            current_loop_end_block: None,
             sret_ptr: None,
         };
 
@@ -224,8 +226,12 @@ impl Crocol {
         pass_manager_builder.populate_module_pass_manager(&mpm);
         mpm.run_on(&codegen.module);
 
+        // should we try to inline or internalize code ?
+        // let's say we can if we're not running -O0
+        let should_inline = self.optimization_flag != OptimizationLevel::None;
+
         let lpm = PassManager::create(());
-        pass_manager_builder.populate_lto_pass_manager(&lpm, false, false);
+        pass_manager_builder.populate_lto_pass_manager(&lpm, should_inline, should_inline);
         lpm.run_on(&codegen.module);
 
         // emit an executable if we don't specifically want to emit assembly, object files, llvm ir

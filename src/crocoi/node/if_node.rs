@@ -25,7 +25,9 @@ impl CrocoiNode for IfNode {
                     INodeResult::Return(_) | INodeResult::Break | INodeResult::Continue => {
                         return Ok(value)
                     }
-                    _ => return Ok(INodeResult::Void),
+                    _ => {
+                        return Ok(INodeResult::Void);
+                    }
                 }
             }
         }
