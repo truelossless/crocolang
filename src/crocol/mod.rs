@@ -14,7 +14,7 @@ use crate::symbol::{Decl, SymTable};
 use crate::{ast::AstNode, parser::Parser};
 use crate::{
     error::{CrocoError, CrocoErrorKind},
-    linker::Linker,
+    linker::link,
 };
 use inkwell::{
     context::Context,
@@ -277,16 +277,6 @@ impl Crocol {
         }
 
         // else we need to link the object file into an executable
-        let mut linker = Linker::new();
-
-        let linker_search = linker
-            .find_linker()
-            .map_err(|e| CrocoError::from_type(e, CrocoErrorKind::Linker))?;
-
-        if self.verbose_flag {
-            println!("{}", linker_search);
-        }
-
         let exe_output_filename = if !self.output_flag.is_empty() {
             self.output_flag.clone()
         } else if cfg!(windows) {
@@ -295,8 +285,14 @@ impl Crocol {
             strip_ext(&self.file_path).to_owned()
         };
 
-        let link_stage = linker
-            .link(&llvm_output_filename, &exe_output_filename)
+        if self.verbose_flag {
+            println!(
+                "Linking {} into {}",
+                llvm_output_filename, exe_output_filename
+            );
+        }
+
+        let link_stage = link(&llvm_output_filename, &exe_output_filename)
             .map_err(|e| CrocoError::from_type(e, CrocoErrorKind::Linker))?;
 
         if self.verbose_flag {
