@@ -104,8 +104,8 @@ impl Parser {
             }
 
             // primitive
-            Literal(num) => {
-                chain_nodes.push(Box::new(ConstantNode::new(num, self.token_pos.clone())))
+            Literal(literal) => {
+                chain_nodes.push(Box::new(ConstantNode::new(literal, self.token_pos.clone())))
             }
 
             // array literal

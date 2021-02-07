@@ -22,7 +22,7 @@ impl Parser {
             ))),
             // since the parser has no idea of the backend, we cannot construct a SymbolNode directly.
             Literal(literal) => Ok(Box::new(ConstantNode::new(literal, code_pos))),
-            Keyword(Num) => Ok(Box::new(TypeNode::new(SymbolType::Num, code_pos))),
+            Keyword(Fnum) => Ok(Box::new(TypeNode::new(SymbolType::Fnum, code_pos))),
             Keyword(Str) => Ok(Box::new(TypeNode::new(SymbolType::Str, code_pos))),
             Keyword(Bool) => Ok(Box::new(TypeNode::new(SymbolType::Bool, code_pos))),
             Operator(Plus) => Ok(Box::new(PlusNode::new(code_pos))),

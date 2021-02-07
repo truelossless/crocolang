@@ -32,7 +32,7 @@ impl CrocolNode for CompareNode {
         }
 
         let bool_res = match left_value.symbol_type {
-            SymbolType::Num => {
+            SymbolType::Fnum => {
                 let op = match self.compare_kind {
                     OperatorEnum::Equals => FloatPredicate::OEQ,
                     OperatorEnum::NotEquals => FloatPredicate::ONE,
@@ -47,6 +47,25 @@ impl CrocolNode for CompareNode {
                     op,
                     left_value.value.into_float_value(),
                     right_value.value.into_float_value(),
+                    "cmpfnum",
+                )
+            }
+
+            SymbolType::Num => {
+                let op = match self.compare_kind {
+                    OperatorEnum::Equals => IntPredicate::EQ,
+                    OperatorEnum::NotEquals => IntPredicate::NE,
+                    OperatorEnum::GreaterThan => IntPredicate::SGT,
+                    OperatorEnum::GreaterOrEqual => IntPredicate::SGE,
+                    OperatorEnum::LowerThan => IntPredicate::SLT,
+                    OperatorEnum::LowerOrEqual => IntPredicate::SLE,
+                    _ => unreachable!(),
+                };
+
+                codegen.builder.build_int_compare(
+                    op,
+                    left_value.value.into_int_value(),
+                    right_value.value.into_int_value(),
                     "cmpnum",
                 )
             }

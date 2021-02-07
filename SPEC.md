@@ -7,8 +7,10 @@ Croco is designed to be a fun, fast, and easy to use programming language.
 
 ### Primitives [CROCOI 100% | CROCOL 60%]
 
-- `num` represents a number (integer or floating point, with positive or negative values).  
+- `num` represents a number (32-bit integer with positive or negative values).  
   Its default value is `0`.
+- `fnum` represents a floating point number (32-bit float with positive or negative values)
+  Its default value is `0.`
 - `str` represents a string of characters. Note that there isn't a char type.  
   Its default value is `""`.
 - `bool` represents a boolean, either `false` or `true`.  

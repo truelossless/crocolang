@@ -33,7 +33,8 @@ pub fn get_llvm_type<'ctx>(
     codegen: &LCodegen<'ctx>,
 ) -> BasicTypeEnum<'ctx> {
     match symbol_type {
-        SymbolType::Num => codegen.context.f32_type().into(),
+        SymbolType::Num => codegen.context.i32_type().into(),
+        SymbolType::Fnum => codegen.context.f32_type().into(),
         SymbolType::Str => codegen.str_type.into(),
         SymbolType::Bool => codegen.context.bool_type().into(),
         SymbolType::Function(_fn_type) => {
@@ -68,8 +69,15 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &LCodegen<'ctx>)
     let ptr = init_symbol.value.into_pointer_value();
 
     match &init_symbol.symbol_type {
-        // stack allocation of a f32
+        // stack allocation of an i32
         SymbolType::Num => {
+            codegen
+                .builder
+                .build_store(ptr, codegen.context.i32_type().const_zero());
+        }
+
+        // stack allocation of a f32
+        SymbolType::Fnum => {
             codegen
                 .builder
                 .build_store(ptr, codegen.context.f32_type().const_zero());
@@ -130,8 +138,7 @@ pub fn init_default<'ctx>(init_symbol: &LSymbol<'ctx>, codegen: &LCodegen<'ctx>)
             }
         }
 
-        // TODO: the checker should catch dangling references like this
-        _ => unreachable!(),
+        _ => unimplemented!(),
     };
 }
 
@@ -161,7 +168,7 @@ pub fn get_or_define_function<'ctx>(
                 SymbolType::Str | SymbolType::Struct(_) => get_llvm_type(&arg.arg_type, codegen)
                     .ptr_type(AddressSpace::Generic)
                     .into(),
-                SymbolType::Num | SymbolType::Bool | SymbolType::Ref(_) => {
+                SymbolType::Num | SymbolType::Fnum | SymbolType::Bool | SymbolType::Ref(_) => {
                     get_llvm_type(&arg.arg_type, codegen)
                 }
                 _ => unimplemented!(),
@@ -183,7 +190,7 @@ pub fn get_or_define_function<'ctx>(
                 codegen.context.void_type().fn_type(&llvm_args, false)
             }
 
-            Some(SymbolType::Bool) | Some(SymbolType::Num) => {
+            Some(SymbolType::Bool) | Some(SymbolType::Fnum) | Some(SymbolType::Num) => {
                 let ret_ty = get_llvm_type(&fn_decl.return_type.as_ref().unwrap(), codegen);
                 ret_ty.fn_type(&llvm_args, false)
             }

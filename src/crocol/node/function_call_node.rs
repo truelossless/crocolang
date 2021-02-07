@@ -22,7 +22,7 @@ impl CrocolNode for FunctionCallNode {
             fn_name = match method_symbol.symbol_type {
                 SymbolType::Struct(struct_name) => format!("_{}_{}", struct_name, self.fn_name),
                 SymbolType::Str => format!("_str_{}", &self.fn_name),
-                SymbolType::Num => format!("_num_{}", &self.fn_name),
+                SymbolType::Fnum => format!("_num_{}", &self.fn_name),
                 SymbolType::Bool => format!("_bool_{}", &self.fn_name),
                 _ => unimplemented!(),
             };
@@ -62,7 +62,7 @@ impl CrocolNode for FunctionCallNode {
                     }
                 }
 
-                SymbolType::Bool | SymbolType::Num => value,
+                SymbolType::Bool | SymbolType::Fnum | SymbolType::Num => value,
                 _ => unimplemented!(),
             };
 
@@ -101,7 +101,7 @@ impl CrocolNode for FunctionCallNode {
                 visited_args.insert(0, alloca.into());
                 Some(alloca)
             }
-            None | Some(SymbolType::Bool) | Some(SymbolType::Num) => None,
+            None | Some(SymbolType::Bool) | Some(SymbolType::Fnum) | Some(SymbolType::Num) => None,
             _ => unimplemented!(),
         };
 

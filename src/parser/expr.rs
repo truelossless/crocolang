@@ -92,7 +92,7 @@ impl Parser {
                     is_next_token_unary = false;
                 }
 
-                Keyword(Num) | Keyword(Str) | Keyword(Bool) => {
+                Keyword(Fnum) | Keyword(Str) | Keyword(Bool) => {
                     self.next_token(iter);
                     output.push(self.get_node(expr_token)?)
                 }

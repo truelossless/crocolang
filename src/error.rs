@@ -97,6 +97,10 @@ impl CrocoError {
         CrocoError::new(code_pos, "expected a bool for the condition")
     }
 
+    pub fn divide_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot divide these two types together")
+    }
+
     pub fn expected_value_got_early_return_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "expected a value but got an early-return keyword")
     }
@@ -123,6 +127,10 @@ impl CrocoError {
         CrocoError::new(code_pos, "cannot invert something that isn't a boolean")
     }
 
+    pub fn minus_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot substract these two types together")
+    }
+
     pub fn mismatched_number_of_arguments_error(
         code_pos: &CodePos,
         decl_len: usize,
@@ -137,6 +145,10 @@ impl CrocoError {
                 args_len
             ),
         )
+    }
+
+    pub fn multiplicate_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot multiplicate these two types together")
     }
 
     pub fn no_field_error(field_name: &str, code_pos: &CodePos) -> CrocoError {
@@ -156,6 +168,10 @@ impl CrocoError {
         )
     }
 
+    pub fn power_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot power these two types together")
+    }
+
     pub fn type_annotation_error(code_pos: &CodePos, var_name: &str) -> CrocoError {
         CrocoError::new(
             code_pos,
@@ -168,6 +184,10 @@ impl CrocoError {
 
     pub fn type_change_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "cannot change the type of a variable")
+    }
+
+    pub fn unary_minus_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot negate this type of variable")
     }
 }
 

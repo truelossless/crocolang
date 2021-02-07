@@ -194,6 +194,7 @@ pub fn get_symbol_type(symbol: &ISymbol) -> SymbolType {
     match symbol {
         ISymbol::Primitive(LiteralEnum::Bool(_)) => SymbolType::Bool,
         ISymbol::Primitive(LiteralEnum::Num(_)) => SymbolType::Num,
+        ISymbol::Primitive(LiteralEnum::Fnum(_)) => SymbolType::Fnum,
         ISymbol::Primitive(LiteralEnum::Str(_)) => SymbolType::Str,
         ISymbol::Array(arr) => SymbolType::Array(arr.array_type.clone()),
         ISymbol::Struct(s) => SymbolType::Struct(s.struct_type.clone()),

@@ -20,6 +20,12 @@ fn it_returns_values() {
         ALL_BACKENDS,
     );
 
+    // fnum value
+    test_file_ok(
+        "tests/functions/it_returns_values/fnum_value.croco",
+        ALL_BACKENDS,
+    );
+
     // str value
     test_file_ok(
         "tests/functions/it_returns_values/str_value.croco",

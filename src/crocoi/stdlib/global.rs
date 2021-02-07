@@ -52,26 +52,26 @@ pub fn get_module() -> BuiltinModule {
         BuiltinFunction {
             name: "_array_len".to_owned(),
             args: Vec::new(),
-            return_type: Some(SymbolType::Num),
+            return_type: Some(SymbolType::Fnum),
             pointer: _array_len,
         },
         // num methods
         BuiltinFunction {
             name: "_num_times".to_owned(),
-            args: vec![SymbolType::Num],
-            return_type: Some(SymbolType::Array(Box::new(SymbolType::Num))),
+            args: vec![SymbolType::Fnum],
+            return_type: Some(SymbolType::Array(Box::new(SymbolType::Fnum))),
             pointer: _num_times,
         },
         // str methods
         BuiltinFunction {
             name: "_str_len".to_owned(),
             args: Vec::new(),
-            return_type: Some(SymbolType::Num),
+            return_type: Some(SymbolType::Fnum),
             pointer: _str_len,
         },
         BuiltinFunction {
             name: "_str_slice".to_owned(),
-            args: vec![SymbolType::Num, SymbolType::Num],
+            args: vec![SymbolType::Fnum, SymbolType::Fnum],
             return_type: Some(SymbolType::Str),
             pointer: _str_slice,
         },
@@ -160,10 +160,10 @@ fn _array_join(mut args: Vec<ISymbol>) -> Option<ISymbol> {
 /// Returns the length of an array
 fn _array_len(mut args: Vec<ISymbol>) -> Option<ISymbol> {
     let array = get_arg_array(&mut args);
-    Some(ISymbol::Primitive(Num(array.contents.len() as f32)))
+    Some(ISymbol::Primitive(Fnum(array.contents.len() as f32)))
 }
 
-/// Num methods
+/// Fnum methods
 
 /// Returns an array containing `times` times the number
 fn _num_times(mut args: Vec<ISymbol>) -> Option<ISymbol> {
@@ -172,12 +172,12 @@ fn _num_times(mut args: Vec<ISymbol>) -> Option<ISymbol> {
 
     let mut arr = Vec::with_capacity(times);
     for _ in 0..times {
-        arr.push(Rc::new(RefCell::new(ISymbol::Primitive(Num(num)))));
+        arr.push(Rc::new(RefCell::new(ISymbol::Primitive(Fnum(num)))));
     }
 
     Some(ISymbol::Array(Array {
         contents: arr,
-        array_type: Box::new(SymbolType::Num),
+        array_type: Box::new(SymbolType::Fnum),
     }))
 }
 
@@ -186,7 +186,7 @@ fn _num_times(mut args: Vec<ISymbol>) -> Option<ISymbol> {
 /// Returns the length of a str
 fn _str_len(mut args: Vec<ISymbol>) -> Option<ISymbol> {
     let string = get_arg_str(&mut args);
-    Some(ISymbol::Primitive(Num(
+    Some(ISymbol::Primitive(Fnum(
         string.graphemes(true).count() as f32
     )))
 }

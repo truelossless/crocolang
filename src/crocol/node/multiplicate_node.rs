@@ -11,29 +11,47 @@ impl CrocolNode for MultiplicateNode {
         &mut self,
         codegen: &mut LCodegen<'ctx>,
     ) -> Result<LNodeResult<'ctx>, CrocoError> {
-        let left_val = self
+        let left = self
             .left
             .as_mut()
             .unwrap()
             .crocol(codegen)?
-            .into_symbol(codegen, &self.code_pos)?
-            .into_num(&self.code_pos)?;
+            .into_symbol(codegen, &self.code_pos)?;
 
-        let right_val = self
+        let right = self
             .right
             .as_mut()
             .unwrap()
             .crocol(codegen)?
-            .into_symbol(codegen, &self.code_pos)?
-            .into_num(&self.code_pos)?;
+            .into_symbol(codegen, &self.code_pos)?;
 
-        let res = codegen.builder.build_float_mul(left_val, right_val, "mul");
+        let symbol = match (left.symbol_type, right.symbol_type) {
+            (SymbolType::Fnum, SymbolType::Fnum) => LSymbol {
+                value: codegen
+                    .builder
+                    .build_float_mul(
+                        left.value.into_float_value(),
+                        right.value.into_float_value(),
+                        "fmul",
+                    )
+                    .into(),
+                symbol_type: SymbolType::Fnum,
+            },
 
-        let symbol = LSymbol {
-            value: res.into(),
-            symbol_type: SymbolType::Num,
+            (SymbolType::Num, SymbolType::Num) => LSymbol {
+                value: codegen
+                    .builder
+                    .build_int_mul(
+                        left.value.into_int_value(),
+                        right.value.into_int_value(),
+                        "mul",
+                    )
+                    .into(),
+                symbol_type: SymbolType::Num,
+            },
+
+            _ => return Err(CrocoError::minus_error(&self.code_pos)),
         };
-
         Ok(LNodeResult::Value(symbol))
     }
 }

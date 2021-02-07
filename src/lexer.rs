@@ -10,8 +10,12 @@ use crate::token::{
 
 use crate::error::CrocoError;
 
-fn is_number(el: &str) -> Option<f32> {
+fn is_num(el: &str) -> Option<i32> {
     el.parse().ok()
+}
+
+fn is_fnum(el: &str) -> Option<f32> {
+    el.parse().ok().filter(|_| el.contains('.'))
 }
 
 pub struct Lexer {
@@ -67,11 +71,23 @@ impl Lexer {
         let el = el_opt.unwrap();
 
         // check if it's a number
-        let num = is_number(&el);
+        let mut fnum = is_fnum(&el);
+        let num = is_num(&el);
+
+        if let Some(num) = num {
+            // make sure we handle correctly floating-point numbers like "40."
+            if let Some(&".") = iter.peek() {
+                fnum = Some(num as f32);
+                iter.next();
+            }
+        }
 
         // tokenize
         match el {
             // number literal
+            // try to get a floating number if possible
+            _ if fnum != None => self.queue.push(Literal(LiteralEnum::Fnum(fnum.unwrap()))),
+            // else fallback to a regular number
             _ if num != None => self.queue.push(Literal(LiteralEnum::Num(num.unwrap()))),
 
             // string literal
@@ -308,6 +324,7 @@ impl Lexer {
             "let" => self.queue.push(Keyword(Let)),
             "match" => self.queue.push(Keyword(Match)),
             "num" => self.queue.push(Keyword(Num)),
+            "fnum" => self.queue.push(Keyword(Fnum)),
             "while" => self.queue.push(Keyword(While)),
             "str" => self.queue.push(Keyword(Str)),
             "struct" => self.queue.push(Keyword(Struct)),

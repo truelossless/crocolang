@@ -24,13 +24,25 @@ impl CrocolNode for PlusNode {
             .into_symbol(codegen, &self.code_pos)?;
 
         match (left_val.symbol_type, right_val.symbol_type) {
-            (SymbolType::Num, SymbolType::Num) => {
+            (SymbolType::Fnum, SymbolType::Fnum) => {
                 let left_float = left_val.value.into_float_value();
                 let right_float = right_val.value.into_float_value();
 
                 let res = codegen
                     .builder
-                    .build_float_add(left_float, right_float, "add");
+                    .build_float_add(left_float, right_float, "fadd");
+
+                Ok(LNodeResult::Value(LSymbol {
+                    value: res.into(),
+                    symbol_type: SymbolType::Fnum,
+                }))
+            }
+
+            (SymbolType::Num, SymbolType::Num) => {
+                let left_int = left_val.value.into_int_value();
+                let right_int = right_val.value.into_int_value();
+
+                let res = codegen.builder.build_int_add(left_int, right_int, "add");
 
                 Ok(LNodeResult::Value(LSymbol {
                     value: res.into(),

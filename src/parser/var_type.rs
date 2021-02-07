@@ -16,6 +16,7 @@ impl Parser {
         match self.next_token(iter) {
             // primitive
             Keyword(Str) => Ok(SymbolType::Str),
+            Keyword(Fnum) => Ok(SymbolType::Fnum),
             Keyword(Num) => Ok(SymbolType::Num),
             Keyword(Bool) => Ok(SymbolType::Bool),
 

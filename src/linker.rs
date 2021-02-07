@@ -71,8 +71,8 @@ pub fn link(object_file: &str, output_file: &str) -> Result<String, String> {
     // and extra arguments. For reference, see the linux-specific code
     // used only on Linux targets in Clang !
     // https://clang.llvm.org/doxygen/Linux_8cpp_source.html
-    let gnulike_cc = file_in_path("clang.exe")
-        .or_else(|| file_in_path("gcc.exe"))
+    let gnulike_cc = file_in_path("clang")
+        .or_else(|| file_in_path("gcc"))
         .ok_or("no suitable linker found")?;
 
     let mut command = Command::new(&gnulike_cc);

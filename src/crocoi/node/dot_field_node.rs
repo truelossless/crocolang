@@ -28,7 +28,7 @@ impl CrocoiNode for DotFieldNode {
             }
 
             // num fields
-            ISymbol::Primitive(LiteralEnum::Num(_n)) => {
+            ISymbol::Primitive(LiteralEnum::Fnum(_n)) => {
                 todo!();
             }
 

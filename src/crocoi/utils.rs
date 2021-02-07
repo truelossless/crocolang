@@ -22,22 +22,6 @@ pub fn get_value(
         .map_err(|_| CrocoError::new(code_pos, "cannot use this type in an expression"))?)
 }
 
-/// returns the number value of a node
-pub fn get_number_value(
-    opt_node: &mut Option<Box<dyn BackendNode>>,
-    codegen: &mut ICodegen,
-    code_pos: &CodePos,
-) -> Result<f32, CrocoError> {
-    let node = get_value(opt_node, codegen, &code_pos)?;
-    match node {
-        Num(x) => Ok(x),
-        _ => Err(CrocoError::new(
-            code_pos,
-            "performing an operation on a wrong variable type !",
-        )),
-    }
-}
-
 /// Auto dereferences as many times as needed  
 /// e.g (&a).foo -> a.foo
 pub fn auto_deref(mut symbol: ISymbol) -> ISymbol {
@@ -63,7 +47,8 @@ pub fn init_default(
     code_pos: &CodePos,
 ) -> Result<ISymbol, CrocoError> {
     Ok(match symbol_type {
-        SymbolType::Num => ISymbol::Primitive(Num(0.)),
+        SymbolType::Num => ISymbol::Primitive(Num(0)),
+        SymbolType::Fnum => ISymbol::Primitive(Fnum(0.)),
         SymbolType::Bool => ISymbol::Primitive(LiteralEnum::Bool(false)),
         SymbolType::Str => ISymbol::Primitive(Str(String::new())),
         SymbolType::Array(array_type) => ISymbol::Array(Array {

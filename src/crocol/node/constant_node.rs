@@ -21,8 +21,13 @@ impl CrocolNode for ConstantNode {
             },
 
             LiteralEnum::Num(n) => LSymbol {
-                value: codegen.context.f32_type().const_float(*n as f64).into(),
+                value: codegen.context.i32_type().const_int(*n as u64, true).into(),
                 symbol_type: SymbolType::Num,
+            },
+
+            LiteralEnum::Fnum(n) => LSymbol {
+                value: codegen.context.f32_type().const_float(*n as f64).into(),
+                symbol_type: SymbolType::Fnum,
             },
 
             LiteralEnum::Str(s) => {

@@ -10,6 +10,7 @@ pub enum SymbolType {
     // primitive types
     Bool,
     Str,
+    Fnum,
     Num,
 }
 
@@ -35,7 +36,8 @@ impl PartialEq for SymbolType {
         match (self, other) {
             (SymbolType::Bool, SymbolType::Bool)
             | (SymbolType::Str, SymbolType::Str)
-            | (SymbolType::Num, SymbolType::Num) => true,
+            | (SymbolType::Num, SymbolType::Num)
+            | (SymbolType::Fnum, SymbolType::Fnum) => true,
             (SymbolType::Struct(a), SymbolType::Struct(b)) => a == b,
             (SymbolType::Map(a, b), SymbolType::Map(c, d)) => a == b && c == d,
             (SymbolType::Array(a), SymbolType::Array(b)) => a == b,

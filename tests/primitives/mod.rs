@@ -14,6 +14,16 @@ fn it_assigns_correct_values() {
         ALL_BACKENDS,
     );
 
+    // fnum assignment
+    test_file_ok(
+        "tests/primitives/it_assigns_correct_values/fnum_assignment.croco",
+        ALL_BACKENDS,
+    );
+    test_file_ok(
+        "tests/primitives/it_assigns_correct_values/fnum_default_assignment.croco",
+        ALL_BACKENDS,
+    );
+
     // str assignment
     test_file_ok(
         "tests/primitives/it_assigns_correct_values/str_assignment.croco",

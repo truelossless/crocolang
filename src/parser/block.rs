@@ -57,7 +57,8 @@ impl Parser {
                         }
 
                         // we're giving a type annotation
-                        Keyword(Num)
+                        Keyword(Fnum)
+                        | Keyword(Num)
                         | Keyword(Str)
                         | Keyword(Bool)
                         | Identifier(_)

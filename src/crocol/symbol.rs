@@ -135,7 +135,7 @@ impl<'ctx> LCodegen<'ctx> {
                         .unwrap();
                     copy_alloca
                 }
-                SymbolType::Bool | SymbolType::Num | SymbolType::Ref(_) => {
+                SymbolType::Bool | SymbolType::Num | SymbolType::Fnum | SymbolType::Ref(_) => {
                     let param_ptr = self.create_block_alloca(param_value.get_type(), "param");
                     self.builder.build_store(param_ptr, param_value);
                     param_ptr
@@ -219,7 +219,7 @@ impl<'ctx> LSymbol<'ctx> {
 
     pub fn into_num(self, code_pos: &CodePos) -> Result<FloatValue<'ctx>, CrocoError> {
         match self.symbol_type {
-            SymbolType::Num => Ok(self.value.into_float_value()),
+            SymbolType::Fnum => Ok(self.value.into_float_value()),
             _ => Err(CrocoError::new(code_pos, "expected a number")),
         }
     }
@@ -272,6 +272,15 @@ impl<'ctx> LNodeResult<'ctx> {
                     symbol_type: val.symbol_type,
                 })
             }
+            _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)),
+        }
+    }
+
+    /// Gets the symbol type of possible
+    pub fn get_symbol_type(&self, code_pos: &CodePos) -> Result<&SymbolType, CrocoError> {
+        match self {
+            LNodeResult::Variable(LSymbol { symbol_type, .. })
+            | LNodeResult::Value(LSymbol { symbol_type, .. }) => Ok(symbol_type),
             _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)),
         }
     }

@@ -20,17 +20,28 @@ impl CrocoiNode for AsNode {
 
         let casted = match (val_primitive, &self.as_type) {
             // useless cast
-            (Bool(_), SymbolType::Bool) | (Str(_), SymbolType::Str) | (Num(_), SymbolType::Num) => {
+            (Bool(_), SymbolType::Bool)
+            | (Str(_), SymbolType::Str)
+            | (Num(_), SymbolType::Num)
+            | (Fnum(_), SymbolType::Fnum) => {
                 return Err(CrocoError::cast_redundant_error(&self.code_pos))
+            }
+            (Bool(b), SymbolType::Fnum) => {
+                if b {
+                    Fnum(1.)
+                } else {
+                    Fnum(0.)
+                }
             }
 
             (Bool(b), SymbolType::Num) => {
                 if b {
-                    Num(1.)
+                    Num(1)
                 } else {
-                    Num(0.)
+                    Num(0)
                 }
             }
+
             (Bool(b), SymbolType::Str) => {
                 if b {
                     Str("true".to_owned())
@@ -40,19 +51,33 @@ impl CrocoiNode for AsNode {
             }
 
             (Num(n), SymbolType::Bool) => {
+                if n == 0 {
+                    Bool(false)
+                } else {
+                    Bool(true)
+                }
+            }
+
+            (Num(n), SymbolType::Str) => Str(n.to_string()),
+
+            (Num(n), SymbolType::Fnum) => Fnum(n as f32),
+
+            (Fnum(n), SymbolType::Bool) => {
                 if n == 0. {
                     Bool(false)
                 } else {
                     Bool(true)
                 }
             }
-            (Num(n), SymbolType::Str) => Str(n.to_string()),
+            (Fnum(n), SymbolType::Str) => Str(n.to_string()),
 
-            (Str(s), SymbolType::Num) => {
+            (Fnum(n), SymbolType::Num) => Num(n as i32),
+
+            (Str(s), SymbolType::Fnum) => {
                 let n = s.parse().map_err(|_| {
-                    CrocoError::new(&self.code_pos, "could not parse the str into a num")
+                    CrocoError::new(&self.code_pos, "could not parse the str into a fnum")
                 })?;
-                Num(n)
+                Fnum(n)
             }
             (Str(s), SymbolType::Bool) => {
                 if s.is_empty() {
@@ -60,6 +85,13 @@ impl CrocoiNode for AsNode {
                 } else {
                     Bool(true)
                 }
+            }
+
+            (Str(s), SymbolType::Num) => {
+                let n = s.parse().map_err(|_| {
+                    CrocoError::new(&self.code_pos, "could not parse the str into a num")
+                })?;
+                Num(n)
             }
 
             _ => {

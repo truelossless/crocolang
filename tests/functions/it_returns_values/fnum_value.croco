@@ -1,0 +1,7 @@
+fn a() fnum {
+    return 420.69
+}
+
+fn main() {
+    assert(a() == 420.69)
+}

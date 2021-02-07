@@ -1,18 +1,19 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 /**
- Representation of a croco str
- https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/appendix-a-how-to-implement-a-string-type-in-llvm/
- {
-   ptr: i8*,
-   len: isize,
-   max_len: isize
- }
- 
- this uses a different size depending on the host's architecture, for performance reasons
+ * Representation of a croco str
+ * https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/appendix-a-how-to-implement-a-string-type-in-llvm/
+ * {
+ *   ptr: i8*,
+ *   len: isize,
+ *   max_len: isize
+ * }
+ * 
+ * this uses a different size depending on the host's architecture, for performance reasons
 */
 typedef struct
 {
@@ -22,8 +23,8 @@ typedef struct
 } CrocoStr;
 
 /**
-  Representation of a croco array
-*/
+ * Representation of a croco array
+ */
 typedef struct
 {
   void *ptr;
@@ -32,8 +33,8 @@ typedef struct
 } CrocoArray;
 
 /**
-  Resizes a CrocoStr if needed
-*/
+ * Resizes a CrocoStr if needed
+ */
 void _croco_str_resize(CrocoStr *string, size_t new_len)
 {
   if (new_len <= string->max_len)
@@ -46,11 +47,11 @@ void _croco_str_resize(CrocoStr *string, size_t new_len)
 }
 
 /**
- Compares two CrocoStr
- Returns 0 if both strings are equal
- Returns < 0 if the first string is inferior to the second
- Returns > 0 if the second string is inferior to the first
-*/
+ * Compares two CrocoStr
+ * Returns 0 if both strings are equal
+ * Returns < 0 if the first string is inferior to the second
+ * Returns > 0 if the second string is inferior to the first
+ */
 char _croco_str_cmp(CrocoStr *string1, CrocoStr *string2)
 {
   size_t pos = 0;
@@ -87,8 +88,8 @@ char _croco_str_cmp(CrocoStr *string1, CrocoStr *string2)
 }
 
 /**
-  Casts a `str` into a `num`
-*/
+ * Casts a `str` into a `num`
+ */
 float _as_str_num(CrocoStr string)
 {
   float res;
@@ -109,20 +110,31 @@ float _as_str_num(CrocoStr string)
 }
 
 /**
-  Casts a `num` into a `str`
-*/
-void _as_num_str(float num, CrocoStr *string_res)
+ * Casts a `fnum` into a `str`
+ */
+void _as_fnum_str(float fnum, CrocoStr *string_res)
 {
   _croco_str_resize(string_res, 100);
 
   // this is going to null terminate our string but this doesn't really matter.
-  sprintf(string_res->ptr, "%g", num);
+  sprintf(string_res->ptr, "%g", fnum);
   string_res->len = strlen(string_res->ptr);
 }
 
 /**
-  Exits if `assertion` is false
-*/
+ * Casts a `num` into a `str`
+ */
+void _as_num_str(int32_t num, CrocoStr *string_res)
+{
+  // 10 chars is the max int size, 1 char for the sign, 1 char for the null byte
+  _croco_str_resize(string_res, 12);
+  sprintf(string_res->ptr, "%d", num);
+  string_res->len = strlen(string_res->ptr);
+}
+
+/**
+ * Exits if `assertion` is false
+ */
 void assert(bool assertion)
 {
   if (!assertion)
@@ -133,31 +145,31 @@ void assert(bool assertion)
 }
 
 /**
-  Prints to stderr
-*/
+ * Prints to stderr
+ */
 void eprint(CrocoStr string)
 {
   fprintf(stderr, "%.*s", (int)string.len, string.ptr);
 }
 
 /**
-  Prints to stderr with a line feed
-*/
+ * Prints to stderr with a line feed
+ */
 void eprintln(CrocoStr string)
 {
   fprintf(stderr, "%.*s\n", (int)string.len, string.ptr);
 }
 /**
-  Prints to stdout
-*/
+ * Prints to stdout
+ */
 void print(CrocoStr string)
 {
   printf("%.*s", (int)string.len, string.ptr);
 }
 
 /**
-  Prints to stdout with a line feed
-*/
+ * Prints to stdout with a line feed
+ */
 void println(CrocoStr string)
 {
   printf("%.*s\n", (int)string.len, string.ptr);

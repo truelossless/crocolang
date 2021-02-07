@@ -1,0 +1,4 @@
+fn main() {
+    let a fnum
+    assert(a == 0.)
+}

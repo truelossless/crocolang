@@ -9,11 +9,11 @@ pub fn get_module() -> BuiltinModule {
     let vars = vec![
         BuiltinVar {
             name: "pi".to_owned(),
-            value: Primitive(Num(std::f32::consts::PI)),
+            value: Primitive(Fnum(std::f32::consts::PI)),
         },
         BuiltinVar {
             name: "e".to_owned(),
-            value: Primitive(Num(std::f32::consts::E)),
+            value: Primitive(Fnum(std::f32::consts::E)),
         },
     ];
 

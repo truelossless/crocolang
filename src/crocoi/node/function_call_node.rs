@@ -25,7 +25,7 @@ impl CrocoiNode for FunctionCallNode {
             let fn_name = match &*method_symbol.get_ref().borrow() {
                 ISymbol::Struct(s) => format!("_{}_{}", s.struct_type, self.fn_name),
                 ISymbol::Primitive(LiteralEnum::Str(_)) => format!("_str_{}", &self.fn_name),
-                ISymbol::Primitive(LiteralEnum::Num(_)) => format!("_num_{}", &self.fn_name),
+                ISymbol::Primitive(LiteralEnum::Fnum(_)) => format!("_num_{}", &self.fn_name),
                 ISymbol::Primitive(LiteralEnum::Bool(_)) => format!("_bool_{}", &self.fn_name),
                 ISymbol::Array(_) => format!("_array_{}", &self.fn_name),
                 _ => unreachable!(),

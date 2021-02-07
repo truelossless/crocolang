@@ -1,9 +1,10 @@
 use std::{cmp::Ordering, rc::Rc};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum LiteralEnum {
     Bool(bool),
-    Num(f32),
+    Num(i32),
+    Fnum(f32),
     Str(String),
 }
 
@@ -12,8 +13,8 @@ pub fn literal_eq(a: &LiteralEnum, b: &LiteralEnum) -> bool {
 }
 
 impl LiteralEnum {
-    pub fn is_num(&self) -> bool {
-        matches!(self, LiteralEnum::Num(_))
+    pub fn is_num_fnum(&self) -> bool {
+        matches!(self, LiteralEnum::Fnum(_) | LiteralEnum::Num(_))
     }
 
     pub fn into_bool(self) -> Result<bool, &'static str> {
@@ -32,23 +33,33 @@ impl LiteralEnum {
 
     pub fn into_num(self) -> Result<f32, &'static str> {
         match self {
-            LiteralEnum::Num(n) => Ok(n),
+            LiteralEnum::Fnum(n) => Ok(n),
             _ => Err("expected a number"),
+        }
+    }
+}
+
+impl PartialEq for LiteralEnum {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (LiteralEnum::Num(n1), LiteralEnum::Num(n2)) => n1.eq(n2),
+            (LiteralEnum::Fnum(f1), LiteralEnum::Fnum(f2)) => f1.eq(f2),
+            (LiteralEnum::Num(n), LiteralEnum::Fnum(f))
+            | (LiteralEnum::Fnum(f), LiteralEnum::Num(n)) => (*n as f32).eq(f),
+            (LiteralEnum::Str(s1), LiteralEnum::Str(s2)) => s1.eq(s2),
+            (LiteralEnum::Bool(b1), LiteralEnum::Bool(b2)) => b1.eq(b2),
+            _ => false,
         }
     }
 }
 
 impl PartialOrd for LiteralEnum {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self {
-            LiteralEnum::Num(n1) => {
-                if let LiteralEnum::Num(n2) = other {
-                    n1.partial_cmp(n2)
-                } else {
-                    unreachable!()
-                }
-            }
-
+        match (self, other) {
+            (LiteralEnum::Num(n1), LiteralEnum::Num(n2)) => n1.partial_cmp(n2),
+            (LiteralEnum::Fnum(f1), LiteralEnum::Fnum(f2)) => f1.partial_cmp(f2),
+            (LiteralEnum::Fnum(f), LiteralEnum::Num(n)) => f.partial_cmp(&(*n as f32)),
+            (LiteralEnum::Num(n), LiteralEnum::Fnum(f)) => (*n as f32).partial_cmp(f),
             _ => unreachable!(),
         }
     }
@@ -110,6 +121,7 @@ pub enum KeywordEnum {
     Continue,
     Elif,
     Else,
+    Fnum,
     For,
     Function,
     If,

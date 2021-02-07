@@ -64,8 +64,7 @@ impl<T, U> NodeResult<T, U> {
     pub fn into_value(self, pos: &CodePos) -> Result<T, CrocoError> {
         match self {
             NodeResult::Value(s) => Ok(s),
-            NodeResult::Void => panic!("bruh"),
-            NodeResult::Variable(_) | NodeResult::Return(_) => panic!(),
+            NodeResult::Variable(_) | NodeResult::Return(_) | NodeResult::Void => panic!(),
             _ => Err(CrocoError::new(
                 pos,
                 "expected a value but got an early-return keyword",

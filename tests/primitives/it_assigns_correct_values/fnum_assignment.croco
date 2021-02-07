@@ -1,0 +1,5 @@
+fn main() {
+    let b fnum = 40.
+    b += 0.1
+    assert(b == 40.1)
+}

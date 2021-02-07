@@ -80,7 +80,7 @@ Optional arguments:
 
 ## Examples
 
-Fibonacci (quite slow but it works!!!)
+**Fibonacci**
 
 ```croco
 fn fib(n num) num {
@@ -101,50 +101,12 @@ println(fib(20) as str)
 
 Function return
 
-```croco
-fn divide_by_6(n num) num {
-    return n/6
-}
-
-println(divide_by_6(24) as str)
-```
-
-```
-4
-```
-
-Arrays
-
-```
-let arr = [[2, 1], [3, 4, 5]]
-println(arr[1][2] as str)
-```
-
-```
-5
-```
-
-### Variable assignment
-
-```croco
-let this_is_12_squared = -(5*3-3)^2
-let operator_precedence = 12+4*2^8/4
-println(this_is_12_squared as str)
-println(operator_precedence as str)
-```
-
-```
--144
-268
-```
-
 ### Built-in functions
 
 NOTE: right now namespaces are broken: use directly the function name without the module name.
 
 ```croco
-
-// imports required modules
+// import required modules
 import "os"
 import "math"
 import "fs"
@@ -154,7 +116,7 @@ import "http"
 println("nice")
 println(os.exec("git --version"))
 
-if math.pi > 3 {
+if math.pi > 3. {
   println("pi is a big number")
 }
 
@@ -214,19 +176,18 @@ $ time ./bench_name
 
 **Execution speed**
 
-| benchmark name      | clang  | crocol |
-|---------------------|--------|--------|
-| rec fibonacci, n=45 | 4500ms | 7400ms |
+| benchmark name      | gcc    | clang  | crocol |
+|---------------------|--------|--------|--------|
+| rec fibonacci, n=45 | 3800ms | 4100ms | 4300ms |
 
 These results are pretty good !  
-The only thing slowing crocol is that we are doing floating point arithmetics for the moment.  
-The result is also less precise.
+Now that croco has integer primitives, it is almost as fast as clang !! 
 
 **Compilation time (after warmup)**
 
 | benchmark name      | clang | crocol |
 |---------------------|-------|--------|
-| rec fibonacci, n=40 | 250ms | 500ms  |
+| rec fibonacci, n=40 | 250ms | 400ms  |
 
 **LLVM IR differences**
 
@@ -257,22 +218,26 @@ define dso_local i32 @fib(i32 %0) local_unnamed_addr #0 {
 
 `crocol fib.croco -O3 --emit-llvm`
 ```
-; Function Attrs: nounwind readnone
-define float @fib(float %0) local_unnamed_addr #8 {
+define i32 @fib(i32 %0) local_unnamed_addr #7 {
 entry:
-  %cmpnum = fcmp ugt float %0, 1.000000e+00
-  br i1 %cmpnum, label %endif, label %then
+  %cmpnum5 = icmp slt i32 %0, 2
+  br i1 %cmpnum5, label %then, label %endif
 
-then:                                             ; preds = %entry
-  ret float %0
+then:                                             ; preds = %endif, %entry
+  %accumulator.tr.lcssa = phi i32 [ 0, %entry ], [ %add, %endif ]
+  %.tr.lcssa = phi i32 [ %0, %entry ], [ %sub3, %endif ]
+  %accumulator.ret.tr = add i32 %.tr.lcssa, %accumulator.tr.lcssa
+  ret i32 %accumulator.ret.tr
 
-endif:                                            ; preds = %entry
-  %sub = fadd float %0, -1.000000e+00
-  %callfn = tail call float @fib(float %sub)
-  %sub3 = fadd float %0, -2.000000e+00
-  %callfn4 = tail call float @fib(float %sub3)
-  %add = fadd float %callfn, %callfn4
-  ret float %add
+endif:                                            ; preds = %entry, %endif
+  %.tr7 = phi i32 [ %sub3, %endif ], [ %0, %entry ]
+  %accumulator.tr6 = phi i32 [ %add, %endif ], [ 0, %entry ]
+  %sub = add nsw i32 %.tr7, -1
+  %callfn = tail call i32 @fib(i32 %sub)
+  %sub3 = add nsw i32 %.tr7, -2
+  %add = add i32 %callfn, %accumulator.tr6
+  %cmpnum = icmp slt i32 %.tr7, 4
+  br i1 %cmpnum, label %then, label %endif
 }
 ```
 
