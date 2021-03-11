@@ -13,11 +13,7 @@ impl CrocoiNode for ArrayCreateNode {
         // people should use
         // let a [num] and not let a [num] = []
         if self.contents.is_empty() {
-            return Err(CrocoError::new(
-                &self.code_pos,
-                "do not use this syntax to declare empty arrays",
-            )
-            .hint("use type annotations to declare empty arrays"));
+            return Err(CrocoError::empty_array_error(&self.code_pos));
         }
 
         // visit all array elements
@@ -36,10 +32,7 @@ impl CrocoiNode for ArrayCreateNode {
             let el_type = get_symbol_type(&el);
 
             if el_type != array_type {
-                return Err(CrocoError::new(
-                    &self.code_pos,
-                    "array elements must be of the same type",
-                ));
+                return Err(CrocoError::mixed_type_array(&self.code_pos));
             }
 
             visited_rc.push(Rc::new(RefCell::new(el)))

@@ -179,10 +179,13 @@ impl INodeResult {
         }
     }
 
-    /// Returns a reference of a value, or transforms a variable into a reference value
+    /// Returns a reference of a value, or transforms a variable into a reference value if needed
     pub fn into_var_ref(self, code_pos: &CodePos) -> Result<ISymbol, CrocoError> {
         match self {
-            INodeResult::Variable(var) => Ok(ISymbol::Ref(var)),
+            INodeResult::Variable(var) => match &*var.borrow() {
+                r @ ISymbol::Ref(_) => Ok(r.clone()),
+                _ => Ok(ISymbol::Ref(var.clone())),
+            },
             INodeResult::Value(val) => Ok(ISymbol::Ref(Rc::new(RefCell::new(val)))),
             _ => Err(CrocoError::expected_value_got_early_return_error(code_pos)),
         }

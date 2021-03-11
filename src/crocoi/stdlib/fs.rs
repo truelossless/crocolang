@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_wraps)]
+
 use crate::crocoi::stdlib::*;
 use crate::crocoi::symbol::{ISymbol, ISymbol::*};
 use crate::symbol_type::SymbolType;

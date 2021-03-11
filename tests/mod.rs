@@ -13,7 +13,7 @@ pub enum Backend {
     Crocol,
 }
 
-pub const CROCOI: &[Backend] = &[];
+pub const CROCOI: &[Backend] = &[Backend::Crocoi];
 pub const ALL_BACKENDS: &[Backend] = &[Backend::Crocoi, Backend::Crocol];
 
 pub fn test_file_ok(path: &str, backends: &[Backend]) {

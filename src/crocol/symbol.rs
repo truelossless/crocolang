@@ -16,7 +16,7 @@ use crate::{ast::BackendNode, token::CodePos};
 use crate::{ast::NodeResult, symbol_type::SymbolType};
 use crate::{error::CrocoError, symbol::SymTable};
 
-use super::utils::get_or_define_struct;
+use super::utils::{get_llvm_type, get_or_define_struct};
 
 // I'll be using a simple struct as in the README example for now
 // https://github.com/TheDan64/inkwell/blob/master/README.md
@@ -30,6 +30,8 @@ pub struct LCodegen<'ctx> {
     pub builder: Builder<'ctx>,
     /// The symbol table containing pointers to variables
     pub symtable: LSymTable<'ctx>,
+    /// The array type as defined in crocol
+    pub array_type: StructType<'ctx>,
     /// The str type as defined in crocol
     pub str_type: StructType<'ctx>,
     /// The pointer size of this architecture
@@ -78,8 +80,10 @@ impl<'ctx> LCodegen<'ctx> {
         self.symtable.pop_symbols();
 
         let function = get_or_define_function(fn_name, &fn_decl, self);
-        let sret_fn =
-            matches!(fn_decl.return_type, Some(SymbolType::Struct(_)) | Some(SymbolType::Str));
+        let sret_fn = matches!(
+            fn_decl.return_type,
+            Some(SymbolType::Struct(_)) | Some(SymbolType::Str)
+        );
 
         // add the sret tag to the first param if needed
         if sret_fn {
@@ -157,16 +161,73 @@ impl<'ctx> LCodegen<'ctx> {
         Ok(())
     }
 
+    /// Allocates a CrocoArray given specific elements.
+    pub fn alloc_array(&self, elements: Vec<LSymbol>) -> PointerValue<'ctx> {
+        let alloca = self.create_block_alloca(self.array_type.into(), "array");
+
+        // calls to alloc_array are always guaranteed to have at least one element in the array so this is fine
+        let el_llvm_ty = get_llvm_type(&elements[0].symbol_type, self);
+
+        let heap_ptr_ptr = self
+            .builder
+            .build_struct_gep(alloca, 0, "arrayheapptr")
+            .unwrap();
+        let array_len = self.ptr_size.const_int(elements.len() as u64, false);
+        let new_heap_ptr = self
+            .builder
+            .build_array_malloc(el_llvm_ty, array_len, "mallocarr")
+            .unwrap();
+
+        // store the elements into the newly allocated memory
+        // note that this requires a stack allocation before the elements are copied
+        // on the heap, but with our current design it is hard to do it differently.
+        // hopefully llvm is able to optimize away the unneeded allocations.
+        for (i, el) in elements.into_iter().enumerate() {
+            let index = self.ptr_size.const_int(i as u64, false);
+
+            // SAFETY: the pointer is allocated with the length of all elements,
+            // so the GEP should always be in bounds.
+            let single_el_ptr = unsafe {
+                self.builder
+                    .build_gep(new_heap_ptr, &[index], "arrayelement")
+            };
+
+            self.builder.build_store(single_el_ptr, el.value);
+        }
+
+        // store into ptr the initialized ptr
+        let void_ptr = self.builder.build_bitcast(
+            new_heap_ptr,
+            self.context.i8_type().ptr_type(AddressSpace::Generic),
+            "voidptr",
+        );
+        self.builder.build_store(heap_ptr_ptr, void_ptr);
+
+        // and finally update the len and max_len fields accordingly
+        let len_ptr = self
+            .builder
+            .build_struct_gep(alloca, 1, "arraylen")
+            .unwrap();
+        self.builder.build_store(len_ptr, array_len);
+        let max_len_ptr = self
+            .builder
+            .build_struct_gep(alloca, 2, "arraymaxlen")
+            .unwrap();
+        self.builder.build_store(max_len_ptr, array_len);
+
+        alloca
+    }
+
     /// Allocates a CrocStr given a specific text
     pub fn alloc_str(&self, text: &str) -> PointerValue<'ctx> {
         // get the string as an llvm i8 array
         let char_array = self.context.const_string(text.as_bytes(), false);
 
-        let alloca = self.create_block_alloca(self.str_type.into(), "allocastr");
+        let alloca = self.create_block_alloca(self.str_type.into(), "str");
         // since the size of the str is known we can directly malloc() the right amount
         let heap_ptr_ptr = self
             .builder
-            .build_struct_gep(alloca, 0, "gepheapptr")
+            .build_struct_gep(alloca, 0, "strheapptr")
             .unwrap();
         let str_len = self.ptr_size.const_int(text.len() as u64, false);
         let new_heap_ptr = self
@@ -189,11 +250,11 @@ impl<'ctx> LCodegen<'ctx> {
         self.builder.build_store(heap_ptr_ptr, new_heap_ptr);
 
         // and finally update the len and max_len fields accordingly
-        let len_ptr = self.builder.build_struct_gep(alloca, 1, "geplen").unwrap();
+        let len_ptr = self.builder.build_struct_gep(alloca, 1, "strlen").unwrap();
         self.builder.build_store(len_ptr, str_len);
         let max_len_ptr = self
             .builder
-            .build_struct_gep(alloca, 2, "gepmaxlen")
+            .build_struct_gep(alloca, 2, "strmaxlen")
             .unwrap();
         self.builder.build_store(max_len_ptr, str_len);
 
@@ -213,14 +274,21 @@ impl<'ctx> LSymbol<'ctx> {
     pub fn into_bool(self, code_pos: &CodePos) -> Result<IntValue<'ctx>, CrocoError> {
         match self.symbol_type {
             SymbolType::Bool => Ok(self.value.into_int_value()),
-            _ => Err(CrocoError::new(code_pos, "expected a boolean")),
+            _ => Err(CrocoError::new(code_pos, "expected a bool")),
         }
     }
 
-    pub fn into_num(self, code_pos: &CodePos) -> Result<FloatValue<'ctx>, CrocoError> {
+    pub fn into_fnum(self, code_pos: &CodePos) -> Result<FloatValue<'ctx>, CrocoError> {
         match self.symbol_type {
             SymbolType::Fnum => Ok(self.value.into_float_value()),
-            _ => Err(CrocoError::new(code_pos, "expected a number")),
+            _ => Err(CrocoError::new(code_pos, "expected a fnum")),
+        }
+    }
+
+    pub fn into_num(self, code_pos: &CodePos) -> Result<IntValue<'ctx>, CrocoError> {
+        match self.symbol_type {
+            SymbolType::Num => Ok(self.value.into_int_value()),
+            _ => Err(CrocoError::new(code_pos, "expected a num")),
         }
     }
 }

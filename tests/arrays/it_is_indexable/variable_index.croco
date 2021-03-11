@@ -1,0 +1,6 @@
+fn main() {
+    let a = [8, 9, 10]
+    let index = 2
+    assert(a[index] == 10)
+}
+

@@ -31,9 +31,9 @@ pub enum CrocoErrorKind {
 /// errors thrown by croco
 pub struct CrocoError {
     kind: CrocoErrorKind,
-    hint: Option<String>,
-    pos: Option<CodePos>,
-    message: String,
+    pub hint: Option<String>,
+    pub pos: Option<CodePos>,
+    pub message: String,
 }
 
 impl CrocoError {
@@ -105,11 +105,20 @@ impl CrocoError {
         CrocoError::new(code_pos, "expected a value but got an early-return keyword")
     }
 
+    pub fn empty_array_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "do not use this syntax to declare empty arrays")
+            .hint("use type annotations to declare empty arrays")
+    }
+
     pub fn field_type_error(field_name: &str, code_pos: &CodePos) -> CrocoError {
         CrocoError::new(
             code_pos,
             format!("field {} is not of the right type", field_name),
         )
+    }
+
+    pub fn index_out_of_bounds_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "index out of bounds")
     }
 
     pub fn infer_error(code_pos: &CodePos, var_name: &str) -> CrocoError {
@@ -147,8 +156,16 @@ impl CrocoError {
         )
     }
 
+    pub fn mixed_type_array(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "array elements must be of the same type")
+    }
+
     pub fn multiplicate_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "cannot multiplicate these two types together")
+    }
+
+    pub fn negative_indexing_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot use a negative index")
     }
 
     pub fn no_field_error(field_name: &str, code_pos: &CodePos) -> CrocoError {
@@ -188,6 +205,10 @@ impl CrocoError {
 
     pub fn unary_minus_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "cannot negate this type of variable")
+    }
+
+    pub fn wrong_type_indexing(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "only arrays are indexable")
     }
 }
 

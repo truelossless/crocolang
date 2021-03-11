@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_wraps)]
+
 use std::{cell::RefCell, rc::Rc};
 
 use unicode_segmentation::UnicodeSegmentation;
@@ -55,11 +57,18 @@ pub fn get_module() -> BuiltinModule {
             return_type: Some(SymbolType::Fnum),
             pointer: _array_len,
         },
+        // fnum methods
+        BuiltinFunction {
+            name: "_fnum_times".to_owned(),
+            args: vec![SymbolType::Fnum],
+            return_type: Some(SymbolType::Array(Box::new(SymbolType::Fnum))),
+            pointer: _fnum_times,
+        },
         // num methods
         BuiltinFunction {
             name: "_num_times".to_owned(),
             args: vec![SymbolType::Fnum],
-            return_type: Some(SymbolType::Array(Box::new(SymbolType::Fnum))),
+            return_type: Some(SymbolType::Array(Box::new(SymbolType::Num))),
             pointer: _num_times,
         },
         // str methods
@@ -166,13 +175,31 @@ fn _array_len(mut args: Vec<ISymbol>) -> Option<ISymbol> {
 /// Fnum methods
 
 /// Returns an array containing `times` times the number
-fn _num_times(mut args: Vec<ISymbol>) -> Option<ISymbol> {
-    let num = get_arg_num(&mut args);
-    let times = get_arg_num(&mut args) as usize;
+fn _fnum_times(mut args: Vec<ISymbol>) -> Option<ISymbol> {
+    let fnum = get_arg_fnum(&mut args);
+    let times = get_arg_fnum(&mut args) as usize;
 
     let mut arr = Vec::with_capacity(times);
     for _ in 0..times {
-        arr.push(Rc::new(RefCell::new(ISymbol::Primitive(Fnum(num)))));
+        arr.push(Rc::new(RefCell::new(ISymbol::Primitive(Fnum(fnum)))));
+    }
+
+    Some(ISymbol::Array(Array {
+        contents: arr,
+        array_type: Box::new(SymbolType::Fnum),
+    }))
+}
+
+/// Num methods
+
+/// Returns an array containing `times` times the number
+fn _num_times(mut args: Vec<ISymbol>) -> Option<ISymbol> {
+    let num = get_arg_num(&mut args);
+    let times = get_arg_fnum(&mut args) as usize;
+
+    let mut arr = Vec::with_capacity(times);
+    for _ in 0..times {
+        arr.push(Rc::new(RefCell::new(ISymbol::Primitive(Num(num)))));
     }
 
     Some(ISymbol::Array(Array {

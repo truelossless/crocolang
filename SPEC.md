@@ -76,7 +76,7 @@ assert(false as num == 0)
 assert(true as num == 1)
 ```
 
-### Arrays [CROCOI 60% | CROCOL 0%]
+### Arrays [CROCOI 40% | CROCOL 40%]
 
 Arrays don't have a fixed length.  
 All array elements must be of the same type.  

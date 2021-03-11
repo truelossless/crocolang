@@ -171,6 +171,7 @@ impl Crocol {
         let ptr_size = context.ptr_sized_int_type(&target_machine.get_target_data(), None);
 
         let mut codegen = LCodegen {
+            array_type: module.get_struct_type("struct.CrocoStr").unwrap(),
             str_type: module.get_struct_type("struct.CrocoStr").unwrap(),
             context: &context,
             module,
@@ -212,7 +213,7 @@ impl Crocol {
                 CrocoError::from_type(
                     format!(
                         "An LLVM error has occured, this should never happen!\n{}",
-                        e
+                        e.to_string()
                     ),
                     CrocoErrorKind::Compilation,
                 )

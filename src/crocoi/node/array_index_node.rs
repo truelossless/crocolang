@@ -27,27 +27,16 @@ impl CrocoiNode for ArrayIndexNode {
 
         let array = match array_borrow {
             Array(arr) => arr,
-            _ => return Err(CrocoError::new(&self.code_pos, "only arrays are indexable")),
+            _ => return Err(CrocoError::wrong_type_indexing(&self.code_pos)),
         };
 
-        // make sure the index is a uint
-        if index.fract() != 0.0 {
-            return Err(CrocoError::new(
-                &self.code_pos,
-                "cannot use a floating number to index an array",
-            ));
-        }
-
-        if index < 0.0 {
-            return Err(CrocoError::new(
-                &self.code_pos,
-                "cannot use a negative index",
-            ));
+        if index < 0 {
+            return Err(CrocoError::negative_indexing_error(&self.code_pos));
         }
 
         match array.contents.get(index as usize) {
             Some(el) => Ok(INodeResult::Variable(el.clone())),
-            None => Err(CrocoError::new(&self.code_pos, "index out of bounds")),
+            None => Err(CrocoError::index_out_of_bounds_error(&self.code_pos)),
         }
     }
 }

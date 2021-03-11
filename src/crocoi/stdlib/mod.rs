@@ -69,11 +69,19 @@ pub fn get_arg_str(args: &mut Vec<ISymbol>) -> String {
         .unwrap()
 }
 
-pub fn get_arg_num(args: &mut Vec<ISymbol>) -> f32 {
+pub fn get_arg_num(args: &mut Vec<ISymbol>) -> i32 {
     auto_deref(args.remove(0))
         .into_primitive()
         .unwrap()
         .into_num()
+        .unwrap()
+}
+
+pub fn get_arg_fnum(args: &mut Vec<ISymbol>) -> f32 {
+    auto_deref(args.remove(0))
+        .into_primitive()
+        .unwrap()
+        .into_fnum()
         .unwrap()
 }
 

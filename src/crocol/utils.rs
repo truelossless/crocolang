@@ -4,11 +4,12 @@ use crate::{
     symbol::Decl,
     symbol::{FunctionDecl, StructDecl},
     symbol_type::SymbolType,
+    CrocoError,
 };
 
 use inkwell::{
     types::{BasicType, BasicTypeEnum, StructType},
-    values::FunctionValue,
+    values::{FunctionValue, PointerValue},
     AddressSpace,
 };
 use std::{path::Path, vec};
@@ -204,6 +205,7 @@ pub fn get_or_define_function<'ctx>(
     })
 }
 
+/// Returns the inkwell struct if it exists, or create one according to the struct declaration
 pub fn get_or_define_struct<'ctx>(
     struct_name: &str,
     struct_decl: &StructDecl,
@@ -227,7 +229,7 @@ pub fn get_or_define_struct<'ctx>(
         })
 }
 /// Inserts all the function definitions from the crocol std
-pub fn insert_builtin_functions<'ctx>(symtable: &mut LSymTable<'ctx>) {
+pub fn insert_builtin_functions(symtable: &mut LSymTable<'_>) {
     let assert_decl = FunctionDecl {
         args: vec![TypedArg {
             arg_name: String::new(),
@@ -266,4 +268,49 @@ pub fn insert_builtin_functions<'ctx>(symtable: &mut LSymTable<'ctx>) {
     symtable
         .register_decl("println".to_owned(), Decl::FunctionDecl(print_decl))
         .unwrap()
+}
+
+/// Builds a pointer to a const, null-terminater char array
+pub fn build_cstr_ptr<'ctx>(
+    string: &str,
+    name: &str,
+    codegen: &LCodegen<'ctx>,
+) -> PointerValue<'ctx> {
+    let const_string = codegen.context.const_string(string.as_bytes(), true);
+    let string_ptr = codegen.create_block_alloca(const_string.get_type().into(), name);
+    codegen.builder.build_store(string_ptr, const_string);
+    codegen
+        .builder
+        .build_bitcast(
+            string_ptr,
+            codegen.context.i8_type().ptr_type(AddressSpace::Generic),
+            "bitcast",
+        )
+        .into_pointer_value()
+}
+
+/// Throws at runtime a CrocoError
+pub fn throw_runtime_error(error: CrocoError, codegen: &LCodegen) {
+    let msg = build_cstr_ptr(&error.message, "error", codegen);
+    let hint_ptr = if let Some(hint) = error.hint {
+        build_cstr_ptr(&hint, "hint", codegen)
+    } else {
+        codegen
+            .context
+            .i8_type()
+            .ptr_type(AddressSpace::Generic)
+            .const_null()
+    };
+
+    let pos = error.pos.unwrap();
+    let file = build_cstr_ptr(&pos.file, "file", codegen);
+    let line = codegen.context.i32_type().const_int(pos.line as u64, false);
+
+    let error_fn = codegen.module.get_function("_croco_error").unwrap();
+    codegen.builder.build_call(
+        error_fn,
+        &[file.into(), line.into(), msg.into(), hint_ptr.into()],
+        "crocoerror",
+    );
+    codegen.builder.build_unreachable();
 }

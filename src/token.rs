@@ -20,7 +20,7 @@ impl LiteralEnum {
     pub fn into_bool(self) -> Result<bool, &'static str> {
         match self {
             LiteralEnum::Bool(b) => Ok(b),
-            _ => Err("expected a boolean"),
+            _ => Err("expected a bool"),
         }
     }
 
@@ -31,10 +31,17 @@ impl LiteralEnum {
         }
     }
 
-    pub fn into_num(self) -> Result<f32, &'static str> {
+    pub fn into_fnum(self) -> Result<f32, &'static str> {
         match self {
             LiteralEnum::Fnum(n) => Ok(n),
-            _ => Err("expected a number"),
+            _ => Err("expected a fnum"),
+        }
+    }
+
+    pub fn into_num(self) -> Result<i32, &'static str> {
+        match self {
+            LiteralEnum::Num(n) => Ok(n),
+            _ => Err("expected a num"),
         }
     }
 }

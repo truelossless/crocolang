@@ -33,6 +33,26 @@ typedef struct
 } CrocoArray;
 
 /**
+ * Throws a CrocoError at runtime
+ */
+void _croco_error(char *file, uint32_t line, char *message, char *hint)
+{
+  fprintf(stderr, "Runtime error: %s\n", message);
+
+  if (hint)
+  {
+    fprintf(stderr, "Hint: %s\n", hint);
+  }
+
+  if (file)
+  {
+    fprintf(stderr, "\nIn file %s:%lu\n", file, (unsigned long)line + 1);
+  }
+
+  exit(1);
+}
+
+/**
  * Resizes a CrocoStr if needed
  */
 void _croco_str_resize(CrocoStr *string, size_t new_len)
@@ -50,7 +70,6 @@ void _croco_str_resize(CrocoStr *string, size_t new_len)
  * Compares two CrocoStr
  * Returns 0 if both strings are equal
  * Returns < 0 if the first string is inferior to the second
- * Returns > 0 if the second string is inferior to the first
  */
 char _croco_str_cmp(CrocoStr *string1, CrocoStr *string2)
 {
@@ -102,8 +121,7 @@ float _as_str_num(CrocoStr string)
 
   if (!success)
   {
-    fprintf(stderr, "Runtime error: cannot convert %s to num", tmp_str);
-    exit(1);
+    _croco_error(NULL, 0, "cannot cast a str to num", NULL);
   }
 
   return res;
