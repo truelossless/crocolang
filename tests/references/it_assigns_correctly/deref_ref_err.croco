@@ -1,2 +1,4 @@
-let hello = "hello"
-let ref = &*hello
+fn main() {
+    let hello = "hello"
+    let ref = &*hello
+}

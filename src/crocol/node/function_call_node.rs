@@ -1,5 +1,5 @@
 use crate::crocol::{
-    utils::{get_or_define_function, get_or_define_struct},
+    utils::{auto_deref, get_or_define_function, get_or_define_struct},
     LCodegen, LNodeResult, LSymbol,
 };
 use crate::error::CrocoError;
@@ -15,9 +15,11 @@ impl CrocolNode for FunctionCallNode {
         let fn_name;
         // if we're dealing with a method, inject self as the first argument
         if let Some(method_self) = self.method.as_mut() {
-            let method_symbol = method_self
+            let mut method_symbol = method_self
                 .crocol(codegen)?
                 .into_pointer(codegen, &self.code_pos)?;
+
+            method_symbol = auto_deref(method_symbol, codegen);
 
             fn_name = match method_symbol.symbol_type {
                 SymbolType::Struct(struct_name) => format!("_{}_{}", struct_name, self.fn_name),

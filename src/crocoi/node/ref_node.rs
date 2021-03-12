@@ -1,7 +1,7 @@
-use crate::ast::node::RefNode;
 use crate::crocoi::CrocoiNode;
+use crate::crocoi::ICodegen;
+use crate::{ast::node::RefNode, crocoi::ISymbol};
 use crate::{crocoi::INodeResult, error::CrocoError};
-use {crate::crocoi::ICodegen, std::cell::RefCell, std::rc::Rc};
 
 impl CrocoiNode for RefNode {
     fn crocoi(&mut self, codegen: &mut ICodegen) -> Result<INodeResult, CrocoError> {
@@ -14,9 +14,9 @@ impl CrocoiNode for RefNode {
             .as_mut()
             .unwrap()
             .crocoi(codegen)?
-            .into_var_ref(&self.code_pos)
-            .map_err(|_| CrocoError::new(&self.code_pos, "dropping a temporary value"))?;
+            .into_var(&self.code_pos)
+            .map_err(|_| CrocoError::tmp_value_borrow(&self.code_pos))?;
 
-        Ok(INodeResult::Variable(Rc::new(RefCell::new(symbol))))
+        Ok(INodeResult::Value(ISymbol::Ref(symbol)))
     }
 }

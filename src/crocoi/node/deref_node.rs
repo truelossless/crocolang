@@ -10,16 +10,11 @@ impl CrocoiNode for DerefNode {
             .as_mut()
             .unwrap()
             .crocoi(codegen)?
-            .into_var(&self.code_pos)?;
+            .into_symbol(&self.code_pos)?;
 
-        let deref_symbol = match symbol.borrow().clone() {
+        let deref_symbol = match symbol {
             ISymbol::Ref(r) => r,
-            _ => {
-                return Err(CrocoError::new(
-                    &self.code_pos,
-                    "cannot dereference this variable",
-                ))
-            }
+            _ => return Err(CrocoError::dereference_error(&self.code_pos)),
         };
 
         Ok(INodeResult::Variable(deref_symbol))

@@ -1,5 +1,6 @@
 use crate::crocol::{LCodegen, LNodeResult, LSymbol};
 use crate::error::CrocoError;
+use crate::symbol_type::SymbolType;
 use crate::{ast::node::DerefNode, crocol::CrocolNode};
 
 impl CrocolNode for DerefNode {
@@ -12,15 +13,18 @@ impl CrocolNode for DerefNode {
             .as_mut()
             .unwrap()
             .crocol(codegen)?
-            .into_value(&self.code_pos)?;
+            .into_symbol(codegen, &self.code_pos)?;
 
-        let symbol = LSymbol {
-            value: codegen
-                .builder
-                .build_load(symbol.value.into_pointer_value(), "deref"),
+        match symbol.symbol_type {
+            SymbolType::Ref(_) => (),
+            _ => return Err(CrocoError::dereference_error(&self.code_pos)),
+        }
+
+        let deref_symbol = LSymbol {
+            value: symbol.value,
             symbol_type: symbol.symbol_type.deref(),
         };
 
-        Ok(LNodeResult::Value(symbol))
+        Ok(LNodeResult::Variable(deref_symbol))
     }
 }

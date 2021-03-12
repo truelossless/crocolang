@@ -97,6 +97,10 @@ impl CrocoError {
         CrocoError::new(code_pos, "expected a bool for the condition")
     }
 
+    pub fn dereference_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot dereference this variable")
+    }
+
     pub fn divide_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "cannot divide these two types together")
     }
@@ -187,6 +191,10 @@ impl CrocoError {
 
     pub fn power_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "cannot power these two types together")
+    }
+
+    pub fn tmp_value_borrow(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "trying to borrow a temporary value")
     }
 
     pub fn type_annotation_error(code_pos: &CodePos, var_name: &str) -> CrocoError {

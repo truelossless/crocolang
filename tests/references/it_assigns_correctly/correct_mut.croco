@@ -2,7 +2,7 @@ fn main() {
     let a = "youpi!"
     let b = a
 
-    b = "yay !"
+    b = "yay!"
 
     assert(a == "youpi!")
 

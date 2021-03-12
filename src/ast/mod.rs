@@ -64,40 +64,28 @@ impl<T, U> NodeResult<T, U> {
     pub fn into_value(self, pos: &CodePos) -> Result<T, CrocoError> {
         match self {
             NodeResult::Value(s) => Ok(s),
-            NodeResult::Variable(_) | NodeResult::Return(_) | NodeResult::Void => panic!(),
-            _ => Err(CrocoError::new(
-                pos,
-                "expected a value but got an early-return keyword",
-            )),
+            _ => Err(CrocoError::expected_value_got_early_return_error(pos)),
         }
     }
 
     pub fn as_value(&self, pos: &CodePos) -> Result<&T, CrocoError> {
         match self {
             NodeResult::Value(s) => Ok(s),
-            _ => Err(CrocoError::new(
-                pos,
-                "expected a value but got an early-return keyword",
-            )),
+            _ => Err(CrocoError::expected_value_got_early_return_error(pos)),
         }
     }
 
     pub fn into_var(self, pos: &CodePos) -> Result<U, CrocoError> {
         match self {
             NodeResult::Variable(s) => Ok(s),
-            NodeResult::Return(_) | NodeResult::Value(_) => panic!(),
-            _ => Err(CrocoError::new(
-                pos,
-                "expected a value but got an early-return keyword",
-            )),
+            _ => Err(CrocoError::expected_value_got_early_return_error(pos)),
         }
     }
 
-    pub fn into_return(self) -> Result<Option<T>, CrocoError> {
+    pub fn into_return(self, pos: &CodePos) -> Result<Option<T>, CrocoError> {
         match self {
             NodeResult::Return(s) => Ok(s),
-            NodeResult::Value(_) | NodeResult::Variable(_) => panic!(),
-            _ => panic!("Expected a return value but got an early-return keyword"),
+            _ => Err(CrocoError::expected_value_got_early_return_error(pos)),
         }
     }
 }

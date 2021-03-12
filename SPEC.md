@@ -136,7 +136,7 @@ println(char.name)
 println(char.is_alive) // will default to false
 ```
 
-### References [CROCOI 70% | CROCOL 0%]
+### References [CROCOI 70% | CROCOL 50%]
 
 References point to another object.  
 When calling a struct field or method, dereferencing is automatically performed.  
