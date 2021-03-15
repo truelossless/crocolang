@@ -1,0 +1,6 @@
+fn no_ret() str {
+}
+
+fn main() {
+    no_ret()
+}

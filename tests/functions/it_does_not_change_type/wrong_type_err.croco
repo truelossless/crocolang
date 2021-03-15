@@ -1,0 +1,7 @@
+fn wong_type() num {
+    return "!!!"
+}
+
+fn main() {
+    wrong_type()
+}

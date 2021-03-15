@@ -53,6 +53,6 @@ impl CrocolNode for WhileNode {
         }
 
         codegen.builder.position_at_end(end_block);
-        Ok(value)
+        Ok(LNodeResult::Void)
     }
 }

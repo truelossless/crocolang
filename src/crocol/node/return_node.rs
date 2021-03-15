@@ -14,10 +14,8 @@ impl CrocolNode for ReturnNode {
                 // if we have a struct return, update the pointer and return void
                 if let Some(sret_ptr) = codegen.sret_ptr {
                     codegen.builder.build_store(sret_ptr, val.value);
-                    Ok(LNodeResult::Return(None))
-                } else {
-                    Ok(LNodeResult::Return(Some(val)))
                 }
+                Ok(LNodeResult::Return(Some(val)))
             }
 
             LNodeResult::Variable(var) => {
@@ -28,13 +26,11 @@ impl CrocolNode for ReturnNode {
                 // if we have a struct return, update the pointer and return void
                 if let Some(sret_ptr) = codegen.sret_ptr {
                     codegen.builder.build_store(sret_ptr, val);
-                    Ok(LNodeResult::Return(None))
-                } else {
-                    Ok(LNodeResult::Return(Some(LSymbol {
-                        value: val,
-                        symbol_type: var.symbol_type,
-                    })))
                 }
+                Ok(LNodeResult::Return(Some(LSymbol {
+                    value: val,
+                    symbol_type: var.symbol_type,
+                })))
             }
 
             LNodeResult::Void => Ok(LNodeResult::Return(None)),

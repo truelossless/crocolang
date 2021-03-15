@@ -115,7 +115,7 @@ impl<'ctx> LCodegen<'ctx> {
             // this means we need to add a memcpy in the function body.
             let abi_ptr = match &arg.arg_type {
                 // TODO: copy correctly heap allocated memory
-                SymbolType::Str | SymbolType::Struct(_) => {
+                SymbolType::Str | SymbolType::Array(_) | SymbolType::Struct(_) => {
                     let ty = if let SymbolType::Struct(struct_name) = &arg.arg_type {
                         let struct_ty = self
                             .symtable
@@ -156,7 +156,36 @@ impl<'ctx> LCodegen<'ctx> {
                 .map_err(|e| CrocoError::new(&code_pos, e))?;
         }
 
-        fn_body.crocol(self)?;
+        // populate the function body
+        let ret_val = match fn_body.crocol(self)? {
+            LNodeResult::Return(ret) => ret,
+            LNodeResult::Break => return Err(CrocoError::break_in_function_error(code_pos)),
+            LNodeResult::Continue => return Err(CrocoError::continue_in_function_error(code_pos)),
+            LNodeResult::Value(val) => Some(val),
+            LNodeResult::Variable(var) => Some(var),
+            LNodeResult::Void => None,
+        };
+
+        // make sure the return value matches the function declaration
+        let ret_ty_opt = ret_val.map(|x| x.symbol_type);
+        match (&fn_decl.return_type, &ret_ty_opt) {
+            (None, None) => (),
+            (Some(fn_ty), Some(ret_ty)) if fn_ty != ret_ty => {
+                return Err(CrocoError::wrong_return(
+                    fn_decl.return_type.as_ref(),
+                    ret_ty_opt.as_ref(),
+                    code_pos,
+                ))
+            }
+            (Some(_), Some(_)) => (),
+            _ => {
+                return Err(CrocoError::wrong_return(
+                    fn_decl.return_type.as_ref(),
+                    ret_ty_opt.as_ref(),
+                    code_pos,
+                ))
+            }
+        }
 
         Ok(())
     }

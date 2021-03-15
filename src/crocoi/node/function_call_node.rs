@@ -22,7 +22,7 @@ impl CrocoiNode for FunctionCallNode {
                 )
             };
 
-            let fn_name = match dbg!(&*method_symbol.get_ref().borrow()) {
+            let fn_name = match &*method_symbol.get_ref().borrow() {
                 ISymbol::Struct(s) => format!("_{}_{}", s.struct_type, self.fn_name),
                 ISymbol::Primitive(LiteralEnum::Str(_)) => format!("_str_{}", &self.fn_name),
                 ISymbol::Primitive(LiteralEnum::Fnum(_)) => format!("_fnum_{}", &self.fn_name),
@@ -105,16 +105,10 @@ impl CrocoiNode for FunctionCallNode {
                 return_value = match body.crocoi(codegen)? {
                     INodeResult::Return(ret) => ret,
                     INodeResult::Break => {
-                        return Err(CrocoError::new(
-                            &self.code_pos,
-                            "cannot exit a function with a break",
-                        ))
+                        return Err(CrocoError::break_in_function_error(&self.code_pos))
                     }
                     INodeResult::Continue => {
-                        return Err(CrocoError::new(
-                            &self.code_pos,
-                            "cannot use continue in a function",
-                        ))
+                        return Err(CrocoError::continue_in_function_error(&self.code_pos));
                     }
                     INodeResult::Value(val) => Some(val),
                     INodeResult::Variable(var) => Some(var.borrow().clone()),
@@ -128,13 +122,24 @@ impl CrocoiNode for FunctionCallNode {
             }
         }
 
-        // if this is false then both return types are void
-        if let (Some(ret_ty), Some(ret_val)) = (&fn_decl.return_type, &return_value) {
-            if *ret_ty != get_symbol_type(ret_val) {
-                return Err(CrocoError::new(
+        // make sure the return value matches the function declaration
+        let ret_ty_opt = return_value.as_ref().map(|x| get_symbol_type(x));
+        match (&fn_decl.return_type, &ret_ty_opt) {
+            (None, None) => (),
+            (Some(fn_ty), Some(ret_ty)) if fn_ty != ret_ty => {
+                return Err(CrocoError::wrong_return(
+                    fn_decl.return_type.as_ref(),
+                    ret_ty_opt.as_ref(),
                     &self.code_pos,
-                    "function returned a wrong type",
-                ));
+                ))
+            }
+            (Some(_), Some(_)) => (),
+            _ => {
+                return Err(CrocoError::wrong_return(
+                    fn_decl.return_type.as_ref(),
+                    ret_ty_opt.as_ref(),
+                    &self.code_pos,
+                ))
             }
         }
 

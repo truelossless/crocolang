@@ -22,10 +22,13 @@ impl CrocolNode for BlockNode {
 
             match &value {
                 LNodeResult::Return(ret) => {
-                    if let Some(ret_val) = ret {
-                        codegen.builder.build_return(Some(&ret_val.value));
-                    } else {
-                        codegen.builder.build_return(None);
+                    match ret {
+                        Some(ret_val) if codegen.sret_ptr.is_none() => {
+                            codegen.builder.build_return(Some(&ret_val.value));
+                        }
+                        _ => {
+                            codegen.builder.build_return(None);
+                        }
                     }
                     break;
                 }
@@ -34,7 +37,12 @@ impl CrocolNode for BlockNode {
             }
         }
 
-        // if there is no early return the function returns void
+        // return void if there is no return value
+        if let LNodeResult::Value(_) | LNodeResult::Variable(_) = value {
+            value = LNodeResult::Void;
+        };
+
+        // if there is no return the function returns void
         if self.scope == BlockScope::Function {
             match &value {
                 LNodeResult::Return(_) => (),

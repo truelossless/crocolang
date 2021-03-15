@@ -1,0 +1,7 @@
+fn extra_ret() {
+    return "!!!"
+}
+
+fn main() {
+    extra_ret()
+}

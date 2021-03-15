@@ -1,4 +1,4 @@
-use crate::token::CodePos;
+use crate::{symbol_type::SymbolType, token::CodePos};
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -77,6 +77,10 @@ impl CrocoError {
         CrocoError::new(code_pos, "cannot add these two types together")
     }
 
+    pub fn break_in_function_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot exit a function with a break")
+    }
+
     pub fn cast_non_primitive_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "can only cast primitives together")
     }
@@ -95,6 +99,10 @@ impl CrocoError {
 
     pub fn condition_not_bool_error(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "expected a bool for the condition")
+    }
+
+    pub fn continue_in_function_error(code_pos: &CodePos) -> CrocoError {
+        CrocoError::new(code_pos, "cannot use continue in a function")
     }
 
     pub fn dereference_error(code_pos: &CodePos) -> CrocoError {
@@ -215,6 +223,33 @@ impl CrocoError {
         CrocoError::new(code_pos, "cannot negate this type of variable")
     }
 
+    pub fn wrong_return(
+        fn_ty: Option<&SymbolType>,
+        ret_ty: Option<&SymbolType>,
+        code_pos: &CodePos,
+    ) -> CrocoError {
+        match (fn_ty, ret_ty) {
+            (Some(fn_ty), Some(ret_ty)) => CrocoError::new(
+                code_pos,
+                format!("function should return {} but returned {}", fn_ty, ret_ty),
+            ),
+
+            (None, Some(fn_ty)) => CrocoError::new(
+                code_pos,
+                format!("function shouldn't return anything but returned {}", fn_ty),
+            ),
+
+            (Some(ret_ty), None) => CrocoError::new(
+                code_pos,
+                format!(
+                    "function should return {} but didn't return anything",
+                    ret_ty
+                ),
+            ),
+            _ => unreachable!(),
+        }
+    }
+
     pub fn wrong_type_indexing(code_pos: &CodePos) -> CrocoError {
         CrocoError::new(code_pos, "only arrays are indexable")
     }
@@ -301,6 +336,6 @@ impl fmt::Display for CrocoError {
 
 impl fmt::Debug for CrocoError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.kind)
+        fmt::Display::fmt(self, f)
     }
 }

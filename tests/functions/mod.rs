@@ -71,3 +71,21 @@ fn it_uses_correctly_variables() {
         ALL_BACKENDS,
     );
 }
+
+#[test]
+fn it_does_not_change_type() {
+    test_file_err(
+        "tests/functions/it_does_not_change_type/extra_return_err.croco",
+        ALL_BACKENDS,
+    );
+
+    test_file_err(
+        "tests/functions/it_does_not_change_type/no_return_err.croco",
+        ALL_BACKENDS,
+    );
+
+    test_file_err(
+        "tests/functions/it_uses_correcly_variables/wrong_type_err.croco",
+        ALL_BACKENDS,
+    );
+}

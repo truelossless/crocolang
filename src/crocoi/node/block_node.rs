@@ -14,10 +14,7 @@ impl CrocoiNode for BlockNode {
         // early return from the block
         let mut value = INodeResult::Void;
         // iterate over all nodes in the body
-        for node in &mut self.body
-        // .chain(self.prepended.iter_mut())
-        // .chain(self.appended.iter_mut())
-        {
+        for node in &mut self.body {
             value = node.crocoi(codegen)?;
 
             match value {
@@ -28,8 +25,8 @@ impl CrocoiNode for BlockNode {
         }
 
         // return void if there is no return value
-        if let INodeResult::Value(_) = value {
-            return Ok(INodeResult::Void);
+        if let INodeResult::Value(_) | INodeResult::Variable(_) = value {
+            value = INodeResult::Void;
         };
 
         // we're done with this scope, drop it
